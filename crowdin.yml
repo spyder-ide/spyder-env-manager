@@ -1,0 +1,15 @@
+# ----------------------------------------------------------------------------
+# Copyright © 2022, Spyder Development Team and spyder-env-manager contributors
+#
+# Licensed under the terms of the MIT license
+# ----------------------------------------------------------------------------
+
+commit_message: '[ci skip] New %language% translation from Crowdin'
+append_commit_message: false
+files:
+  - source: /spyder_env_manager/spyder/locale/spyder_env_manager.pot
+    translation: /spyder_env_manager/spyder_env_manager/locale/%two_letters_code%/LC_MESSAGES/%file_name%.po
+    languages_mapping:
+      two_letters_code:
+        pt-BR: pt_BR
+        zh-CN: zh_CN
