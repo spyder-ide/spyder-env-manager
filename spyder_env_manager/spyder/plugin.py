@@ -17,7 +17,7 @@ from spyder.api.translations import get_translation
 
 # Local imports
 from spyder_env_manager.spyder.confpage import SpyderEnvManagerConfigPage
-from spyder_env_manager.spyder.widgets import SpyderEnvManagerWidget
+from spyder_env_manager.spyder.widgets.main_widget import SpyderEnvManagerWidget
 
 _ = get_translation("spyder_env_manager.spyder")
 
