@@ -16,14 +16,17 @@ import os.path as osp
 
 # Third library imports
 from qtpy import PYQT5
-from qtpy.compat import getopenfilenames, getsavefilename
-from qtpy.QtCore import Qt, Signal, Slot
-from qtpy.QtGui import QCursor
+from qtpy.compat import getopenfilenames, getsavefilename, to_qvariant
+from qtpy.QtCore import Qt, Signal, Slot, QAbstractTableModel, QModelIndex, QPoint
+from qtpy.QtGui import QCursor, QContextMenuEvent
 from qtpy.QtWidgets import (QApplication, QHBoxLayout, QInputDialog,
-                            QMessageBox, QVBoxLayout, QWidget)
+                            QMessageBox, QVBoxLayout, QWidget, QTableView,
+                            QAbstractItemView, QLabel, QMenu)
 from spyder_kernels.utils.iofuncs import iofunctions
 from spyder_kernels.utils.misc import fix_reference_name
 from spyder_kernels.utils.nsview import REMOTE_SETTINGS
+from spyder.utils.qthelpers import (
+    add_actions, create_action, MENU_SEPARATOR, mimedata2url)
 
 # Local imports
 from spyder.api.translations import get_translation
@@ -32,7 +35,7 @@ from spyder.widgets.collectionseditor import RemoteCollectionsEditorTableView
 from spyder.plugins.variableexplorer.widgets.importwizard import ImportWizard
 from spyder.utils import encoding
 from spyder.utils.misc import getcwd_or_home, remove_backslashes
-from spyder.widgets.helperwidgets import FinderLineEdit
+from spyder.widgets.helperwidgets import FinderLineEdit, ItemDelegate
 
 
 # Localization
@@ -42,219 +45,239 @@ _ = get_translation('spyder')
 VALID_VARIABLE_CHARS = r"[^\w+*=¡!¿?'\"#$%&()/<>\-\[\]{}^`´;,|¬]*\w"
 
 
-class NamespaceBrowser(QWidget, SpyderWidgetMixin):
-    """
-    Namespace browser (global variables explorer widget).
-    """
-    # This is necessary to test the widget separately from its plugin
-    CONF_SECTION = 'packcages_table'
+PACKAGE, DESCRIPTION, VERSION = [0, 1, 2]
 
-    # Signals
-    sig_free_memory_requested = Signal()
-    sig_start_spinner_requested = Signal()
-    sig_stop_spinner_requested = Signal()
+class EnvironmentPackagesModel(QAbstractTableModel):
+    def __init__(self, parent, text_color=None, text_color_highlight=None):
+        QAbstractTableModel.__init__(self)
+        self._parent = parent
 
-    def __init__(self, parent):
-        if PYQT5:
-            super().__init__(parent=parent, class_parent=parent)
+        self.servers = []
+        self.server_map = {}
+        # self.scores = []
+        self.rich_text = []
+        self.normal_text = []
+        self.letters = ''
+        self.label = QLabel()
+        self.widths = []
+
+        # Needed to compensate for the HTMLDelegate color selection unawareness
+        palette = parent.palette()
+        if text_color is None:
+            self.text_color = palette.text().color().name()
         else:
-            QWidget.__init__(self, parent)
-            SpyderWidgetMixin.__init__(self, class_parent=parent)
+            self.text_color = text_color
 
-        # Attributes
-        self.filename = None
-
-        # Widgets
-        self.editor = None
-        self.shellwidget = None
-
-    def setup(self):
-        """
-        Setup the namespace browser with provided options.
-        """
-        assert self.shellwidget is not None
-
-        if self.editor is not None:
-            self.shellwidget.set_namespace_view_settings()
-            self.refresh_table()
+        if text_color_highlight is None:
+            self.text_color_highlight = \
+                palette.highlightedText().color().name()
         else:
-            # Widgets
-            self.editor = RemoteCollectionsEditorTableView(
-                self,
-                data=None,
-                shellwidget=self.shellwidget,
-                create_menu=False,
-            )
+            self.text_color_highlight = text_color_highlight
 
-            # Signals
-            self.editor.sig_files_dropped.connect(self.import_data)
-            self.editor.sig_free_memory_requested.connect(
-                self.sig_free_memory_requested)
-            self.editor.sig_editor_creation_started.connect(
-                self.sig_start_spinner_requested)
-            self.editor.sig_editor_shown.connect(
-                self.sig_stop_spinner_requested)
+    def sortByName(self):
+        """Qt Override."""
+        self.servers = sorted(self.servers, key=lambda x: x.language)
+        self.reset()
 
-            # Layout
-            layout = QVBoxLayout()
-            layout.setContentsMargins(0, 0, 0, 0)
-            layout.addWidget(self.editor)
-            self.setLayout(layout)
+    def flags(self, index):
+        """Qt Override."""
+        if not index.isValid():
+            return Qt.ItemIsEnabled
+        return Qt.ItemFlags(QAbstractTableModel.flags(self, index))
 
-    def get_view_settings(self):
-        """Return dict editor view settings"""
-        settings = {}
-        for name in REMOTE_SETTINGS:
-            settings[name] = self.get_conf(name)
+    def data(self, index, role=Qt.DisplayRole):
+        """Qt Override."""
+        row = index.row()
+        if not index.isValid() or not (0 <= row < len(self.servers)):
+            return to_qvariant()
 
-        return settings
+        server = self.servers[row]
+        column = index.column()
 
-    def set_shellwidget(self, shellwidget):
-        """Bind shellwidget instance to namespace browser"""
-        self.shellwidget = shellwidget
-        shellwidget.set_namespacebrowser(self)
+        if role == Qt.DisplayRole:
+            if column == PACKAGE:
+                return to_qvariant(server['package'])
+            elif column == DESCRIPTION:
+                return to_qvariant(server['description'])
+            elif column == VERSION:
+                return to_qvariant(server['version'])
+        elif role == Qt.TextAlignmentRole:
+            return to_qvariant(int(Qt.AlignHCenter | Qt.AlignVCenter))
+        return to_qvariant()
+
+    def headerData(self, section, orientation, role=Qt.DisplayRole):
+        """Qt Override."""
+        if role == Qt.TextAlignmentRole:
+            if orientation == Qt.Horizontal:
+                return to_qvariant(int(Qt.AlignHCenter | Qt.AlignVCenter))
+            return to_qvariant(int(Qt.AlignRight | Qt.AlignVCenter))
+        if role != Qt.DisplayRole:
+            return to_qvariant()
+        if orientation == Qt.Horizontal:
+            if section == PACKAGE:
+                return to_qvariant(_("Package"))
+            elif section == DESCRIPTION:
+                return to_qvariant(_("Description"))
+            elif section == VERSION:
+                return to_qvariant(_("Version"))
+        return to_qvariant()
+
+    def rowCount(self, index=QModelIndex()):
+        """Qt Override."""
+        return len(self.servers)
+
+    def columnCount(self, index=QModelIndex()):
+        """Qt Override."""
+        return 3
+
+    def row(self, row_num):
+        """Get row based on model index. Needed for the custom proxy model."""
+        return self.servers[row_num]
+
+    def reset(self):
+        """"Reset model to take into account new search letters."""
+        self.beginResetModel()
+        self.endResetModel()
 
 
-    def refresh_table(self):
-        """Refresh variable table."""
-        self.shellwidget.refresh_namespacebrowser()
-        try:
-            self.editor.resizeRowToContents()
-        except TypeError:
-            pass
+class EnvironmentPackagesTable(QTableView):
 
-    def process_remote_view(self, remote_view):
-        """Process remote view"""
+    def __init__(self, parent, text_color=None):
+        QTableView.__init__(self, parent)
+        self.menu = None
+        self.menu_actions = []
+        self.empty_ws_menu = None
+        self.update_action = None
+        self.uninstall_action = None
+        self.change_action = None
+        self._parent = parent
+        self.delete_queue = []
+        self.source_model = EnvironmentPackagesModel(self, text_color=text_color)
+        self.setModel(self.source_model)
+        self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.setSortingEnabled(True)
+        self.setEditTriggers(QAbstractItemView.AllEditTriggers)
+        #self.selectionModel().selectionChanged.connect(self.selection)
+        self.verticalHeader().hide()
+        self.load_packages()
 
-        if remote_view is not None:
-            self.set_data(remote_view)
+    def contextMenuEvent(self, event):
+        """Setup context menu"""
+        col = self.columnAt(event.pos().x())
+        row = self.rowAt(event.pos().y())
+        if col == 1 and row is not None: 
+            self.update_action = create_action(self, _("Update package(s)"),
+                                              triggered=self.selection)
+            self.uninstall_action = create_action(self, _("Uninstall package(s)"),
+                                             triggered=self.selection)
+            self.change_action = create_action(self, _("Change package version with a version constraint"),
+                                             triggered=self.selection)
+            menu = QMenu(self)
+            self.menu_actions = [
+                self.update_action,
+                self.uninstall_action,
+                self.change_action]        
+            add_actions(menu, self.menu_actions)
+            menu.setMinimumWidth(100)
+            menu.exec_(self.mapToGlobal(event.pos()))
 
-    def set_var_properties(self, properties):
-        """Set properties of variables"""
-        if properties is not None:
-            self.editor.var_properties = properties
+    def focusOutEvent(self, e):
+        """Qt Override."""
+        # self.source_model.update_active_row()
+        # self._parent.delete_btn.setEnabled(False)
+        super(EnvironmentPackagesTable, self).focusOutEvent(e)
 
-    def set_data(self, data):
-        """Set data."""
-        if data != self.editor.source_model.get_data():
-            self.editor.set_data(data)
-            self.editor.adjust_columns()
+    def focusInEvent(self, e):
+        """Qt Override."""
+        super(EnvironmentPackagesTable, self).focusInEvent(e)
+        self.selectRow(self.currentIndex().row())
 
-    @Slot(list)
-    def import_data(self, filenames=None):
-        """Import data from text file."""
-        title = _("Import data")
-        if filenames is None:
-            if self.filename is None:
-                basedir = getcwd_or_home()
-            else:
-                basedir = osp.dirname(self.filename)
-            filenames, _selfilter = getopenfilenames(self, title, basedir,
-                                                     iofunctions.load_filters)
-            if not filenames:
-                return
-        elif isinstance(filenames, str):
-            filenames = [filenames]
+    def selection(self, index):
+        """Update selected row."""
+        self.update()
+        self.isActiveWindow()
+        self._parent.delete_btn.setEnabled(True)
 
-        for filename in filenames:
-            self.filename = str(filename)
-            if os.name == "nt":
-                self.filename = remove_backslashes(self.filename)
-            extension = osp.splitext(self.filename)[1].lower()
+    def adjust_cells(self):
+        """Adjust column size based on contents."""
+        self.resizeColumnsToContents()
+        fm = self.horizontalHeader().fontMetrics()
+        names = [fm.width(s['description']) for s in self.source_model.servers]
+        if names:
+            self.setColumnWidth(DESCRIPTION, max(names))
+        self.horizontalHeader().setStretchLastSection(True)
 
-            if extension not in iofunctions.load_funcs:
-                buttons = QMessageBox.Yes | QMessageBox.Cancel
-                answer = QMessageBox.question(self, title,
-                            _("<b>Unsupported file extension '%s'</b><br><br>"
-                              "Would you like to import it anyway "
-                              "(by selecting a known file format)?"
-                              ) % extension, buttons)
-                if answer == QMessageBox.Cancel:
-                    return
-                formats = list(iofunctions.load_extensions.keys())
-                item, ok = QInputDialog.getItem(self, title,
-                                                _('Open file as:'),
-                                                formats, 0, False)
-                if ok:
-                    extension = iofunctions.load_extensions[str(item)]
-                else:
-                    return
+    def get_server_by_lang(self, lang):
+        return self.source_model.server_map.get(lang)
 
-            load_func = iofunctions.load_funcs[extension]
-                
-            # 'import_wizard' (self.setup_io)
-            if isinstance(load_func, str):
-                # Import data with import wizard
-                error_message = None
-                try:
-                    text, _encoding = encoding.read(self.filename)
-                    base_name = osp.basename(self.filename)
-                    editor = ImportWizard(self, text, title=base_name,
-                                  varname=fix_reference_name(base_name))
-                    if editor.exec_():
-                        var_name, clip_data = editor.get_data()
-                        self.editor.new_value(var_name, clip_data)
-                except Exception as error:
-                    error_message = str(error)
-            else:
-                QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
-                QApplication.processEvents()
-                error_message = self.shellwidget.load_data(self.filename,
-                                                           extension)
-                QApplication.restoreOverrideCursor()
-                QApplication.processEvents()
-    
-            if error_message is not None:
-                QMessageBox.critical(self, title,
-                                     _("<b>Unable to load '%s'</b>"
-                                       "<br><br>"
-                                       "The error message was:<br>%s"
-                                       ) % (self.filename, error_message))
-            self.refresh_table()
+    def load_packages(self):
+        packages = [{'package':'aa','description':'Fragmento de un escrito con unidad temática, que queda diferenciado del resto de fragmentos ','version':'2.3.5'}]
+        for i, server in enumerate(packages):
+            server['index'] = i
+        package_map = {x['package']: x for x in packages}
+        self.source_model.servers = packages
+        self.source_model.server_map = package_map
+        self.source_model.reset()
+        self.adjust_cells()
+        self.sortByColumn(PACKAGE, Qt.AscendingOrder)
 
-    def reset_namespace(self):
-        warning = self.get_conf(
-            section='ipython_console',
-            option='show_reset_namespace_warning'
-        )
-        self.shellwidget.reset_namespace(warning=warning, message=True)
-        self.editor.automatic_column_width = True
+    def save_servers(self):
+        language_set = set({})
+        for server in self.source_model.servers:
+            language_set |= {server.language.lower()}
+            server.save()
+        while len(self.delete_queue) > 0:
+            server = self.delete_queue.pop(0)
+            language_set |= {server.language.lower()}
+            server.delete()
+        return language_set
 
-    def save_data(self):
-        """Save data"""
-        filename = self.filename
-        if filename is None:
-            filename = getcwd_or_home()
-        extension = osp.splitext(filename)[1].lower()
-        if not extension:
-            # Needed to prevent trying to save a data file without extension
-            # See spyder-ide/spyder#7196
-            filename = filename + '.spydata'
-        filename, _selfilter = getsavefilename(self, _("Save data"),
-                                               filename,
-                                               iofunctions.save_filters)
-        if filename:
-            self.filename = filename
+    def delete_server(self, idx):
+        server = self.source_model.servers.pop(idx)
+        self.delete_queue.append(server)
+        self.source_model.server_map.pop(server.language)
+        self.source_model.reset()
+        self.adjust_cells()
+        self.sortByColumn(PACKAGE, Qt.AscendingOrder)
+
+    def delete_server_by_lang(self, language):
+        idx = next((i for i, x in enumerate(self.source_model.servers)
+                    if x.language == language), None)
+        if idx is not None:
+            self.delete_server(idx)
+
+    def show_editor(self, new_server=False):
+        pass
+
+    def next_row(self):
+        """Move to next row from currently selected row."""
+        row = self.currentIndex().row()
+        rows = self.source_model.rowCount()
+        if row + 1 == rows:
+            row = -1
+        self.selectRow(row + 1)
+
+    def previous_row(self):
+        """Move to previous row from currently selected row."""
+        row = self.currentIndex().row()
+        rows = self.source_model.rowCount()
+        if row == 0:
+            row = rows
+        self.selectRow(row - 1)
+
+    def keyPressEvent(self, event):
+        """Qt Override."""
+        key = event.key()
+        if key in [Qt.Key_Enter, Qt.Key_Return]:
+            self.show_editor()
+        elif key in [Qt.Key_Backtab]:
+            self.parent().reset_btn.setFocus()
+        elif key in [Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right]:
+            super(EnvironmentPackagesTable, self).keyPressEvent(event)
         else:
-            return False
+            super(EnvironmentPackagesTable, self).keyPressEvent(event)
 
-        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
-        QApplication.processEvents()
-
-        error_message = self.shellwidget.save_namespace(self.filename)
-
-        QApplication.restoreOverrideCursor()
-        QApplication.processEvents()
-        if error_message is not None:
-            if 'Some objects could not be saved:' in error_message:
-                save_data_message = (
-                    _("<b>Some objects could not be saved:</b>")
-                    + "<br><br><code>{obj_list}</code>".format(
-                        obj_list=error_message.split(': ')[1]))
-            else:
-                save_data_message = _(
-                    "<b>Unable to save current workspace</b>"
-                    "<br><br>"
-                    "The error message was:<br>") + error_message
-
-            QMessageBox.critical(self, _("Save data"), save_data_message)
+    def mouseDoubleClickEvent(self, event):
+        """Qt Override."""
+        self.show_editor()

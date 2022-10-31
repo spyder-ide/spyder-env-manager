@@ -26,7 +26,7 @@ from spyder.utils.misc import getcwd_or_home, remove_backslashes
 from spyder.api.widgets.mixins import SpyderWidgetMixin
 from spyder.api.config.decorators import on_conf_change
 from spyder.api.translations import get_translation
-from spyder.plugins.help.utils.sphinxify import (CSS_PATH, generate_context, usage, warning)
+from spyder.plugins.help.utils.sphinxify import ( generate_context, usage, warning)
 from spyder.api.widgets.main_widget import PluginMainWidget
 from spyder.plugins.variableexplorer.widgets.namespacebrowser import (
     NamespaceBrowser, NamespacesBrowserFinder, VALID_VARIABLE_CHARS)
@@ -43,6 +43,7 @@ from spyder.config.manager import CONF
 from spyder.utils.conda import get_list_conda_envs_cache
 from spyder.utils.pyenv import get_list_pyenv_envs_cache
 from spyder_env_manager.spyder.widgets.helper_widgets import MessageComboBox
+from spyder_env_manager.spyder.widgets.packages_table import EnvironmentPackagesTable
 
 # Localization
 _ = get_translation('spyder')
@@ -57,7 +58,7 @@ TEMPLATES_PATH = osp.join(
 MAIN_BG_COLOR = QStylePalette.COLOR_BACKGROUND_1
 separador = osp.sep
 ENVIRONMENT_MESSAGE = open(osp.join( separador.join(osp.dirname(os.path.abspath(__file__)).split(separador)[:-2]),'spyder','assets','templates' ,'environment_info.html')).read()
-
+CSS_PATH = osp.join(PLUGINS_PATH, 'help', 'utils', 'static', 'css')
 class SpyderEnvManagerWidgetActions:
     # Triggers
     SelectEnvironment = 'select_environment'
@@ -168,12 +169,14 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         
 
         self.select_environment.setToolTip('Select an environment')
-        self.css_path = self.get_conf('css_path', CSS_PATH, 'appearance')
+        self.select_environment.setMinimumWidth(680)
+        self.css_path = self.get_conf('css_path',CSS_PATH, 'appearance')
 
         self.infowidget = FrameWebView(self)
-        
-        self.stack_layout = layout = QVBoxLayout()
+        self.table_layout = EnvironmentPackagesTable(self, text_color=ima.MAIN_FG_COLOR)
+        self.stack_layout = layout = QStackedLayout()
         layout.addWidget(self.infowidget)
+        layout.addWidget(self.table_layout)
         self.setLayout(self.stack_layout)
         #Signals
         self.select_environment.currentIndexChanged.connect(
@@ -240,7 +243,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         ImportEnvironmentToolbar = self.create_action(
             SpyderEnvManagerWidgetActions.ImportEnvironmentToolbar,
             text=_("Import environment"),
-            icon=qta.icon('mdi.import',color=ima.MAIN_FG_COLOR, rotated=270),
+            icon=qta.icon('mdi.import',color=ima.MAIN_FG_COLOR, rotated=90),
             triggered=lambda x: self._message_import_environment(),
         )
 
@@ -254,16 +257,15 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         InstallPackageToolbar = self.create_action(
             SpyderEnvManagerWidgetActions.InstallPackageToolbar,
             text=_("Install package"),
-            icon=qta.icon('mdi.toy-brick-plus-outline',color=ima.MAIN_FG_COLOR),
+            icon=qta.icon('mdi.view-grid-plus-outline',color=ima.MAIN_FG_COLOR),
+            #mdi.toy-brick-plus-outline
             triggered=lambda x: self._message_install_package(),
         )
-
+        
 
         # Options menu
         options_menu = self.get_options_menu()
-        for item in [create_environment_action, delete_environment_action,
-                     import_environment_action, export_environment_action,
-                     close_environment_action]:
+        for item in [import_environment_action, export_environment_action]:
             self.add_item_to_menu(
                 item,
                 menu=options_menu,
@@ -272,16 +274,15 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         # Main toolbar
         main_toolbar = self.get_main_toolbar()
-        for item in [self.select_environment,NewEnvironmentToolbar,
-                     ImportEnvironmentToolbar, ExportEnvironmentToolbar,
+        for item in [self.select_environment,NewEnvironmentToolbar,                     
                      InstallPackageToolbar, DeleteEnvironmentToolbar]:
             self.add_item_to_toolbar(
                 item,
                 toolbar=main_toolbar,
                 section=SpyderEnvManagerWidgetMainToolBarSections.Main,
             )
-        
         self.show_intro_message()
+        self.source_changed()
         
         #DeleteEnvironmentToolbar.setEnabled(False)
 
@@ -293,17 +294,21 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def show_intro_message(self):
         """Show message on Help with the right shortcuts."""
         intro_message_eq = _(
-            "Click + to create a new environment or icon to import an environment definition from a file")
+            "Click <tt>+</tt> &#xf015; to create a new environment or icon to import an environment definition from a file ")
         self.mainMessage = self._create_info_environment_page(title='Usage',message=intro_message_eq)
         self.infowidget.setHtml(
                 self.mainMessage,
                 QUrl.fromLocalFile(self.css_path)
             )
 
+    def update_font(self, rich_font):
+        self._rich_font = rich_font
+        self.infowidget.set_font(rich_font)
+
     def source_changed(self):
-        """Handle a source (plain/rich) change."""
         currentEnvironment = self.select_environment.currentText()
         if currentEnvironment == 'No environments available':
+            self.stack_layout.setCurrentWidget(self.infowidget)
             self.get_action(SpyderEnvManagerWidgetActions.DeleteEnvironment).setEnabled(False)
             self.get_action(SpyderEnvManagerWidgetActions.ExportEnvironmentToolbar).setEnabled(False)
             self.get_action(SpyderEnvManagerWidgetActions.InstallPackageToolbar).setEnabled(False)
@@ -313,6 +318,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             
         else:
             # Editor
+            self.stack_layout.setCurrentWidget(self.table_layout)
             self.get_action(SpyderEnvManagerWidgetActions.DeleteEnvironment).setEnabled(True)
             self.get_action(SpyderEnvManagerWidgetActions.ExportEnvironmentToolbar).setEnabled(True)
             self.get_action(SpyderEnvManagerWidgetActions.InstallPackageToolbar).setEnabled(True)
@@ -358,7 +364,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def _message_new_environment(self):
         title = _('New Python environment')
         messages = ['Manager to use','Python version']
-        types = ['ComboBox','ComboBox']
+        types = ['ComboBox','ComboBoxEdit']
         contents=[{'Conda-like','Pyenv'},{'3.8.10','3.6.8'}]
         self._message_box_editable(title, messages, contents, types)
 
@@ -370,7 +376,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self._message_box_editable(title, messages, contents, types)
 
     def _message_box_editable(self, title, messages, contents, types):
-        box = MessageComboBox(self, title=title, messages=messages, types=types, contents=contents)        
+        box = MessageComboBox(self, title=title, messages=messages, types=types, contents=contents)    
+        #box.setMaximumWidth(box.width())
+        #box.setMaximumHeight(box.height())
+        #box.setMinimumWidth(box.width())
+        #box.setMinimumHeight(box.height())    
         box.show()
 
     def _message_box(self, title, message):        

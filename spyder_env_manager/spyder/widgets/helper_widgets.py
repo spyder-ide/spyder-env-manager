@@ -33,6 +33,7 @@ class MessageComboBox(QDialog):
         # otherwise it may be garbage-collected in another QThread
         # (e.g. the editor's analysis thread in Spyder), thus leading to
         # a segmentation fault on UNIX or an application crash on Windows
+        self.resize(450, 180)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.lineedits = {}
 
@@ -41,26 +42,42 @@ class MessageComboBox(QDialog):
 
 
         glayout = QGridLayout()
+        glayout.setContentsMargins(0, 0, 0, 0)
         for i, message in enumerate(messages):
             label = QLabel(_((message + ": ")))
-            glayout.addWidget(label, i, 0, Qt.AlignVCenter | Qt.AlignRight)
+            #label.setStyleSheet("border: 1px solid white;")
+            glayout.addWidget(label, i, 0, alignment=Qt.AlignVCenter)
             if types[i] == 'ComboBox':
                 self.comboBox = QComboBox()
                 self.comboBox.addItems(contents[i])
-                glayout.addWidget(self.comboBox, i, 1, Qt.AlignVCenter)
+                #self.comboBox.setStyleSheet("border: 1px solid white;")
+                glayout.addWidget(self.comboBox, i, 1, 1, 2,Qt.AlignVCenter)
+            elif types[i] == 'ComboBoxEdit':
+                re = QRegularExpression("[0-9]+([.][0-9]+)*?")
+                validator = QRegularExpressionValidator(re, self)
+                self.comboBox = QComboBox()
+                self.comboBox.addItems(contents[i])
+                #self.comboBox.setStyleSheet("border: 1px solid white;")
+                self.comboBox.setValidator(validator)
+                self.comboBox.setEditable(True)
+                #self.comboBox.textChanged.connect(self.text_has_changed)
+                glayout.addWidget(self.comboBox, i, 1, 1, 2,Qt.AlignVCenter)
+                
             elif types[i] == 'LineEditVersion':
                 self.lineedit = QLineEdit()
                 re = QRegularExpression("[0-9]+([.][0-9]+)*?")
                 validator = QRegularExpressionValidator(re, self)
                 self.lineedit.setValidator(validator)
-                self.lineedit.textChanged.connect(self.text_has_changed)
-                glayout.addWidget(self.lineedit, i, 1, Qt.AlignVCenter)
+                #self.lineedit.textChanged.connect(self.text_has_changed)
+                #self.lineedit.setStyleSheet("border: 1px solid white;")
+                glayout.addWidget(self.lineedit, i, 1, 1, 2,Qt.AlignVCenter)
             elif types[i] == 'LineEditString':
                 self.lineedit = QLineEdit()
                 re = QRegularExpression("[a-zA-Z]+")
                 validator = QRegularExpressionValidator(re, self)
                 self.lineedit.setValidator(validator)
-                glayout.addWidget(self.lineedit, i, 1, Qt.AlignVCenter)
+                #self.lineedit.setStyleSheet("border: 1px solid white;")
+                glayout.addWidget(self.lineedit, i, 1, 1, 2,Qt.AlignVCenter)
             else:
                 if os.name == 'nt':
                     filters = _("Files")+" (*.yml, *.json)"
@@ -73,8 +90,9 @@ class MessageComboBox(QDialog):
                     filters=filters,
                     #validate_callback=self._is_spyder_environment,
                 )
-                glayout.addWidget(self.cus_exec_combo, i, 1, Qt.AlignVCenter)
-
+                #self.cus_exec_combo.setStyleSheet("border: 1px solid white;")
+                glayout.addWidget(self.cus_exec_combo, i, 1, i, 2,Qt.AlignVCenter)
+            glayout.setVerticalSpacing(0)
 
         bbox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
                                 Qt.Horizontal, self)
@@ -85,10 +103,11 @@ class MessageComboBox(QDialog):
         #btnlayout.addStretch(1)
 
         ok_button = bbox.button(QDialogButtonBox.Ok)
-        ok_button.setEnabled(False)
+        #ok_button.setEnabled(False)
 
         layout = QVBoxLayout()
-        layout.addLayout(glayout)
+        #glayout.setStyleSheet("border: 1px solid black;")
+        layout.addLayout(glayout, Qt.AlignTop)
         layout.addLayout(btnlayout)
         self.setLayout(layout)
 
