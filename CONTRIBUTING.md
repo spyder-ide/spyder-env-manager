@@ -49,21 +49,35 @@ If you are proposing a feature:
 Ready to contribute? Here's how to set up `Spyder Env Manager` for local development.
 
 1. Fork the `spyder-env-manager` repo on GitHub.
-1. Clone your fork locally:
+2. Clone your fork locally:
 
 ```bash
 git clone git@github.com:your_name_here/spyder-env-manager.git
+cd spyder-env-manager/
 ```
 
-1. Install your local copy into a conda environment.
+3. Install your local copy into a conda environment:
 
 ```bash
-conda create -n spyder-env-manager python
-cd spyder-env-manager/
+conda create -n spyder-env-manager -c conda-forge python=3.9
+conda activate spyder-env-manager
 pip install -e .
 ```
 
-1. Create a branch for local development:
+4. Install testing dependencies:
+
+```bash
+pip install -r requirements/tests.txt
+```
+
+4. Setup pre-commit:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+5. Create a branch for local development:
 
 ```bash
 git checkout -b name-of-your-bugfix-or-feature
@@ -71,15 +85,13 @@ git checkout -b name-of-your-bugfix-or-feature
 
 Now you can make your changes locally.
 
-1. When you're done making changes, check that your changes pass flake8 and the
-   tests, including testing other Python versions:
+6. When you're done making changes, check that your changes pass the tests, including testing other Python versions:
 
 ```bash
-flake8 spyder_env_manager
-pytest spyder_env_manager
+pytest -vv -x spyder_env_manager
 ```
 
-1. Commit your changes and push your branch to GitHub:
+7. Commit your changes and push your branch to GitHub:
 
 ```bash
 git add .
@@ -87,18 +99,18 @@ git commit -m "Your detailed description of your changes."
 git push origin name-of-your-bugfix-or-feature
 ```
 
-1. Submit a pull request through the GitHub website.
+8. Submit a pull request through the GitHub website.
 
 ## Pull Request Guidelines
 
 Before you submit a pull request, check that it meets these guidelines:
 
 1. The pull request should include tests.
-1. If the pull request adds functionality, the docs should be updated. Put
+2. If the pull request adds functionality, the docs should be updated. Put
    your new functionality into a function with a docstring, and add the
    feature to the list in README.rst.
-1. The pull request should work for Python 3.6, 3.7 and 3.8. Check
-   https://github.com/spyder-ide/spyder-env-manager/pull_requests
+3. The pull request should work for Python 3.7+. Check
+   https://github.com/spyder-ide/spyder-env-manager/pulls
    and make sure that the tests pass for all supported Python versions.
 
 ## Tips
@@ -106,7 +118,7 @@ Before you submit a pull request, check that it meets these guidelines:
 To run a subset of tests:
 
 ```bash
-pytest tests/spyder/test_plugin.py
+pytest spyder_env_manager/tests/test_plugin.py
 ```
 
 ## Deploying

@@ -101,6 +101,7 @@ cookiecutter-pypackage-env/
 
 # IDE settings
 .vscode/
+.spyproject/
 
 # OSX stuff
 .DS_Store
