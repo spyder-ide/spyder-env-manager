@@ -1,3 +1,4 @@
+envs-manager
 qtawesome
 qtpy
 setuptools
