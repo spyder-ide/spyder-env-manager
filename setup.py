@@ -24,6 +24,7 @@ setup(
     url="https://github.com/spyder-ide/spyder-env-manager",
     python_requires=">= 3.7",
     install_requires=[
+        "envs-manager",
         "qtpy",
         "qtawesome",
         "spyder>=5.2.0",
@@ -42,7 +43,7 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
-        "Development Status :: 5 - Production/Stable",
+        "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Education",
         "Intended Audience :: Science/Research",
         "Intended Audience :: Developers",
