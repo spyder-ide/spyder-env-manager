@@ -22,6 +22,7 @@ from spyder.widgets.comboboxes import FileComboBox
 from spyder.config.user import NoDefault
 from spyder.py3compat import to_text_string
 from spyder.utils.misc import getcwd_or_home
+from spyder.widgets.helperwidgets import IconLineEdit
 
 
 class MessageComboBox(QDialog):
@@ -33,7 +34,7 @@ class MessageComboBox(QDialog):
         # otherwise it may be garbage-collected in another QThread
         # (e.g. the editor's analysis thread in Spyder), thus leading to
         # a segmentation fault on UNIX or an application crash on Windows
-        self.resize(450, 180)
+        self.resize(450, 130)
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.lineedits = {}
 
@@ -45,22 +46,20 @@ class MessageComboBox(QDialog):
         glayout.setContentsMargins(0, 0, 0, 0)
         for i, message in enumerate(messages):
             label = QLabel(_((message + ": ")))
-            #label.setStyleSheet("border: 1px solid white;")
             glayout.addWidget(label, i, 0, alignment=Qt.AlignVCenter)
             if types[i] == 'ComboBox':
                 self.comboBox = QComboBox()
                 self.comboBox.addItems(contents[i])
-                #self.comboBox.setStyleSheet("border: 1px solid white;")
                 glayout.addWidget(self.comboBox, i, 1, 1, 2,Qt.AlignVCenter)
             elif types[i] == 'ComboBoxEdit':
                 re = QRegularExpression("[0-9]+([.][0-9]+)*?")
                 validator = QRegularExpressionValidator(re, self)
                 self.comboBox = QComboBox()
                 self.comboBox.addItems(contents[i])
-                #self.comboBox.setStyleSheet("border: 1px solid white;")
-                self.comboBox.setValidator(validator)
+                line_edit=IconLineEdit(self)
+                self.comboBox.setLineEdit(line_edit)
                 self.comboBox.setEditable(True)
-                #self.comboBox.textChanged.connect(self.text_has_changed)
+                self.comboBox.lineEdit().setValidator(validator)
                 glayout.addWidget(self.comboBox, i, 1, 1, 2,Qt.AlignVCenter)
                 
             elif types[i] == 'LineEditVersion':
@@ -88,7 +87,6 @@ class MessageComboBox(QDialog):
                     contents[i],
                     'No file choosen',
                     filters=filters,
-                    #validate_callback=self._is_spyder_environment,
                 )
                 #self.cus_exec_combo.setStyleSheet("border: 1px solid white;")
                 glayout.addWidget(self.cus_exec_combo, i, 1, i, 2,Qt.AlignVCenter)
@@ -126,8 +124,7 @@ class MessageComboBox(QDialog):
     def create_file_combobox(self, text, choices, option, default=NoDefault,
                              tip=None, restart=False, filters=None,
                              adjust_to_contents=True,
-                             default_line_edit=False, section=None,
-                             validate_callback=None):
+                             default_line_edit=False, section=None):
         """choices: couples (name, key)"""
         if section is not None and section != self.CONF_SECTION:
             self.cross_section_options[option] = section
@@ -146,9 +143,6 @@ class MessageComboBox(QDialog):
         combobox.choices = choices
 
         msg = _('Invalid file path')
-        #self.validate_data[edit] = (
-        #    validate_callback if validate_callback else osp.isfile,
-        #    msg)
         browse_btn = QPushButton(ima.icon('FileIcon'), '', self)
         browse_btn.setToolTip(_("Select file"))
         options = QFileDialog.DontResolveSymlinks
@@ -165,6 +159,7 @@ class MessageComboBox(QDialog):
         widget.setLayout(layout)
 
         return widget
+
     def select_file(self, edit, filters=None, **kwargs):
         """Select File"""
         basedir = osp.dirname(to_text_string(edit.text()))
