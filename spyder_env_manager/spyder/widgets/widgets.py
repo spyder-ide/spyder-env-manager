@@ -96,4 +96,3 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     # --- Public API
     # ------------------------------------------------------------------------
-
