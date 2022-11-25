@@ -6,12 +6,7 @@ import requests
 
 # Third party imports
 from qtpy import PYQT5
-from qtpy.compat import (
-    getexistingdirectory,
-    getopenfilename,
-    from_qvariant,
-    to_qvariant,
-)
+from qtpy.compat import getopenfilename
 from qtpy.QtCore import Qt, QRegularExpression, Signal
 from qtpy.QtGui import (
     QRegularExpressionValidator,
@@ -33,7 +28,6 @@ from qtpy.QtWidgets import (
 # Local imports
 from spyder.config.base import _
 from spyder.utils.icon_manager import ima
-from spyder.utils.stringmatching import get_search_regex
 from spyder.widgets.comboboxes import FileComboBox
 from spyder.config.user import NoDefault
 from spyder.py3compat import to_text_string
@@ -90,15 +84,12 @@ class MessageComboBox(QDialog):
                 re = QRegularExpression("[0-9]+([.][0-9]+)*?")
                 validator = QRegularExpressionValidator(re, self)
                 self.lineedit.setValidator(validator)
-                # self.lineedit.textChanged.connect(self.text_has_changed)
-                # self.lineedit.setStyleSheet("border: 1px solid white;")
                 glayout.addWidget(self.lineedit, i, 1, 1, 2, Qt.AlignVCenter)
             elif types[i] == "LineEditString":
                 self.lineedit = QLineEdit()
                 re = QRegularExpression("[a-zA-Z]+")
                 validator = QRegularExpressionValidator(re, self)
                 self.lineedit.setValidator(validator)
-                # self.lineedit.setStyleSheet("border: 1px solid white;")
                 glayout.addWidget(self.lineedit, i, 1, 1, 2, Qt.AlignVCenter)
             else:
                 if os.name == "nt":
@@ -111,7 +102,6 @@ class MessageComboBox(QDialog):
                     "No file choosen",
                     filters=filters,
                 )
-                # self.cus_exec_combo.setStyleSheet("border: 1px solid white;")
                 glayout.addWidget(self.cus_exec_combo, i, 1, i, 2, Qt.AlignVCenter)
             glayout.setVerticalSpacing(0)
 

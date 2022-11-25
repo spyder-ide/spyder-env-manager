@@ -10,19 +10,13 @@ Spyder env manager Main Plugin Widget.
 
 # Third party imports
 from qtpy import PYQT5
-from qtpy.QtCore import QTimer, Slot, QUrl, Qt
+from qtpy.QtCore import QUrl
 from qtpy.QtWidgets import (
     QInputDialog,
     QMessageBox,
-    QHBoxLayout,
-    QWidget,
     QComboBox,
-    QLabel,
-    QVBoxLayout,
     QStackedLayout,
 )
-from qtpy.QtGui import QColor
-from qtpy.QtWebEngineWidgets import WEBENGINE, QWebEnginePage
 import os.path as osp
 from string import Template
 import pathlib
@@ -32,29 +26,13 @@ from spyder_kernels.utils.iofuncs import iofunctions
 
 # Local imports
 from spyder.utils.misc import getcwd_or_home, remove_backslashes
-from spyder.api.widgets.mixins import SpyderWidgetMixin
-from spyder.api.config.decorators import on_conf_change
 from spyder.api.translations import get_translation
-from spyder.plugins.help.utils.sphinxify import generate_context, usage, warning
 from spyder.api.widgets.main_widget import PluginMainWidget
-from spyder.plugins.variableexplorer.widgets.namespacebrowser import (
-    NamespaceBrowser,
-    NamespacesBrowserFinder,
-    VALID_VARIABLE_CHARS,
-)
-from spyder.utils.programs import is_module_installed
 from spyder.widgets.browser import FrameWebView
 from spyder.utils.palette import QStylePalette
-from spyder.widgets.findreplace import FindReplace
-from spyder.widgets.simplecodeeditor import SimpleCodeEditor
-from spyder.config.base import (
-    get_home_dir,
-    get_module_source_path,
-    running_under_pytest,
-)
+from spyder.config.base import get_module_source_path
 import qtawesome as qta
 from spyder.utils.icon_manager import ima
-from spyder.config.manager import CONF
 from spyder.utils.conda import get_list_conda_envs_cache
 from spyder.utils.pyenv import get_list_pyenv_envs_cache
 from spyder_env_manager.spyder.widgets.helper_widgets import MessageComboBox
@@ -108,47 +86,6 @@ class SpyderEnvManagerWidgetMainToolBarSections:
 # =============================================================================
 # ---- Widgets
 # =============================================================================
-
-
-class PlainText(QWidget):
-    """
-    Read-only editor widget with find dialog
-    """
-
-    def __init__(self, parent):
-        QWidget.__init__(self, parent)
-        self.editor = None
-
-        # Read-only simple code editor
-        self.editor = SimpleCodeEditor(self)
-        self.editor.setup_editor(
-            language="py",
-            highlight_current_line=False,
-            linenumbers=False,
-        )
-        self.editor.setReadOnly(True)
-        self.editor.setContextMenuPolicy(Qt.CustomContextMenu)
-
-        # Find/replace widget
-        layout = QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.editor)
-        self.setLayout(layout)
-
-    def set_font(self, font, color_scheme=None):
-        """Set font"""
-        self.editor.set_color_scheme(color_scheme)
-        self.editor.set_font(font)
-
-    def set_color_scheme(self, color_scheme):
-        """Set color scheme"""
-        self.editor.set_color_scheme(color_scheme)
-
-    def set_text(self, text):
-        self.editor.set_language(None)
-
-        self.editor.set_text(text)
-        self.editor.set_cursor_position("sof")
 
 
 class SpyderEnvManagerWidget(PluginMainWidget):
