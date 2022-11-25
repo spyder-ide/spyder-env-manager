@@ -2,6 +2,7 @@
 import re
 import os
 import os.path as osp
+import requests
 
 # Third party imports
 from qtpy import PYQT5
@@ -11,12 +12,8 @@ from qtpy.compat import (
     from_qvariant,
     to_qvariant,
 )
-from qtpy.QtCore import QPoint, QRegExp, QSize, Qt, QRegularExpression
+from qtpy.QtCore import Qt, QRegularExpression, Signal
 from qtpy.QtGui import (
-    QAbstractTextDocumentLayout,
-    QPainter,
-    QRegExpValidator,
-    QTextDocument,
     QRegularExpressionValidator,
 )
 from qtpy.QtWidgets import (
@@ -45,6 +42,8 @@ from spyder.widgets.helperwidgets import IconLineEdit
 
 
 class MessageComboBox(QDialog):
+    valid = Signal(bool, bool)
+
     def __init__(self, editor, title, messages, types, contents):
         QDialog.__init__(self, editor, Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
 
@@ -77,6 +76,13 @@ class MessageComboBox(QDialog):
                 self.comboBox.setLineEdit(line_edit)
                 self.comboBox.setEditable(True)
                 self.comboBox.lineEdit().setValidator(validator)
+                self.comboBox.editTextChanged.connect(self.validate)
+                self.valid.connect(line_edit.update_status)
+                show_status = getattr(
+                    self.comboBox.lineEdit(), "show_status_icon", None
+                )
+                if show_status:
+                    show_status()
                 glayout.addWidget(self.comboBox, i, 1, 1, 2, Qt.AlignVCenter)
 
             elif types[i] == "LineEditVersion":
@@ -128,6 +134,27 @@ class MessageComboBox(QDialog):
         self.setLayout(layout)
 
         # self.lineedit.setFocus()
+
+    def validate(self, qstr, editing=True):
+        """Validate entered path
+        if self.comboBox.selected_text == qstr and qstr != '':
+            self.valid.emit(True, True)
+            return
+        """
+        valid = self.is_valid(qstr)
+        if editing:
+            if valid:
+                self.valid.emit(True, False)
+            else:
+                self.valid.emit(False, False)
+
+    def is_valid(self, qstr):
+        url = ("https://www.python.org/downloads/release/python-{0}/").format(
+            qstr.replace(".", "")
+        )
+        x = requests.head(url)
+        print(x.status_code)
+        return x.status_code == 200
 
     def text_has_changed(self):
         """Line edit's text has changed."""
