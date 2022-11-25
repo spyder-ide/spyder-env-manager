@@ -58,6 +58,7 @@ class SpyderEnvManager(SpyderDockablePlugin):
 
     def on_close(self, cancellable=True):
         return True
+
     def update_font(self):
         """Update font from Preferences"""
         rich_font = self.get_font(rich_text=True)

@@ -19,16 +19,30 @@ from qtpy import PYQT5
 from qtpy.compat import getopenfilenames, getsavefilename, to_qvariant
 from qtpy.QtCore import Qt, Signal, Slot, QAbstractTableModel, QModelIndex, QPoint
 from qtpy.QtGui import QCursor, QContextMenuEvent, QMouseEvent, QColor
-from qtpy.QtWidgets import (QApplication, QHBoxLayout, QInputDialog,
-                            QMessageBox, QVBoxLayout, QWidget, QTableView,
-                            QAbstractItemView, QLabel, QMenu)
+from qtpy.QtWidgets import (
+    QApplication,
+    QHBoxLayout,
+    QInputDialog,
+    QMessageBox,
+    QVBoxLayout,
+    QWidget,
+    QTableView,
+    QAbstractItemView,
+    QLabel,
+    QMenu,
+)
 from spyder_kernels.utils.iofuncs import iofunctions
 from spyder_kernels.utils.misc import fix_reference_name
 from spyder_kernels.utils.nsview import REMOTE_SETTINGS
 from spyder.utils.qthelpers import (
-    add_actions, create_action, MENU_SEPARATOR, mimedata2url)
+    add_actions,
+    create_action,
+    MENU_SEPARATOR,
+    mimedata2url,
+)
 from spyder.config.fonts import DEFAULT_LARGE_DELTA, DEFAULT_SMALL_DELTA
 from spyder.config.gui import get_font
+
 # Local imports
 from spyder.api.translations import get_translation
 from spyder.api.widgets.mixins import SpyderWidgetMixin
@@ -37,16 +51,17 @@ from spyder.plugins.variableexplorer.widgets.importwizard import ImportWizard
 from spyder.utils import encoding
 from spyder.utils.misc import getcwd_or_home, remove_backslashes
 from spyder.widgets.helperwidgets import FinderLineEdit, ItemDelegate
-from spyder.utils.palette import QStylePalette
+from spyder.utils.palette import SpyderPalette
 
 # Localization
-_ = get_translation('spyder')
+_ = get_translation("spyder")
 
 # Constants
 VALID_VARIABLE_CHARS = r"[^\w+*=¡!¿?'\"#$%&()/<>\-\[\]{}^`´;,|¬]*\w"
 
 
 PACKAGE, DESCRIPTION, VERSION = [0, 1, 2]
+
 
 class EnvironmentPackagesModel(QAbstractTableModel):
     def __init__(self, parent, text_color=None, text_color_highlight=None):
@@ -58,7 +73,7 @@ class EnvironmentPackagesModel(QAbstractTableModel):
         # self.scores = []
         self.rich_text = []
         self.normal_text = []
-        self.letters = ''
+        self.letters = ""
         self.label = QLabel()
         self.widths = []
 
@@ -70,11 +85,9 @@ class EnvironmentPackagesModel(QAbstractTableModel):
             self.text_color = text_color
 
         if text_color_highlight is None:
-            self.text_color_highlight = \
-                palette.highlightedText().color().name()
+            self.text_color_highlight = palette.highlightedText().color().name()
         else:
             self.text_color_highlight = text_color_highlight
-
 
     def sortByName(self):
         """Qt Override."""
@@ -96,24 +109,25 @@ class EnvironmentPackagesModel(QAbstractTableModel):
         package = self.packages[row]
         column = index.column()
 
-        if role == Qt.DisplayRole :
+        if role == Qt.DisplayRole:
             if column == PACKAGE:
-                text = package['package']
+                text = package["package"]
                 return to_qvariant(text)
             elif column == DESCRIPTION:
-                text = package['description']
+                text = package["description"]
                 return to_qvariant(text)
             elif column == VERSION:
-                text = package['version']
+                text = package["version"]
                 return to_qvariant(text)
         elif role == Qt.TextAlignmentRole:
             return to_qvariant(int(Qt.AlignCenter))
         elif role == Qt.FontRole:
             return to_qvariant(get_font(font_size_delta=DEFAULT_SMALL_DELTA))
         elif role == Qt.BackgroundColorRole:
-            if package['dependence']:
-                return to_qvariant(QStylePalette.COLOR_ACCENT_2)
-        #elif role == Qt.Role
+            if package["dependence"]:
+                return to_qvariant(QColor(SpyderPalette.GROUP_1))  # )
+
+        # elif role == Qt.Role
         return to_qvariant()
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
@@ -146,7 +160,7 @@ class EnvironmentPackagesModel(QAbstractTableModel):
         return self.packages[row_num]
 
     def reset(self):
-        """"Reset model to take into account new search letters."""
+        """ "Reset model to take into account new search letters."""
         self.beginResetModel()
         self.endResetModel()
 
@@ -169,35 +183,40 @@ class EnvironmentPackagesTable(QTableView):
         self.delete_queue = []
         self.source_model = EnvironmentPackagesModel(self, text_color=text_color)
         self.setModel(self.source_model)
-        #self.setItemDelegateForColumn(PACKAGE, ItemDelegate(self))
-        #self.setItemDelegateForColumn(DESCRIPTION, ItemDelegate(self))
-        #self.setItemDelegateForColumn(VERSION, ItemDelegate(self))
+        # self.setItemDelegateForColumn(PACKAGE, ItemDelegate(self))
+        # self.setItemDelegateForColumn(DESCRIPTION, ItemDelegate(self))
+        # self.setItemDelegateForColumn(VERSION, ItemDelegate(self))
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setSelectionMode(QAbstractItemView.SingleSelection)
         self.setSortingEnabled(True)
         self.setEditTriggers(QAbstractItemView.AllEditTriggers)
-        #self.selectionModel().selectionChanged.connect(self.selection)
+        # self.selectionModel().selectionChanged.connect(self.selection)
         self.verticalHeader().hide()
         self.load_packages(False)
-
 
     def contextMenuEvent(self, event):
         """Setup context menu"""
         col = self.columnAt(event.pos().x())
         row = self.rowAt(event.pos().y())
         packages = self.source_model.packages
-        if (not packages[row]['dependence'] ):
-            self.update_action = create_action(self, _("Update package(s)"),
-                                              triggered=self.selection)
-            self.uninstall_action = create_action(self, _("Uninstall package(s)"),
-                                             triggered=self.selection)
-            self.change_action = create_action(self, _("Change package version with a version constraint"),
-                                             triggered=self.selection)
+        if not packages[row]["dependence"]:
+            self.update_action = create_action(
+                self, _("Update package(s)"), triggered=self.selection
+            )
+            self.uninstall_action = create_action(
+                self, _("Uninstall package(s)"), triggered=self.selection
+            )
+            self.change_action = create_action(
+                self,
+                _("Change package version with a version constraint"),
+                triggered=self.selection,
+            )
             menu = QMenu(self)
             self.menu_actions = [
                 self.update_action,
                 self.uninstall_action,
-                self.change_action]        
+                self.change_action,
+            ]
             add_actions(menu, self.menu_actions)
             menu.setMinimumWidth(100)
             menu.popup(event.globalPos())
@@ -216,16 +235,16 @@ class EnvironmentPackagesTable(QTableView):
 
     def selection(self, index):
         """Update selected row."""
-        print('Context menu')
-        #self.update()
-        #self.isActiveWindow()
+        print("Context menu")
+        # self.update()
+        # self.isActiveWindow()
         self._parent.delete_btn.setEnabled(True)
 
     def adjust_cells(self):
         """Adjust column size based on contents."""
         self.resizeColumnsToContents()
         fm = self.horizontalHeader().fontMetrics()
-        names = [fm.width(s['description']) for s in self.source_model.packages]
+        names = [fm.width(s["description"]) for s in self.source_model.packages]
         if names:
             self.setColumnWidth(DESCRIPTION, max(names))
         self.horizontalHeader().setStretchLastSection(True)
@@ -233,17 +252,34 @@ class EnvironmentPackagesTable(QTableView):
     def get_server_by_lang(self, lang):
         return self.source_model.server_map.get(lang)
 
-    def load_packages(self,option):
-        packages = [{'package':'aa','description':'Fragmento de un escrito con unidad temática, que queda diferenciado del resto de fragmentos ','version':'2.3.5','dependence':False},
-        {'package':'bb','description':'Fragmento de un escrito con unidad temática, diferenciado del resto de fragmentos ','version':'2.5','dependence':False},
-        {'package':'cc','description':'Fragmento de un escrito con unidad temática, ','version':'2','dependence':True}]
+    def load_packages(self, option):
+        packages = [
+            {
+                "package": "aa",
+                "description": "Fragmento de un escrito con unidad temática, que queda diferenciado del resto de fragmentos ",
+                "version": "2.3.5",
+                "dependence": False,
+            },
+            {
+                "package": "bb",
+                "description": "Fragmento de un escrito con unidad temática, diferenciado del resto de fragmentos ",
+                "version": "2.5",
+                "dependence": False,
+            },
+            {
+                "package": "cc",
+                "description": "Fragmento de un escrito con unidad temática, ",
+                "version": "2",
+                "dependence": True,
+            },
+        ]
         if option:
-            packages = list(filter(lambda x : not x['dependence'], packages))
-        #packages=packagesExample[1:3]
+            packages = list(filter(lambda x: not x["dependence"], packages))
+        # packages=packagesExample[1:3]
         for i, package in enumerate(packages):
-            package['index'] = i
-        
-        package_map = {x['package']: x for x in packages}
+            package["index"] = i
+
+        package_map = {x["package"]: x for x in packages}
         self.source_model.packages = packages
         self.source_model.server_map = package_map
         self.source_model.reset()
@@ -270,8 +306,14 @@ class EnvironmentPackagesTable(QTableView):
         self.sortByColumn(PACKAGE, Qt.AscendingOrder)
 
     def delete_server_by_lang(self, language):
-        idx = next((i for i, x in enumerate(self.source_model.servers)
-                    if x.language == language), None)
+        idx = next(
+            (
+                i
+                for i, x in enumerate(self.source_model.servers)
+                if x.language == language
+            ),
+            None,
+        )
         if idx is not None:
             self.delete_server(idx)
 

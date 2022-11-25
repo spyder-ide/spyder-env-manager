@@ -56,7 +56,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     # --- PluginMainWidget API
     # ------------------------------------------------------------------------
     def get_title(self):
-        return _("Spyder Env Manager" )
+        return _("Spyder Env Manager")
 
     def get_focus_widget(self):
         pass
@@ -97,10 +97,12 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     # --- Public API
     # ------------------------------------------------------------------------
 
+
 class RichText(QWidget, SpyderWidgetMixin):
     """
     WebView widget with find dialog
     """
+
     sig_link_clicked = Signal(QUrl)
 
     def __init__(self, parent):
@@ -114,13 +116,10 @@ class RichText(QWidget, SpyderWidgetMixin):
         self.webview.setup()
 
         if WEBENGINE:
-            self.webview.web_widget.page().setBackgroundColor(
-                QColor(MAIN_BG_COLOR))
+            self.webview.web_widget.page().setBackgroundColor(QColor(MAIN_BG_COLOR))
         else:
-            self.webview.web_widget.setStyleSheet(
-                "background:{}".format(MAIN_BG_COLOR))
-            self.webview.page().setLinkDelegationPolicy(
-                QWebEnginePage.DelegateAllLinks)
+            self.webview.web_widget.setStyleSheet("background:{}".format(MAIN_BG_COLOR))
+            self.webview.page().setLinkDelegationPolicy(QWebEnginePage.DelegateAllLinks)
 
         self.find_widget = FindReplace(self)
         self.find_widget.set_editor(self.webview.web_widget)
@@ -152,5 +151,4 @@ class RichText(QWidget, SpyderWidgetMixin):
         self.webview.load(qurl)
 
     def clear(self):
-        self.set_html('', self.webview.url())
-
+        self.set_html("", self.webview.url())
