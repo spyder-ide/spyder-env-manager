@@ -101,7 +101,7 @@ class EnvironmentPackagesModel(QAbstractTableModel):
             return to_qvariant(get_font(font_size_delta=DEFAULT_SMALL_DELTA))
         elif role == Qt.BackgroundColorRole:
             if package["dependence"]:
-                return to_qvariant(QColor(SpyderPalette.GROUP_1))
+                return to_qvariant(QColor(SpyderPalette.COLOR_OCCURRENCE_4))
         return to_qvariant()
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
