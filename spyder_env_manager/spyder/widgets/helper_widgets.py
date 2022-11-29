@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+# ----------------------------------------------------------------------------
+# Copyright © 2022, Spyder Development Team and spyder-env-manager contributors
+#
+# Licensed under the terms of the MIT license
+# ----------------------------------------------------------------------------
+
+
 # Standard imports
 import re
 import os
@@ -143,7 +151,6 @@ class MessageComboBox(QDialog):
             qstr.replace(".", "")
         )
         x = requests.head(url)
-        print(x.status_code)
         return x.status_code == 200
 
     def text_has_changed(self):

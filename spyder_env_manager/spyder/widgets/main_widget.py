@@ -48,11 +48,11 @@ _ = get_translation("spyder")
 # ---- Constants
 # =============================================================================
 PLUGINS_PATH = get_module_source_path("spyder", "plugins")
-TEMPLATES_PATH = osp.join(pathlib.Path(__file__), "spyder", "assets", "templates")
+TEMPLATES_PATH = pathlib.Path(pathlib.Path(__file__), "spyder", "assets", "templates")
 MAIN_BG_COLOR = QStylePalette.COLOR_BACKGROUND_1
 separador = osp.sep
 ENVIRONMENT_MESSAGE = open(
-    osp.join(
+    pathlib.Path(
         separador.join(osp.dirname(os.path.abspath(__file__)).split(separador)[:-2]),
         "spyder",
         "assets",
@@ -60,7 +60,7 @@ ENVIRONMENT_MESSAGE = open(
         "environment_info.html",
     )
 ).read()
-CSS_PATH = osp.join(PLUGINS_PATH, "help", "utils", "static", "css")
+CSS_PATH = pathlib.Path(PLUGINS_PATH, "help", "utils", "static", "css")
 
 
 class SpyderEnvManagerWidgetActions:
@@ -100,18 +100,12 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         conda_env = get_list_conda_envs_cache()
         pyenv_env = get_list_pyenv_envs_cache()
-        envs = {**conda_env, **pyenv_env, "No environments available": ""}
-        # envs={}
+        envs = {**conda_env, **pyenv_env}
 
         self.select_environment = QComboBox(self)
-        # self.create_combobox(
-        #    _('Recent custom interpreters'),
-        #    self.get_option('custom_interpreters_list'),
-        #    'custom_interpreter',
-        # )
         self.select_environment.ID = SpyderEnvManagerWidgetActions.SelectEnvironment
-        # if not envs:
-        #    envs={'No environments available'}
+        if not envs:
+            envs={'No environments available'}
 
         self.select_environment.addItems(envs)
 
@@ -142,21 +136,21 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             SpyderEnvManagerWidgetActions.ToggleExcludeDependency,
             text=_("Exclude dependency packages"),
             tip=_("Exclude dependency packages"),
-            toggled=lambda checked: self.packages_dependences(checked),
+            toggled=self.packages_dependences,
         )
 
         import_environment_action = self.create_action(
             SpyderEnvManagerWidgetActions.ImportEnvironment,
             text=_("Import environment from file (.yml, .txt)"),
             tip=_("Import environment from file (.yml, .txt)"),
-            triggered=lambda x: self._message_import_environment(),
+            triggered=self._message_import_environment,
         )
 
         export_environment_action = self.create_action(
             SpyderEnvManagerWidgetActions.ExportEnvironment,
             text=_("Export environment to file (.yml, .txt)"),
             tip=_("Export environment to file (.yml, .txt)"),
-            triggered=lambda x: self._message_save_environment(),
+            triggered=self._message_save_environment,
         )
 
         # ---- Toolbar actions
@@ -164,14 +158,14 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             SpyderEnvManagerWidgetActions.NewEnvironment,
             text=_("New environment"),
             icon=qta.icon("mdi.plus", color=ima.MAIN_FG_COLOR, rotated=270),
-            triggered=lambda x: self._message_new_environment(),
+            triggered=self._message_new_environment,
         )
 
         DeleteEnvironmentToolbar = self.create_action(
             SpyderEnvManagerWidgetActions.DeleteEnvironmentToolbar,
             text=_("Delete environment"),
             icon=self.create_icon("editclear"),
-            triggered=lambda x: self._message_delete_environment(),
+            triggered=self._message_delete_environment,
         )
 
         InstallPackageToolbar = self.create_action(
@@ -179,7 +173,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             text=_("Install package"),
             icon=qta.icon("mdi.view-grid-plus-outline", color=ima.MAIN_FG_COLOR),
             # mdi.toy-brick-plus-outline
-            triggered=lambda x: self._message_install_package(),
+            triggered=self._message_install_package,
         )
 
         # Options menu
@@ -212,16 +206,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 section=SpyderEnvManagerWidgetMainToolBarSections.Main,
             )
 
-        # self.table_layout.sig_update_package.connect(self.update_package)
         self.show_intro_message()
         self.source_changed()
-
-        # DeleteEnvironmentToolbar.setEnabled(False)
-
-        # text_full = _(
-        #    "Click here to create a NEW ENVIRONMENT")
-        # self.rich_text.set_text(text_full)
-        # self.stack_layout.setCurrentWidget(self.rich_text)
 
     def show_intro_message(self):
         """Show message on Help with the right shortcuts."""
@@ -321,10 +307,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         box = MessageComboBox(
             self, title=title, messages=messages, types=types, contents=contents
         )
-        # box.setMaximumWidth(box.width())
-        # box.setMaximumHeight(box.height())
-        # box.setMinimumWidth(box.width())
-        # box.setMinimumHeight(box.height())
+        box.setMaximumWidth(box.width())
+        box.setMaximumHeight(box.height())
+        box.setMinimumWidth(box.width())
+        box.setMinimumHeight(box.height())
         box.show()
 
     def _message_box(self, title, message):
@@ -335,73 +321,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         box.setDefaultButton(QMessageBox.Ok)
         box.setText(message)
         box.show()
-
-    def import_data(self, filenames=None):
-        """Import data from text file."""
-
-        title = _("Import data")
-        if filenames is None:
-            basedir = getcwd_or_home()
-            filenames, _selfilter = getopenfilenames(
-                self, title, basedir, iofunctions.load_filters
-            )
-            if not filenames:
-                return
-        elif isinstance(filenames, str):
-            filenames = [filenames]
-
-        for filename in filenames:
-            self.filename = str(filename)
-            if os.name == "nt":
-                self.filename = remove_backslashes(self.filename)
-            extension = osp.splitext(self.filename)[1].lower()
-
-            if extension not in iofunctions.load_funcs:
-                buttons = QMessageBox.Yes | QMessageBox.Cancel
-                answer = QMessageBox.question(
-                    self,
-                    title,
-                    _(
-                        "<b>Unsupported file extension '%s'</b><br><br>"
-                        "Would you like to import it anyway "
-                        "(by selecting a known file format)?"
-                    )
-                    % extension,
-                    buttons,
-                )
-                if answer == QMessageBox.Cancel:
-                    return
-                formats = list(iofunctions.load_extensions.keys())
-                item, ok = QInputDialog.getItem(
-                    self, title, _("Open file as:"), formats, 0, False
-                )
-                if ok:
-                    extension = iofunctions.load_extensions[str(item)]
-                else:
-                    return
-
-            load_func = iofunctions.load_funcs[extension]
-
-            # 'import_wizard' (self.setup_io)
-            if isinstance(load_func, str):
-                # Import data with import wizard
-                pass
-
-    def save_data(self):
-        if self.count():
-            nsb = self.current_widget()
-            nsb.save_data()
-            # self.update_actions()
-
-    def reset_namespace(self):
-        if self.count():
-            nsb = self.current_widget()
-            nsb.reset_namespace()
-
-    def refresh_table(self):
-        if self.count():
-            nsb = self.current_widget()
-            nsb.refresh_table()
 
     def packages_dependences(self, value):
         self.table_layout.load_packages(value)
