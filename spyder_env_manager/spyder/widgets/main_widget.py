@@ -105,7 +105,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.select_environment = QComboBox(self)
         self.select_environment.ID = SpyderEnvManagerWidgetActions.SelectEnvironment
         if not envs:
-            envs={'No environments available'}
+            envs = {"No environments available"}
 
         self.select_environment.addItems(envs)
 
