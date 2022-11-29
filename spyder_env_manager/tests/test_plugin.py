@@ -9,7 +9,7 @@ Spyder Env Manager plugin tests.
 """
 
 # Local imports
-from spyder_env_manager.spyder.widgets.widgets import SpyderEnvManagerWidget
+from spyder_env_manager.spyder.widgets.main_widget import SpyderEnvManagerWidget
 
 
 def test_env_manager(qtbot):
