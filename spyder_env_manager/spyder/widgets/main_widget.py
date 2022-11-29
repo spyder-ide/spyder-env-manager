@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright © Spyder Project Contributors
-# Licensed under the terms of the MIT License
-# (see spyder/__init__.py for details)
+# ----------------------------------------------------------------------------
+# Copyright © 2022, Spyder Development Team and spyder-env-manager contributors
+#
+# Licensed under the terms of the MIT license
+# ----------------------------------------------------------------------------
 
 """
 Spyder env manager Main Plugin Widget.

@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
+# ----------------------------------------------------------------------------
+# Copyright © 2022, Spyder Development Team and spyder-env-manager contributors
 #
-# Copyright © Spyder Project Contributors
-# Licensed under the terms of the MIT License
-# (see spyder/__init__.py for details)
+# Licensed under the terms of the MIT license
+# ----------------------------------------------------------------------------
 
 """
 Package table widget.
