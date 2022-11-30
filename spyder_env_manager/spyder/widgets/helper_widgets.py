@@ -120,18 +120,13 @@ class MessageComboBox(QDialog):
         bbox.rejected.connect(self.reject)
         btnlayout = QHBoxLayout()
         btnlayout.addWidget(bbox)
-        # btnlayout.addStretch(1)
 
         ok_button = bbox.button(QDialogButtonBox.Ok)
-        # ok_button.setEnabled(False)
 
         layout = QVBoxLayout()
-        # glayout.setStyleSheet("border: 1px solid black;")
         layout.addLayout(glayout, Qt.AlignTop)
         layout.addLayout(btnlayout)
         self.setLayout(layout)
-
-        # self.lineedit.setFocus()
 
     def validate(self, qstr, editing=True):
         """Validate entered path

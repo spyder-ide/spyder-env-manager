@@ -192,10 +192,6 @@ class EnvironmentPackagesTable(QTableView):
             menu.popup(event.globalPos())
             event.accept()
 
-    def focusOutEvent(self, e):
-        """Qt Override."""
-        super(EnvironmentPackagesTable, self).focusOutEvent(e)
-
     def focusInEvent(self, e):
         """Qt Override."""
         super(EnvironmentPackagesTable, self).focusInEvent(e)
@@ -203,8 +199,6 @@ class EnvironmentPackagesTable(QTableView):
 
     def selection(self, index):
         """Update selected row."""
-        # self.update()
-        # self.isActiveWindow()
         self._parent.delete_btn.setEnabled(True)
 
     def adjust_cells(self):
@@ -239,7 +233,6 @@ class EnvironmentPackagesTable(QTableView):
         ]
         if option:
             packages = list(filter(lambda x: not x["dependence"], packages))
-        # packages=packagesExample[1:3]
         for i, package in enumerate(packages):
             package["index"] = i
 
@@ -249,9 +242,6 @@ class EnvironmentPackagesTable(QTableView):
         self.source_model.reset()
         self.adjust_cells()
         self.sortByColumn(PACKAGE, Qt.AscendingOrder)
-
-    def show_editor(self, new_server=False):
-        pass
 
     def next_row(self):
         """Move to next row from currently selected row."""
