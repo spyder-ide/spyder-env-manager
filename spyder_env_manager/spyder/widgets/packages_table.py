@@ -12,27 +12,21 @@ This is the main widget used in the Spyder env Manager plugin
 """
 
 # Standard library imports
-import os
 import os.path as osp
 
 # Third library imports
 from qtpy import PYQT5
 from qtpy.compat import to_qvariant
-from qtpy.QtCore import Qt, Signal, Slot, QAbstractTableModel, QModelIndex
+from qtpy.QtCore import QAbstractTableModel, QModelIndex, Qt, Signal, Slot
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import (
-    QTableView,
-    QAbstractItemView,
-    QLabel,
-    QMenu,
-)
-from spyder.utils.qthelpers import add_actions, create_action
+from qtpy.QtWidgets import QAbstractItemView, QLabel, QMenu, QTableView
+
+# Spyder and local imports
+from spyder.api.translations import get_translation
 from spyder.config.fonts import DEFAULT_SMALL_DELTA
 from spyder.config.gui import get_font
-
-# Local imports
-from spyder.api.translations import get_translation
 from spyder.utils.palette import SpyderPalette
+from spyder.utils.qthelpers import add_actions, create_action
 
 # Localization
 _ = get_translation("spyder")

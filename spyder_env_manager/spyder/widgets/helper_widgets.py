@@ -7,39 +7,37 @@
 
 
 # Standard imports
-import re
 import os
 import os.path as osp
-import requests
+import re
 
 # Third party imports
+import requests
 from qtpy import PYQT5
 from qtpy.compat import getopenfilename
-from qtpy.QtCore import Qt, QRegularExpression, Signal
-from qtpy.QtGui import (
-    QRegularExpressionValidator,
-)
+from qtpy.QtCore import QRegularExpression, Qt, Signal
+from qtpy.QtGui import QRegularExpressionValidator
 from qtpy.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
-    QGridLayout,
-    QLineEdit,
-    QLabel,
-    QHBoxLayout,
     QFileDialog,
-    QVBoxLayout,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
     QPushButton,
+    QVBoxLayout,
     QWidget,
 )
 
-# Local imports
+# Spyder and local imports
 from spyder.config.base import _
-from spyder.utils.icon_manager import ima
-from spyder.widgets.comboboxes import FileComboBox
 from spyder.config.user import NoDefault
 from spyder.py3compat import to_text_string
+from spyder.utils.icon_manager import ima
 from spyder.utils.misc import getcwd_or_home
+from spyder.widgets.comboboxes import FileComboBox
 from spyder.widgets.helperwidgets import IconLineEdit
 
 

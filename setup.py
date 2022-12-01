@@ -7,11 +7,9 @@
 """
 Spyder Env Manager setup.
 """
-from setuptools import find_packages
-from setuptools import setup
+from setuptools import find_packages, setup
 
 from spyder_env_manager import __version__
-
 
 setup(
     # See: https://setuptools.readthedocs.io/en/latest/setuptools.html

@@ -21,11 +21,11 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(".."))
-import spyder_env_manager
-
 # -- Pree hook ---------------------------------------------
 # Copy markdown files
 import shutil
+
+import spyder_env_manager
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 REPO = os.path.dirname(HERE)
