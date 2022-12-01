@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+#
 # ----------------------------------------------------------------------------
 # Copyright © 2022, Spyder Development Team and spyder-env-manager contributors
 #

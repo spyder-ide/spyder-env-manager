@@ -19,7 +19,7 @@ from string import Template
 # Third party imports
 import qtawesome as qta
 from qtpy.QtCore import QUrl
-from qtpy.QtWidgets import QComboBox, QMessageBox, QStackedLayout
+from qtpy.QtWidgets import QComboBox, QMessageBox, QSizePolicy, QStackedLayout
 
 # Spyder and local imports
 from spyder.api.translations import get_translation
@@ -92,9 +92,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def __init__(self, name=None, plugin=None, parent=None):
         super().__init__(name, plugin, parent)
 
-        conda_env = get_list_conda_envs_cache()
-        pyenv_env = get_list_pyenv_envs_cache()
-        envs = {**conda_env, **pyenv_env}
+        envs = self.get_conf("environments_list")
 
         self.select_environment = QComboBox(self)
         self.select_environment.ID = SpyderEnvManagerWidgetActions.SelectEnvironment
@@ -104,7 +102,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.select_environment.addItems(envs)
 
         self.select_environment.setToolTip("Select an environment")
-        self.select_environment.setMinimumWidth(680)
+        self.select_environment.setSizeAdjustPolicy(
+            QComboBox.AdjustToMinimumContentsLength
+        )
+        self.select_environment.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.css_path = self.get_conf("css_path", CSS_PATH, "appearance")
 
         self.infowidget = FrameWebView(self)
@@ -114,9 +115,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         layout.addWidget(self.table_layout)
         self.setLayout(self.stack_layout)
         # Signals
-        self.select_environment.currentIndexChanged.connect(
-            lambda x: self.source_changed()
-        )
+        self.select_environment.currentIndexChanged.connect(self.source_changed)
 
     # ---- PluginMainWidget API
     # ------------------------------------------------------------------------
