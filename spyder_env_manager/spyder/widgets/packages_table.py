@@ -11,13 +11,9 @@ Package table widget.
 This is the main widget used in the Spyder env Manager plugin
 """
 
-# Standard library imports
-import os.path as osp
-
 # Third library imports
-from qtpy import PYQT5
 from qtpy.compat import to_qvariant
-from qtpy.QtCore import QAbstractTableModel, QModelIndex, Qt, Signal, Slot
+from qtpy.QtCore import QAbstractTableModel, QModelIndex, Qt, Signal
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QAbstractItemView, QLabel, QMenu, QTableView
 

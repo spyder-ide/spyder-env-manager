@@ -9,11 +9,9 @@
 # Standard imports
 import os
 import os.path as osp
-import re
 
 # Third party imports
 import requests
-from qtpy import PYQT5
 from qtpy.compat import getopenfilename
 from qtpy.QtCore import QRegularExpression, Qt, Signal
 from qtpy.QtGui import QRegularExpressionValidator

@@ -18,10 +18,8 @@ from string import Template
 
 # Third party imports
 import qtawesome as qta
-from qtpy import PYQT5
-from qtpy.compat import getopenfilenames
 from qtpy.QtCore import QUrl
-from qtpy.QtWidgets import QComboBox, QInputDialog, QMessageBox, QStackedLayout
+from qtpy.QtWidgets import QComboBox, QMessageBox, QStackedLayout
 
 # Spyder and local imports
 from spyder.api.translations import get_translation
@@ -29,11 +27,9 @@ from spyder.api.widgets.main_widget import PluginMainWidget
 from spyder.config.base import get_module_source_path
 from spyder.utils.conda import get_list_conda_envs_cache
 from spyder.utils.icon_manager import ima
-from spyder.utils.misc import getcwd_or_home, remove_backslashes
 from spyder.utils.palette import QStylePalette
 from spyder.utils.pyenv import get_list_pyenv_envs_cache
 from spyder.widgets.browser import FrameWebView
-from spyder_kernels.utils.iofuncs import iofunctions
 
 from spyder_env_manager.spyder.widgets.helper_widgets import MessageComboBox
 from spyder_env_manager.spyder.widgets.packages_table import EnvironmentPackagesTable
