@@ -92,7 +92,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def __init__(self, name=None, plugin=None, parent=None):
         super().__init__(name, plugin, parent)
 
-        envs = self.get_conf("environments_list")
+        envs = self.get_conf("environments_list", {})
 
         self.select_environment = QComboBox(self)
         self.select_environment.ID = SpyderEnvManagerWidgetActions.SelectEnvironment
