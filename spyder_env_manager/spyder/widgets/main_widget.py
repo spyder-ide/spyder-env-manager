@@ -13,22 +13,22 @@ Spyder env manager Main Plugin Widget.
 # Standard library imports
 import os
 import os.path as osp
-import pathlib
+from pathlib import Path
 from string import Template
 
 # Third party imports
+from envs_manager.manager import Manager
 import qtawesome as qta
 from qtpy.QtCore import QUrl
-from qtpy.QtWidgets import QComboBox, QMessageBox, QSizePolicy, QStackedLayout
+from qtpy.QtWidgets import QComboBox, QDialog, QMessageBox, QSizePolicy, QStackedLayout
 
 # Spyder and local imports
 from spyder.api.translations import get_translation
 from spyder.api.widgets.main_widget import PluginMainWidget
 from spyder.config.base import get_module_source_path
-from spyder.utils.conda import get_list_conda_envs_cache
+from spyder.dependencies import SPYDER_KERNELS_REQVER
 from spyder.utils.icon_manager import ima
 from spyder.utils.palette import QStylePalette
-from spyder.utils.pyenv import get_list_pyenv_envs_cache
 from spyder.widgets.browser import FrameWebView
 
 from spyder_env_manager.spyder.widgets.helper_widgets import MessageComboBox
@@ -42,27 +42,25 @@ _ = get_translation("spyder")
 # ---- Constants
 # =============================================================================
 PLUGINS_PATH = get_module_source_path("spyder", "plugins")
-TEMPLATES_PATH = pathlib.Path(pathlib.Path(__file__), "spyder", "assets", "templates")
+TEMPLATES_PATH = Path(__file__) / "spyder" / "assets" / "templates"
 MAIN_BG_COLOR = QStylePalette.COLOR_BACKGROUND_1
 separador = osp.sep
-ENVIRONMENT_MESSAGE = open(
-    pathlib.Path(
-        separador.join(osp.dirname(os.path.abspath(__file__)).split(separador)[:-2]),
-        "spyder",
-        "assets",
-        "templates",
-        "environment_info.html",
-    )
-).read()
-CSS_PATH = pathlib.Path(PLUGINS_PATH, "help", "utils", "static", "css")
+ENVIRONMENT_MESSAGE = Path(
+    separador.join(osp.dirname(os.path.abspath(__file__)).split(separador)[:-2]),
+    "spyder",
+    "assets",
+    "templates",
+    "environment_info.html",
+)
+CSS_PATH = Path(PLUGINS_PATH) / "help" / "utils" / "static" / "css"
 
 
 class SpyderEnvManagerWidgetActions:
     # Triggers
     SelectEnvironment = "select_environment"
     NewEnvironment = "new_environment"
-    DeleteEnvironmentToolbar = "delete_environment"
-    InstallPackageToolbar = "install_package"
+    DeleteEnvironment = "delete_environment"
+    InstallPackage = "install_package"
 
     # Options menu actions
     ImportEnvironment = "import_environment_action"
@@ -92,14 +90,14 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def __init__(self, name=None, plugin=None, parent=None):
         super().__init__(name, plugin, parent)
 
-        envs = self.get_conf("environments_list", {})
+        self.envs = self.get_conf("environments_list", {})
 
         self.select_environment = QComboBox(self)
         self.select_environment.ID = SpyderEnvManagerWidgetActions.SelectEnvironment
-        if not envs:
-            envs = {"No environments available"}
+        if not self.envs:
+            self.envs = {"No environments available"}
 
-        self.select_environment.addItems(envs)
+        self.select_environment.addItems(self.envs)
 
         self.select_environment.setToolTip("Select an environment")
         self.select_environment.setSizeAdjustPolicy(
@@ -114,6 +112,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         layout.addWidget(self.infowidget)
         layout.addWidget(self.table_layout)
         self.setLayout(self.stack_layout)
+
         # Signals
         self.select_environment.currentIndexChanged.connect(self.source_changed)
 
@@ -147,22 +146,22 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         )
 
         # ---- Toolbar actions
-        NewEnvironmentToolbar = self.create_action(
+        new_environment_action = self.create_action(
             SpyderEnvManagerWidgetActions.NewEnvironment,
             text=_("New environment"),
             icon=qta.icon("mdi.plus", color=ima.MAIN_FG_COLOR, rotated=270),
             triggered=self._message_new_environment,
         )
 
-        DeleteEnvironmentToolbar = self.create_action(
-            SpyderEnvManagerWidgetActions.DeleteEnvironmentToolbar,
+        delete_environment_action = self.create_action(
+            SpyderEnvManagerWidgetActions.DeleteEnvironment,
             text=_("Delete environment"),
             icon=self.create_icon("editclear"),
             triggered=self._message_delete_environment,
         )
 
-        InstallPackageToolbar = self.create_action(
-            SpyderEnvManagerWidgetActions.InstallPackageToolbar,
+        install_package_action = self.create_action(
+            SpyderEnvManagerWidgetActions.InstallPackage,
             text=_("Install package"),
             icon=qta.icon("mdi.view-grid-plus-outline", color=ima.MAIN_FG_COLOR),
             # mdi.toy-brick-plus-outline
@@ -189,9 +188,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         for item in [
             self.select_environment,
-            NewEnvironmentToolbar,
-            InstallPackageToolbar,
-            DeleteEnvironmentToolbar,
+            new_environment_action,
+            install_package_action,
+            delete_environment_action,
         ]:
             self.add_item_to_toolbar(
                 item,
@@ -220,45 +219,76 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         currentEnvironment = self.select_environment.currentText()
         if currentEnvironment == "No environments available":
             self.stack_layout.setCurrentWidget(self.infowidget)
-            self.get_action(
-                SpyderEnvManagerWidgetActions.InstallPackageToolbar
-            ).setEnabled(False)
-            self.get_action(
-                SpyderEnvManagerWidgetActions.DeleteEnvironmentToolbar
-            ).setEnabled(False)
+            self.get_action(SpyderEnvManagerWidgetActions.InstallPackage).setEnabled(
+                False
+            )
+            self.get_action(SpyderEnvManagerWidgetActions.DeleteEnvironment).setEnabled(
+                False
+            )
             self.get_action(SpyderEnvManagerWidgetActions.ExportEnvironment).setEnabled(
                 False
             )
-            self.get_action(
-                SpyderEnvManagerWidgetActions.InstallPackageToolbar
-            ).setEnabled(False)
+            self.get_action(SpyderEnvManagerWidgetActions.InstallPackage).setEnabled(
+                False
+            )
 
         else:
             # Editor
             self.stack_layout.setCurrentWidget(self.table_layout)
-            self.get_action(
-                SpyderEnvManagerWidgetActions.InstallPackageToolbar
-            ).setEnabled(True)
-            self.get_action(
-                SpyderEnvManagerWidgetActions.DeleteEnvironmentToolbar
-            ).setEnabled(True)
+            self.get_action(SpyderEnvManagerWidgetActions.InstallPackage).setEnabled(
+                True
+            )
+            self.get_action(SpyderEnvManagerWidgetActions.DeleteEnvironment).setEnabled(
+                True
+            )
             self.get_action(SpyderEnvManagerWidgetActions.ExportEnvironment).setEnabled(
                 True
             )
-            self.get_action(
-                SpyderEnvManagerWidgetActions.InstallPackageToolbar
-            ).setEnabled(True)
-
-    def _create_info_environment_page(self, title, message):
-        """Create html page to show while the kernel is starting"""
-        environment_message_template = Template(ENVIRONMENT_MESSAGE)
-        page = environment_message_template.substitute(
-            css_path=self.css_path, title=title, message=message
-        )
-        return page
+            self.get_action(SpyderEnvManagerWidgetActions.InstallPackage).setEnabled(
+                True
+            )
 
     def update_actions(self):
         pass
+
+    def packages_dependences(self, value):
+        self.table_layout.load_packages(value)
+
+    # ---- Private API
+    # ------------------------------------------------------------------------
+
+    def _create_info_environment_page(self, title, message):
+        """Create html page to show while the kernel is starting"""
+        with open(ENVIRONMENT_MESSAGE) as templete_message:
+            environment_message_template = Template(templete_message.read())
+            page = environment_message_template.substitute(
+                css_path=self.css_path, title=title, message=message
+            )
+        return page
+
+    def _env_action(self, dialog, action=None):
+        if action == SpyderEnvManagerWidgetActions.NewEnvironment:
+            root_path = Path(self.get_conf("environments_path"))
+            external_executable = self.get_conf("conda_file_executable_path")
+            packages = [
+                f"python={dialog.combobox_edit.currentText()}",
+                f"spyder-kernels{SPYDER_KERNELS_REQVER}",
+            ]
+            env_name = dialog.lineedit_string.text()
+            manager = Manager(
+                "conda-like",
+                root_path=root_path,
+                env_name=env_name,
+                external_executable=external_executable,
+            )
+            manager.create_environment(packages=packages)
+            if self.envs == {"No environments available"}:
+                self.select_environment.clear()
+            self.select_environment.addItem(env_name, manager.env_directory)
+        elif action == SpyderEnvManagerWidgetActions.ImportEnvironment:
+            pass
+        elif action == SpyderEnvManagerWidgetActions.InstallPackage:
+            pass
 
     def _message_save_environment(self):
         title = _("File save dialog")
@@ -279,24 +309,42 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         title = _("Import Python environment")
         messages = [_("Manager to use"), _("Packages file")]
         types = ["ComboBox", "Other"]
-        contents = [{"Conda-like", "Pyenv"}, {}]
-        self._message_box_editable(title, messages, contents, types)
+        contents = [{"conda-like"}, {}]
+        self._message_box_editable(
+            title,
+            messages,
+            contents,
+            types,
+            action=SpyderEnvManagerWidgetActions.ImportEnvironment,
+        )
 
     def _message_new_environment(self):
         title = _("New Python environment")
-        messages = ["Manager to use", "Python version"]
-        types = ["ComboBox", "ComboBoxEdit"]
-        contents = [{"Conda-like", "Pyenv"}, {"3.7", "3.8", "3.9", "3.10"}]
-        self._message_box_editable(title, messages, contents, types)
+        messages = ["Manager to use", "Environment Name", "Python version"]
+        types = ["ComboBox", "LineEditString", "ComboBoxEdit"]
+        contents = [{"conda-like"}, {}, {"3.7.15", "3.8.15", "3.9.15", "3.10.8"}]
+        self._message_box_editable(
+            title,
+            messages,
+            contents,
+            types,
+            action=SpyderEnvManagerWidgetActions.NewEnvironment,
+        )
 
     def _message_install_package(self):
         title = _("Install package")
         messages = ["Package", "Constraint", "Version"]
         types = ["LineEditString", "ComboBox", "LineEditVersion"]
         contents = [{}, {"==", "<=", ">=", "<", ">", "latest"}, {}]
-        self._message_box_editable(title, messages, contents, types)
+        self._message_box_editable(
+            title,
+            messages,
+            contents,
+            types,
+            action=SpyderEnvManagerWidgetActions.InstallPackage,
+        )
 
-    def _message_box_editable(self, title, messages, contents, types):
+    def _message_box_editable(self, title, messages, contents, types, action=None):
         box = MessageComboBox(
             self, title=title, messages=messages, types=types, contents=contents
         )
@@ -304,7 +352,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         box.setMaximumHeight(box.height())
         box.setMinimumWidth(box.width())
         box.setMinimumHeight(box.height())
-        box.show()
+        result = box.exec_()
+        if result == QDialog.Accepted:
+            self._env_action(box, action=action)
 
     def _message_box(self, title, message):
         box = QMessageBox(self)
@@ -314,9 +364,3 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         box.setDefaultButton(QMessageBox.Ok)
         box.setText(message)
         box.show()
-
-    def packages_dependences(self, value):
-        self.table_layout.load_packages(value)
-
-    # ---- Private API
-    # ------------------------------------------------------------------------

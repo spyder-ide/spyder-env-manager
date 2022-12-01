@@ -46,16 +46,10 @@ class MessageComboBox(QDialog):
     def __init__(self, editor, title, messages, types, contents):
         QDialog.__init__(self, editor, Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
 
-        # Destroying the C++ object right after closing the dialog box,
-        # otherwise it may be garbage-collected in another QThread
-        # (e.g. the editor's analysis thread in Spyder), thus leading to
-        # a segmentation fault on UNIX or an application crash on Windows
         self.resize(450, 130)
-        self.setAttribute(Qt.WA_DeleteOnClose)
-        self.lineedits = {}
-
         self.setWindowTitle(_(title))
         self.setModal(True)
+        self.lineedits = {}
 
         glayout = QGridLayout()
         glayout.setContentsMargins(0, 0, 0, 0)
@@ -63,42 +57,42 @@ class MessageComboBox(QDialog):
             label = QLabel(_((message + ": ")))
             glayout.addWidget(label, i, 0, alignment=Qt.AlignVCenter)
             if types[i] == "ComboBox":
-                self.comboBox = QComboBox()
-                self.comboBox.addItems(contents[i])
-                glayout.addWidget(self.comboBox, i, 1, 1, 2, Qt.AlignVCenter)
+                self.combobox = QComboBox()
+                self.combobox.addItems(contents[i])
+                glayout.addWidget(self.combobox, i, 1, 1, 2, Qt.AlignVCenter)
             elif types[i] == "ComboBoxEdit":
                 re = QRegularExpression("[0-9]+([.][0-9]+)*?")
                 validator = QRegularExpressionValidator(re, self)
-                self.comboBox = QComboBox()
-                self.comboBox.addItems(contents[i])
+                self.combobox_edit = QComboBox()
+                self.combobox_edit.addItems(contents[i])
                 line_edit = IconLineEdit(self)
-                self.comboBox.setLineEdit(line_edit)
-                self.comboBox.setEditable(True)
-                self.comboBox.lineEdit().setValidator(validator)
-                self.comboBox.editTextChanged.connect(self.validate)
+                self.combobox_edit.setLineEdit(line_edit)
+                self.combobox_edit.setEditable(True)
+                self.combobox_edit.lineEdit().setValidator(validator)
+                self.combobox_edit.editTextChanged.connect(self.validate)
                 self.valid.connect(line_edit.update_status)
                 show_status = getattr(
-                    self.comboBox.lineEdit(), "show_status_icon", None
+                    self.combobox_edit.lineEdit(), "show_status_icon", None
                 )
                 if show_status:
                     show_status()
-                glayout.addWidget(self.comboBox, i, 1, 1, 2, Qt.AlignVCenter)
+                glayout.addWidget(self.combobox_edit, i, 1, 1, 2, Qt.AlignVCenter)
 
             elif types[i] == "LineEditVersion":
-                self.lineedit = QLineEdit()
+                self.lineedit_version = QLineEdit()
                 re = QRegularExpression("[0-9]+([.][0-9]+)*?")
                 validator = QRegularExpressionValidator(re, self)
-                self.lineedit.setValidator(validator)
-                glayout.addWidget(self.lineedit, i, 1, 1, 2, Qt.AlignVCenter)
+                self.lineedit_version.setValidator(validator)
+                glayout.addWidget(self.lineedit_verison, i, 1, 1, 2, Qt.AlignVCenter)
             elif types[i] == "LineEditString":
-                self.lineedit = QLineEdit()
-                re = QRegularExpression("[a-zA-Z]+")
+                self.lineedit_string = QLineEdit()
+                re = QRegularExpression("^(?!\s*$)[a-zA-Z]+")
                 validator = QRegularExpressionValidator(re, self)
-                self.lineedit.setValidator(validator)
-                glayout.addWidget(self.lineedit, i, 1, 1, 2, Qt.AlignVCenter)
+                self.lineedit_string.setValidator(validator)
+                glayout.addWidget(self.lineedit_string, i, 1, 1, 2, Qt.AlignVCenter)
             else:
                 if os.name == "nt":
-                    filters = _("Files") + " (*.yml, *.json)"
+                    filters = _("Files") + " (*.yml)"
                 else:
                     filters = None
                 self.cus_exec_combo = self.create_file_combobox(
