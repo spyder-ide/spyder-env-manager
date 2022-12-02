@@ -1,5 +1,5 @@
 # Run the project's Pre-Commit hooks
-name: Black
+name: Pre-commit
 
 on:
   push:
@@ -10,8 +10,8 @@ on:
     - main
 
 jobs:
-  black:
-    name: Black with Pre-Commit
+  pre-commit:
+    name: Validations with Pre-Commit
     runs-on: ubuntu-latest
     steps:
     - name: Checkout env-manager repository
