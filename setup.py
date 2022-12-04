@@ -25,7 +25,7 @@ setup(
         "envs-manager",
         "qtpy",
         "qtawesome",
-        "spyder>=5.2.0",
+        "spyder>=5.4.0",
     ],
     packages=find_packages(),
     entry_points={

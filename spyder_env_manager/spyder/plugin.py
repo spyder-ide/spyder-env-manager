@@ -8,6 +8,9 @@
 Spyder Env Manager Plugin.
 """
 
+# Standard library imports
+from pathlib import Path
+
 # Third-party imports
 import qtawesome as qta
 
@@ -15,7 +18,6 @@ import qtawesome as qta
 from spyder.api.plugins import Plugins, SpyderDockablePlugin
 from spyder.api.translations import get_translation
 from spyder.api.plugin_registration.decorators import on_plugin_available
-from spyder.api.plugin_registration.decorators import on_plugin_teardown
 from spyder.utils.icon_manager import ima
 
 # Local imports
@@ -31,11 +33,11 @@ class SpyderEnvManager(SpyderDockablePlugin):
     Spyder Env Manager plugin.
     """
 
-    NAME = "spyder_env_manager"
+    NAME = CONF_SECTION
     REQUIRES = [Plugins.Preferences]
     OPTIONAL = []
     WIDGET_CLASS = SpyderEnvManagerWidget
-    CONF_SECTION = NAME
+    CONF_SECTION = CONF_SECTION
     CONF_DEFAULTS = CONF_DEFAULTS
     CONF_VERSION = CONF_VERSION
     CONF_WIDGET_CLASS = SpyderEnvManagerConfigPage
@@ -65,8 +67,11 @@ class SpyderEnvManager(SpyderDockablePlugin):
         preferences.register_plugin_preferences(self)
 
     def check_compatibility(self):
-        valid = True
-        message = ""  # Note: Remember to use _("") to localize the string
+        message = _("")
+        conda_like_executable_path = self.get_conf("conda_file_executable_path")
+        valid = conda_like_executable_path and Path(conda_like_executable_path).exists()
+        if not valid:
+            message = _("Unable to find conda-like executable!")
         return valid, message
 
     def on_close(self, cancellable=True):
