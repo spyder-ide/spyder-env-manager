@@ -289,6 +289,23 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             pass
         elif action == SpyderEnvManagerWidgetActions.InstallPackage:
             pass
+        elif action == SpyderEnvManagerWidgetActions.DeleteEnvironment:
+            root_path = Path(self.get_conf("environments_path"))
+            external_executable = self.get_conf("conda_file_executable_path")
+            packages = [
+                f"python={dialog.combobox_edit.currentText()}",
+                f"spyder-kernels{SPYDER_KERNELS_REQVER}",
+            ]
+            env_name = dialog.lineedit_string.text()
+            manager = Manager(
+                "conda-like",
+                root_path=root_path,
+                env_name=env_name,
+                external_executable=external_executable,
+            )
+            manager.delete_environment()
+            if self.envs == {"No environments available"}:
+                self.select_environment.clear()
 
     def _message_save_environment(self):
         title = _("File save dialog")
@@ -298,7 +315,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def _message_delete_environment(self):
         title = _("Delete environment")
         messages = _("Are you sure you want to delete the current environment?")
-        self._message_box(title, messages)
+        self._message_box(title, messages,SpyderEnvManagerWidgetActions.DeleteEnvironment)
 
     def _message_update_packages(self):
         title = _("Update packages")
@@ -356,11 +373,13 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         if result == QDialog.Accepted:
             self._env_action(box, action=action)
 
-    def _message_box(self, title, message):
+    def _message_box(self, title, message, action=None):
         box = QMessageBox(self)
         box.setWindowTitle(title)
         box.setIcon(QMessageBox.Question)
         box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
         box.setDefaultButton(QMessageBox.Ok)
         box.setText(message)
-        box.show()
+        result = box.exec_()
+        if result == QDialog.Accepted:
+            self._env_action(box, action=action)
