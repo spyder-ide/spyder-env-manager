@@ -83,10 +83,10 @@ class MessageComboBox(QDialog):
                 re = QRegularExpression("[0-9]+([.][0-9]+)*?")
                 validator = QRegularExpressionValidator(re, self)
                 self.lineedit_version.setValidator(validator)
-                glayout.addWidget(self.lineedit_verison, i, 1, 1, 2, Qt.AlignVCenter)
+                glayout.addWidget(self.lineedit_version, i, 1, 1, 2, Qt.AlignVCenter)
             elif types[i] == "LineEditString":
                 self.lineedit_string = QLineEdit()
-                re = QRegularExpression("^(?!\s*$)[a-zA-Z]+")
+                re = QRegularExpression("[a-zA-Z]+")
                 validator = QRegularExpressionValidator(re, self)
                 self.lineedit_string.setValidator(validator)
                 glayout.addWidget(self.lineedit_string, i, 1, 1, 2, Qt.AlignVCenter)

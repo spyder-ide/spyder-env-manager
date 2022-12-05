@@ -310,40 +310,72 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             print(result_message)
         self.stop_spinner()
 
+    def _run_env_action(
+        self,
+        manager,
+        manager_action,
+        on_ready,
+        *manager_action_args,
+        **manager_action_kwargs,
+    ):
+        if (
+            self.env_manager_action_thread
+            and self.env_manager_action_thread.isRunning()
+        ):
+            self.env_manager_action_thread.quit()
+            self.env_manager_action_thread.wait()
+
+        self.env_manager_action_thread = QThread(None)
+        self.manager_worker = EnvironmentManagerWorker(
+            self, manager, manager_action, *manager_action_args, **manager_action_kwargs
+        )
+        self.manager_worker.sig_ready.connect(on_ready)
+        self.manager_worker.sig_ready.connect(self.env_manager_action_thread.quit)
+        self.manager_worker.moveToThread(self.env_manager_action_thread)
+        self.env_manager_action_thread.started.connect(self.manager_worker.start)
+        self.start_spinner()
+        self.env_manager_action_thread.start()
+
     def _env_action(self, dialog, action=None):
+        root_path = Path(self.get_conf("environments_path"))
+        external_executable = self.get_conf("conda_file_executable_path")
+        backend = "conda-like"
         if action == SpyderEnvManagerWidgetActions.NewEnvironment:
-            root_path = Path(self.get_conf("environments_path"))
-            external_executable = self.get_conf("conda_file_executable_path")
+            python_version = dialog.combobox_edit.currentText()
             packages = [
-                f"python={dialog.combobox_edit.currentText()}",
+                f"python={python_version}",
                 f"spyder-kernels{SPYDER_KERNELS_VERSION}",
             ]
             env_name = dialog.lineedit_string.text()
             manager = Manager(
-                "conda-like",
+                backend,
                 root_path=root_path,
                 env_name=env_name,
                 external_executable=external_executable,
             )
-            if (
-                self.env_manager_action_thread
-                and self.env_manager_action_thread.isRunning()
-            ):
-                self.env_manager_action_thread.quit()
-                self.env_manager_action_thread.wait()
-
-            self.env_manager_action_thread = QThread(None)
-            self.manager_worker = EnvironmentManagerWorker(
-                self, manager, manager.create_environment, packages=packages, force=True
+            self._run_env_action(
+                manager,
+                manager.create_environment,
+                self._add_new_environment_entry,
+                packages=packages,
+                force=True,
             )
-            self.manager_worker.sig_ready.connect(self._add_new_environment_entry)
-            self.manager_worker.sig_ready.connect(self.env_manager_action_thread.quit)
-            self.manager_worker.moveToThread(self.env_manager_action_thread)
-            self.env_manager_action_thread.started.connect(self.manager_worker.start)
-            self.start_spinner()
-            self.env_manager_action_thread.start()
         elif action == SpyderEnvManagerWidgetActions.ImportEnvironment:
-            pass
+            import_file_path = dialog.cus_exec_combo.combobox.currentText()
+            env_name = dialog.lineedit_string.text()
+            manager = Manager(
+                backend,
+                root_path=root_path,
+                env_name=env_name,
+                external_executable=external_executable,
+            )
+            self._run_env_action(
+                manager,
+                manager.import_environment,
+                self._add_new_environment_entry,
+                import_file_path,
+                force=True,
+            )
         elif action == SpyderEnvManagerWidgetActions.InstallPackage:
             pass
 
@@ -364,9 +396,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def _message_import_environment(self):
         title = _("Import Python environment")
-        messages = [_("Manager to use"), _("Packages file")]
-        types = ["ComboBox", "Other"]
-        contents = [{"conda-like"}, {}]
+        messages = [_("Manager to use"), "Environment Name", _("Packages file")]
+        types = ["ComboBox", "LineEditString", "Other"]
+        contents = [{"conda-like"}, {}, {}]
         self._message_box_editable(
             title,
             messages,
