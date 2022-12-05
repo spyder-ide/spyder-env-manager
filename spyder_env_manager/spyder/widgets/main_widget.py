@@ -121,7 +121,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             QComboBox.AdjustToMinimumContentsLength
         )
         self.select_environment.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        selected_environment = self.get_conf("selected_environment")
+        selected_environment = self.get_conf("selected_environment", None)
         if selected_environment:
             self.select_environment.setCurrentText(selected_environment)
         self.css_path = self.get_conf("css_path", CSS_PATH, "appearance")
