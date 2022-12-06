@@ -246,22 +246,27 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def source_changed(self):
         current_environment = self.select_environment.currentText()
-        actions = [
-            SpyderEnvManagerWidgetActions.InstallPackage,
-            SpyderEnvManagerWidgetActions.DeleteEnvironment,
-            SpyderEnvManagerWidgetActions.ExportEnvironment,
-        ]
         environments_available = current_environment != "No environments available"
-        for action in actions:
-            self.get_action(action).setEnabled(environments_available)
         if environments_available:
             self.stack_layout.setCurrentWidget(self.table_layout)
             # TODO: Set selected env interpreter as Spyder main interpreter
         else:
             self.stack_layout.setCurrentWidget(self.infowidget)
+        self.stop_spinner()
 
     def update_actions(self):
-        pass
+        current_environment = self.select_environment.currentText()
+        environments_available = current_environment != "No environments available"
+        actions_ids = [
+            SpyderEnvManagerWidgetActions.InstallPackage,
+            SpyderEnvManagerWidgetActions.DeleteEnvironment,
+            SpyderEnvManagerWidgetActions.ExportEnvironment,
+        ]
+        for action_id, action in self.get_actions().items():
+            if action_id in actions_ids:
+                action.setEnabled(environments_available)
+            else:
+                action.setEnabled(True)
 
     def packages_dependences(self, value):
         self.table_layout.load_packages(value)
@@ -272,9 +277,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         super().start_spinner()
 
     def stop_spinner(self):
-        for action in self.get_actions().values():
-            action.setEnabled(True)
-        self.source_changed()
+        self.update_actions()
         super().stop_spinner()
 
     def on_close(self):
@@ -341,12 +344,13 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         external_executable = self.get_conf("conda_file_executable_path")
         backend = "conda-like"
         if action == SpyderEnvManagerWidgetActions.NewEnvironment:
+            backend = dialog.combobox.currentText()
+            env_name = dialog.lineedit_string.text()
             python_version = dialog.combobox_edit.currentText()
             packages = [
                 f"python={python_version}",
                 f"spyder-kernels{SPYDER_KERNELS_VERSION}",
             ]
-            env_name = dialog.lineedit_string.text()
             manager = Manager(
                 backend,
                 root_path=root_path,
@@ -361,8 +365,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 force=True,
             )
         elif action == SpyderEnvManagerWidgetActions.ImportEnvironment:
-            import_file_path = dialog.cus_exec_combo.combobox.currentText()
+            backend = dialog.combobox.currentText()
             env_name = dialog.lineedit_string.text()
+            import_file_path = dialog.cus_exec_combo.combobox.currentText()
             manager = Manager(
                 backend,
                 root_path=root_path,
@@ -377,7 +382,26 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 force=True,
             )
         elif action == SpyderEnvManagerWidgetActions.InstallPackage:
-            pass
+            package_name = dialog.lineedit_string.text()
+            package_constraint = dialog.combobox.currentText()
+            package_version = dialog.lineedit_version.text()
+            packages = [f"{package_name}"]
+            if package_constraint != "latest" and package_version:
+                packages = [f"{package_name}{package_constraint}{package_version}"]
+            env_name = self.select_environment.currentText()
+            manager = Manager(
+                backend,
+                root_path=root_path,
+                env_name=env_name,
+                external_executable=external_executable,
+            )
+            self._run_env_action(
+                manager,
+                manager.install,
+                self.source_changed,
+                packages,
+                force=True,
+            )
 
     def _message_save_environment(self):
         title = _("File save dialog")
@@ -428,7 +452,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         title = _("Install package")
         messages = ["Package", "Constraint", "Version"]
         types = ["LineEditString", "ComboBox", "LineEditVersion"]
-        contents = [{}, {"==", "<=", ">=", "<", ">", "latest"}, {}]
+        contents = [{}, ["==", "<=", ">=", "<", ">", "latest"], {}]
         self._message_box_editable(
             title,
             messages,
