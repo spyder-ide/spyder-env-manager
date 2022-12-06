@@ -108,6 +108,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         self.infowidget = FrameWebView(self)
         self.table_layout = EnvironmentPackagesTable(self, text_color=ima.MAIN_FG_COLOR)
+        self.table_layout.sig_action_context_menu.connect(self.table_context_menu)
         self.stack_layout = layout = QStackedLayout()
         layout.addWidget(self.infowidget)
         layout.addWidget(self.table_layout)
@@ -215,6 +216,29 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self._rich_font = rich_font
         self.infowidget.set_font(rich_font)
 
+    def table_context_menu(self, action, row):
+        if action == 'Update' :
+            title = _("Update packages")
+            messages = _("Are you sure you want to update the selected packages?")
+            self._message_box(title, messages, 'Update')
+        elif action == 'Uninstall':
+            title = _("Uninstall packages")
+            messages = _("Are you sure you want to uninstall the selected packages?")
+            self._message_box(title, messages, 'Uninstall')
+        elif action == 'Change':
+            title = _("Change package version constraint")
+            messages = ["Package", "Constraint", "Version"]
+            types = ["Label", "ComboBox", "LineEditVersion"]
+            contents = [{self.table_layout.getPackageByRow(row)['package']}, {"==", "<=", ">=", "<", ">", "latest"}, {}]
+            self._message_box_editable(
+                title,
+                messages,
+                contents,
+                types,
+                action='Change',
+                )
+
+
     def source_changed(self):
         currentEnvironment = self.select_environment.currentText()
         if currentEnvironment == "No environments available":
@@ -285,6 +309,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             if self.envs == {"No environments available"}:
                 self.select_environment.clear()
             self.select_environment.addItem(env_name, manager.env_directory)
+
         elif action == SpyderEnvManagerWidgetActions.ImportEnvironment:
             pass
         elif action == SpyderEnvManagerWidgetActions.InstallPackage:
@@ -304,23 +329,19 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 external_executable=external_executable,
             )
             manager.delete_environment()
-            if self.envs == {"No environments available"}:
-                self.select_environment.clear()
+            self.select_environment.removeItem(self.select_environment.currentIndex())
+        else:
+            self._message_error_box('Action no available at this moment.')
 
     def _message_save_environment(self):
         title = _("File save dialog")
         messages = _("Select where to save the exported environment file")
-        self._message_box(title, messages)
+        self._message_box(title, messages, SpyderEnvManagerWidgetActions.ExportEnvironment)
 
     def _message_delete_environment(self):
         title = _("Delete environment")
         messages = _("Are you sure you want to delete the current environment?")
-        self._message_box(title, messages,SpyderEnvManagerWidgetActions.DeleteEnvironment)
-
-    def _message_update_packages(self):
-        title = _("Update packages")
-        messages = _("Are you sure you want to update the selected packages?")
-        self._message_box(title, messages)
+        self._message_box(title, messages, SpyderEnvManagerWidgetActions.DeleteEnvironment)
 
     def _message_import_environment(self):
         title = _("Import Python environment")
@@ -383,3 +404,12 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         result = box.exec_()
         if result == QDialog.Accepted:
             self._env_action(box, action=action)
+
+    def _message_error_box(self, message):
+        box = QMessageBox(self.parent)
+        box.setWindowTitle('Error message')
+        box.setIcon(QMessageBox.ERROR)
+        box.setStandardButtons(QMessageBox.Ok)
+        box.setDefaultButton(QMessageBox.Ok)
+        box.setText(message)
+        box.exec_()

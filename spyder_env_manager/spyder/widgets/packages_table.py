@@ -133,9 +133,7 @@ class EnvironmentPackagesModel(QAbstractTableModel):
 
 class EnvironmentPackagesTable(QTableView):
 
-    sig_update_package = Signal()
-    sig_uninstall_package = Signal()
-    sig_change_package_version = Signal()
+    sig_action_context_menu = Signal(str, int)
 
     def __init__(self, parent, text_color=None):
         QTableView.__init__(self, parent)
@@ -162,15 +160,15 @@ class EnvironmentPackagesTable(QTableView):
         packages = self.source_model.packages
         if not packages[row]["dependence"]:
             self.update_action = create_action(
-                self, _("Update package(s)"), triggered=self.selection
+                self, _("Update package(s)"), triggered=lambda: self.selection(row,'Update')                
             )
             self.uninstall_action = create_action(
-                self, _("Uninstall package(s)"), triggered=self.selection
+                self, _("Uninstall package(s)"), triggered=lambda: self.selection(row,'Uninstall')
             )
             self.change_action = create_action(
                 self,
                 _("Change package version with a version constraint"),
-                triggered=self.selection,
+                triggered=lambda: self.selection(row,'Change'),
             )
             menu = QMenu(self)
             self.menu_actions = [
@@ -188,9 +186,9 @@ class EnvironmentPackagesTable(QTableView):
         super(EnvironmentPackagesTable, self).focusInEvent(e)
         self.selectRow(self.currentIndex().row())
 
-    def selection(self, index):
+    def selection(self, index, action):
         """Update selected row."""
-        self._parent.delete_btn.setEnabled(True)
+        self.sig_action_context_menu.emit(action, index)
 
     def adjust_cells(self):
         """Adjust column size based on contents."""
@@ -201,7 +199,7 @@ class EnvironmentPackagesTable(QTableView):
             self.setColumnWidth(DESCRIPTION, max(names))
         self.horizontalHeader().setStretchLastSection(True)
 
-    def load_packages(self, option):
+    def load_packages(self, option, packages=None):
         packages = [
             {
                 "package": "aa",
@@ -261,3 +259,7 @@ class EnvironmentPackagesTable(QTableView):
             super(EnvironmentPackagesTable, self).keyPressEvent(event)
         else:
             super(EnvironmentPackagesTable, self).keyPressEvent(event)
+    
+    def getPackageByRow(self, row):
+        packages = self.source_model.packages
+        return packages[row]
