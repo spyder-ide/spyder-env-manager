@@ -217,27 +217,30 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.infowidget.set_font(rich_font)
 
     def table_context_menu(self, action, row):
-        if action == 'Update' :
+        if action == "Update":
             title = _("Update packages")
             messages = _("Are you sure you want to update the selected packages?")
-            self._message_box(title, messages, 'Update')
-        elif action == 'Uninstall':
+            self._message_box(title, messages, "Update")
+        elif action == "Uninstall":
             title = _("Uninstall packages")
             messages = _("Are you sure you want to uninstall the selected packages?")
-            self._message_box(title, messages, 'Uninstall')
-        elif action == 'Change':
+            self._message_box(title, messages, "Uninstall")
+        elif action == "Change":
             title = _("Change package version constraint")
             messages = ["Package", "Constraint", "Version"]
             types = ["Label", "ComboBox", "LineEditVersion"]
-            contents = [{self.table_layout.getPackageByRow(row)['package']}, {"==", "<=", ">=", "<", ">", "latest"}, {}]
+            contents = [
+                {self.table_layout.getPackageByRow(row)["package"]},
+                {"==", "<=", ">=", "<", ">", "latest"},
+                {},
+            ]
             self._message_box_editable(
                 title,
                 messages,
                 contents,
                 types,
-                action='Change',
-                )
-
+                action="Change",
+            )
 
     def source_changed(self):
         currentEnvironment = self.select_environment.currentText()
@@ -331,17 +334,21 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             manager.delete_environment()
             self.select_environment.removeItem(self.select_environment.currentIndex())
         else:
-            self._message_error_box('Action no available at this moment.')
+            self._message_error_box("Action no available at this moment.")
 
     def _message_save_environment(self):
         title = _("File save dialog")
         messages = _("Select where to save the exported environment file")
-        self._message_box(title, messages, SpyderEnvManagerWidgetActions.ExportEnvironment)
+        self._message_box(
+            title, messages, SpyderEnvManagerWidgetActions.ExportEnvironment
+        )
 
     def _message_delete_environment(self):
         title = _("Delete environment")
         messages = _("Are you sure you want to delete the current environment?")
-        self._message_box(title, messages, SpyderEnvManagerWidgetActions.DeleteEnvironment)
+        self._message_box(
+            title, messages, SpyderEnvManagerWidgetActions.DeleteEnvironment
+        )
 
     def _message_import_environment(self):
         title = _("Import Python environment")
@@ -407,7 +414,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def _message_error_box(self, message):
         box = QMessageBox(self.parent)
-        box.setWindowTitle('Error message')
+        box.setWindowTitle("Error message")
         box.setIcon(QMessageBox.ERROR)
         box.setStandardButtons(QMessageBox.Ok)
         box.setDefaultButton(QMessageBox.Ok)

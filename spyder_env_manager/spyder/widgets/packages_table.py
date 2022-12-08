@@ -160,15 +160,19 @@ class EnvironmentPackagesTable(QTableView):
         packages = self.source_model.packages
         if not packages[row]["dependence"]:
             self.update_action = create_action(
-                self, _("Update package(s)"), triggered=lambda: self.selection(row,'Update')                
+                self,
+                _("Update package(s)"),
+                triggered=lambda: self.selection(row, "Update"),
             )
             self.uninstall_action = create_action(
-                self, _("Uninstall package(s)"), triggered=lambda: self.selection(row,'Uninstall')
+                self,
+                _("Uninstall package(s)"),
+                triggered=lambda: self.selection(row, "Uninstall"),
             )
             self.change_action = create_action(
                 self,
                 _("Change package version with a version constraint"),
-                triggered=lambda: self.selection(row,'Change'),
+                triggered=lambda: self.selection(row, "Change"),
             )
             menu = QMenu(self)
             self.menu_actions = [
@@ -259,7 +263,7 @@ class EnvironmentPackagesTable(QTableView):
             super(EnvironmentPackagesTable, self).keyPressEvent(event)
         else:
             super(EnvironmentPackagesTable, self).keyPressEvent(event)
-    
+
     def getPackageByRow(self, row):
         packages = self.source_model.packages
         return packages[row]
