@@ -1,4 +1,4 @@
-git+https://github.com/dalthviz/env-manager@missing_returns  # envs-manager dependency
+envs-manager>=0.1.1
 qtawesome
 qtpy
 setuptools
