@@ -17,5 +17,4 @@ def test_env_manager(qtbot):
     SpyderEnvManagerWidget.CONF_SECTION = "spyder_env_manager"
     widget = SpyderEnvManagerWidget(None)
     widget.setup()
-    qtbot.addWidget(widget)
     widget.show()
