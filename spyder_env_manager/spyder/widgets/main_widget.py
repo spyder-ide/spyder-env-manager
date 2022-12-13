@@ -283,6 +283,12 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def on_close(self):
         env_name = self.select_environment.currentText()
         self.set_conf("selected_environment", env_name)
+        if (
+            self.env_manager_action_thread
+            and self.env_manager_action_thread.isRunning()
+        ):
+            self.env_manager_action_thread.quit()
+            self.env_manager_action_thread.wait()
 
     # ---- Private API
     # ------------------------------------------------------------------------
@@ -312,6 +318,21 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             print(self.manager_worker.error)
             print(result_message)
         self.stop_spinner()
+
+    def _add_new_environment_entry_from_import(
+        self, manager, action_result, result_message
+    ):
+        # Add new imported environment entry
+        self._add_new_environment_entry(manager, action_result, result_message)
+        # Install needed spyder-kernels version
+        packages = [f"spyder-kernels{SPYDER_KERNELS_VERSION}"]
+        self._run_env_action(
+            manager,
+            manager.install,
+            self.source_changed,
+            packages,
+            force=True,
+        )
 
     def _run_env_action(
         self,
@@ -377,7 +398,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._run_env_action(
                 manager,
                 manager.import_environment,
-                self._add_new_environment_entry,
+                self._add_new_environment_entry_from_import,
                 import_file_path,
                 force=True,
             )

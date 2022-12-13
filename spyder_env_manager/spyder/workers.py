@@ -51,7 +51,7 @@ class EnvironmentManagerWorker(QObject):
         return self.manager_action(*self.manager_args, **self.manager_kwargs)
 
     def start(self):
-        """Main method of the WorkerDownloadInstaller worker."""
+        """Main method of the worker."""
         result = False
         message = error_msg = None
         try:
