@@ -33,7 +33,7 @@ from qtpy.QtWidgets import (
 
 # Spyder and local imports
 from spyder.api.translations import get_translation
-from spyder.api.widgets.main_widget import PluginMainWidget
+from spyder.api.widgets.main_widget import PluginMainWidget, PluginMainWidgetActions
 from spyder.config.base import get_module_source_path
 from spyder.dependencies import SPYDER_KERNELS_REQVER
 from spyder.utils.icon_manager import ima
@@ -104,8 +104,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         super().__init__(name, plugin, parent)
 
         self.envs = Manager.list_environments(backend=CondaLikeInterface.ID)
-        self.env_manager_action_thread = None
+        self.env_manager_action_thread = QThread(None)
         self.manager_worker = None
+        self._actions_enabled = True
         self.select_environment = QComboBox(self)
         self.select_environment.ID = SpyderEnvManagerWidgetActions.SelectEnvironment
 
@@ -255,28 +256,32 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.stop_spinner()
 
     def update_actions(self):
-        current_environment = self.select_environment.currentText()
-        environments_available = current_environment != "No environments available"
-        actions_ids = [
-            SpyderEnvManagerWidgetActions.InstallPackage,
-            SpyderEnvManagerWidgetActions.DeleteEnvironment,
-            SpyderEnvManagerWidgetActions.ExportEnvironment,
-        ]
-        for action_id, action in self.get_actions().items():
-            if action_id in actions_ids:
-                action.setEnabled(environments_available)
-            else:
-                action.setEnabled(True)
+        if self._actions_enabled:
+            current_environment = self.select_environment.currentText()
+            environments_available = current_environment != "No environments available"
+            actions_ids = [
+                SpyderEnvManagerWidgetActions.InstallPackage,
+                SpyderEnvManagerWidgetActions.DeleteEnvironment,
+                SpyderEnvManagerWidgetActions.ExportEnvironment,
+            ]
+            for action_id, action in self.get_actions().items():
+                if action_id in actions_ids:
+                    action.setEnabled(environments_available)
+                else:
+                    action.setEnabled(True)
 
     def packages_dependences(self, value):
         self.table_layout.load_packages(value)
 
     def start_spinner(self):
-        for action in self.get_actions().values():
-            action.setEnabled(False)
+        self._actions_enabled = False
+        for action_id, action in self.get_actions().items():
+            if action_id not in PluginMainWidgetActions.__dict__.values():
+                action.setEnabled(False)
         super().start_spinner()
 
     def stop_spinner(self):
+        self._actions_enabled = True
         self.update_actions()
         super().stop_spinner()
 
@@ -349,7 +354,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.env_manager_action_thread.quit()
             self.env_manager_action_thread.wait()
 
-        self.env_manager_action_thread = QThread(None)
         self.manager_worker = EnvironmentManagerWorker(
             self, manager, manager_action, *manager_action_args, **manager_action_kwargs
         )
