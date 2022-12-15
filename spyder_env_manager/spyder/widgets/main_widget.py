@@ -231,7 +231,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.source_changed()
 
     def show_intro_message(self):
-        """Show introduction message to use the plugin."""
+        """Show introduction message on how to use the plugin."""
         intro_message_eq = _(
             "Click <span title='New environment' style='border : 0.5px solid #c0c0c0;'>&#xFF0B;</span> to create a new environment or to import an environment definition from a file , click the <span title='Options' style='border : 1px solid #c0c0c0;'>&#9776;</span> button on the top right too."
         )
@@ -441,7 +441,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def _message_import_environment(self):
         title = _("Import Python environment")
-        messages = [_("Manager to use"), "Environment Name", _("Packages file")]
+        messages = [_("Manager to use"), _("Environment name"), _("Packages file")]
         types = ["ComboBox", "LineEditString", "Other"]
         contents = [{"conda-like"}, {}, {}]
         self._message_box_editable(

@@ -25,6 +25,7 @@ class EnvironmentManagerWorker(QObject):
     sig_ready = Signal(object, bool, object)
     """
     Signal to inform that the worker has finished successfully.
+
     Parameters
     ----------
     manager: object
@@ -58,6 +59,7 @@ class EnvironmentManagerWorker(QObject):
             result, message = self.run_manager_action()
         except Exception:
             error_msg = _("Unable to run action over environment.")
+
         self.error = error_msg
         try:
             self.sig_ready.emit(self.manager, result, message)
