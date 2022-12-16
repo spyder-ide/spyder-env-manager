@@ -1,5 +1,5 @@
-envs-manager
+envs-manager>=0.1.1
 qtawesome
 qtpy
 setuptools
-spyder
+spyder>=5.4.0

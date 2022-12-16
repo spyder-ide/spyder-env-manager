@@ -43,9 +43,7 @@ CONF_DEFAULTS = [
         {
             "conda_file_executable_path": conda_like_executable(),
             "environments_path": str(DEFAULT_BACKENDS_ROOT_PATH),
-            "environments_list": Manager.list_environments(
-                backend=CondaLikeInterface.ID
-            ),
+            "selected_environment": "",
         },
     ),
 ]
