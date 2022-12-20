@@ -22,10 +22,10 @@ setup(
     url="https://github.com/spyder-ide/spyder-env-manager",
     python_requires=">= 3.7",
     install_requires=[
-        "envs-manager",
+        "envs-manager>=0.1.1",
         "qtpy",
         "qtawesome",
-        "spyder>=5.2.0",
+        "spyder>=5.4.0",
     ],
     packages=find_packages(),
     entry_points={

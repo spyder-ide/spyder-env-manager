@@ -10,7 +10,7 @@ on:
 
 jobs:
   linux:
-    name: Linux Py${{ matrix.PYTHON_VERSION }}
+    name: Linux - Py${{ matrix.PYTHON_VERSION }} - USE_CONDA=${{ matrix.USE_CONDA}}
     runs-on: ubuntu-latest
     env:
       CI: True
@@ -20,6 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         PYTHON_VERSION: ['3.8', '3.9', '3.10']
+        USE_CONDA: ['True', 'False']
     steps:
       - name: Checkout branch
         uses: actions/checkout@v2
@@ -36,14 +37,18 @@ jobs:
            channel-priority: strict
            auto-activate-base: false
            python-version: ${{ matrix.PYTHON_VERSION }}
-      - name: Install package dependencies
-        shell: bash -l {0}
-        run: conda install --file requirements/conda.txt -y -q
-      - name: Install test dependencies
+      - name: Install package and test dependencies with conda
+        if: ${{ startsWith(matrix.USE_CONDA, 'True') }}
         shell: bash -l {0}
         run: |
-          conda install nomkl -y -q
-          conda install --file requirements/tests.txt -y -q
+            conda install --file requirements/conda.txt -y -q
+            conda install --file requirements/tests.txt -y -q
+      - name: Install package and test dependencies with pip
+        if: ${{ startsWith(matrix.USE_CONDA, 'False') }}
+        shell: bash -l {0}
+        run: |
+            pip install -r requirements/conda.txt
+            pip install -r requirements/tests.txt
       - name: Install Package
         shell: bash -l {0}
         run: pip install --no-deps -e .

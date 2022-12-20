@@ -91,7 +91,7 @@ class MessageComboBox(QDialog):
                 glayout.addWidget(self.line_string, i, 1, 1, 2, Qt.AlignVCenter)
             elif types[i] == "LineEditString":
                 self.lineedit_string = QLineEdit()
-                re = QRegularExpression("^(?!\s*$)[a-zA-Z]+")
+                re = QRegularExpression("[a-zA-Z]+")
                 validator = QRegularExpressionValidator(re, self)
                 self.lineedit_string.setValidator(validator)
                 glayout.addWidget(self.lineedit_string, i, 1, 1, 2, Qt.AlignVCenter)
