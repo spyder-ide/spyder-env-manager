@@ -305,11 +305,13 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         for action_id, action in self.get_actions().items():
             if action_id not in PluginMainWidgetActions.__dict__.values():
                 action.setEnabled(False)
+        self.select_environment.setDisabled(True)
         super().start_spinner()
 
     def stop_spinner(self):
         self._actions_enabled = True
         self.update_actions()
+        self.select_environment.setDisabled(False)
         super().stop_spinner()
 
     def on_close(self):
@@ -354,17 +356,35 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def _add_new_environment_entry_from_import(
         self, manager, action_result, result_message
     ):
-        # Add new imported environment entry
-        self._add_new_environment_entry(manager, action_result, result_message)
-        # Install needed spyder-kernels version
-        packages = [f"spyder-kernels{SPYDER_KERNELS_VERSION}"]
-        self._run_env_action(
-            manager,
-            manager.install,
-            self.source_changed,
-            packages,
-            force=True,
-        )
+        if action_result:
+            # Add new imported environment entry
+            self._add_new_environment_entry(manager, action_result, result_message)
+            # Install needed spyder-kernels version
+            packages = [f"spyder-kernels{SPYDER_KERNELS_VERSION}"]
+            self._run_env_action(
+                manager,
+                manager.install,
+                self.source_changed,
+                packages,
+                force=True,
+            )
+        else:
+            # TODO: Show error message
+            # result_message -> str
+            print(self.manager_worker.error)
+            print(result_message)
+        self.stop_spinner()
+
+    def _delete_environment(self, manager, action_result, result_message):
+        if action_result:
+            env_name = self.select_environment.currentIndex()
+            self.select_environment.removeItem(env_name)
+        else:
+            # TODO: Show error message
+            # result_message -> str
+            print(self.manager_worker.error)
+            print(result_message)
+        self.stop_spinner()
 
     def _run_env_action(
         self,
@@ -455,15 +475,19 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 force=True,
             )
         elif action == SpyderEnvManagerWidgetActions.DeleteEnvironment:
-            env_name = dialog.lineedit_string.text()
+            env_name = self.select_environment.currentText()
             manager = Manager(
                 backend,
                 root_path=root_path,
                 env_name=env_name,
                 external_executable=external_executable,
             )
-            manager.delete_environment()
-            self.select_environment.removeItem(self.select_environment.currentIndex())
+            self._run_env_action(
+                manager,
+                manager.delete_environment,
+                self._delete_environment,
+                force=True,
+            )
         else:
             self._message_error_box("Action no available at this moment.")
 
@@ -478,7 +502,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         title = _("Delete environment")
         messages = _("Are you sure you want to delete the current environment?")
         self._message_box(
-            title, messages, SpyderEnvManagerWidgetActions.DeleteEnvironment
+            title, messages, action=SpyderEnvManagerWidgetActions.DeleteEnvironment
         )
 
     def _message_import_environment(self):
@@ -548,7 +572,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         box.setDefaultButton(QMessageBox.Ok)
         box.setText(message)
         result = box.exec_()
-        if result == QDialog.Accepted:
+        if result == QMessageBox.Ok:
             self._env_action(box, action=action)
 
     def _message_error_box(self, message):
