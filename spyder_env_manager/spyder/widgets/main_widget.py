@@ -103,7 +103,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def __init__(self, name=None, plugin=None, parent=None):
         super().__init__(name, plugin, parent)
 
-        self.envs = Manager.list_environments(backend=CondaLikeInterface.ID)
+        self.envs, _ = Manager.list_environments(backend=CondaLikeInterface.ID, root_path=self.get_conf("environments_path"), external_executable=self.get_conf("conda_file_executable_path"))
         self.env_manager_action_thread = QThread(None)
         self.manager_worker = None
         self._actions_enabled = True
@@ -340,12 +340,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         if action_result:
             if self.envs == {"No environments available"}:
                 self.select_environment.clear()
+            self.envs[manager.env_name] = manager.env_directory
             self.select_environment.addItem(manager.env_name, manager.env_directory)
             self.select_environment.setCurrentText(manager.env_name)
             self.set_conf("selected_environment", manager.env_name)
-            self.set_conf(
-                "environments_list", Manager.list_environments(CondaLikeInterface.ID)
-            )
         else:
             # TODO: Show error message
             # result_message -> str
@@ -379,6 +377,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         if action_result:
             env_name = self.select_environment.currentIndex()
             self.select_environment.removeItem(env_name)
+            self.envs.remove(env_name)
+            if not self.envs:
+                self.envs = {"No environments available"}
+                self.select_environment.addItems(self.envs)
         else:
             # TODO: Show error message
             # result_message -> str
