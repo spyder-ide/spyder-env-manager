@@ -40,6 +40,10 @@ from spyder.utils.icon_manager import ima
 from spyder.utils.palette import QStylePalette
 from spyder.widgets.browser import FrameWebView
 
+from spyder_env_manager.spyder.config import (
+    DEFAULT_BACKENDS_ROOT_PATH,
+    conda_like_executable,
+)
 from spyder_env_manager.spyder.workers import EnvironmentManagerWorker
 from spyder_env_manager.spyder.widgets.helper_widgets import MessageComboBox
 from spyder_env_manager.spyder.widgets.packages_table import (
@@ -106,8 +110,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         envs, _ = Manager.list_environments(
             backend=CondaLikeInterface.ID,
-            root_path=self.get_conf("environments_path"),
-            external_executable=self.get_conf("conda_file_executable_path"),
+            root_path=self.get_conf("environments_path", DEFAULT_BACKENDS_ROOT_PATH),
+            external_executable=self.get_conf(
+                "conda_file_executable_path", conda_like_executable()
+            ),
         )
         self.env_manager_action_thread = QThread(None)
         self.manager_worker = None
