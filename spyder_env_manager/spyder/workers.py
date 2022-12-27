@@ -57,8 +57,8 @@ class EnvironmentManagerWorker(QObject):
         message = error_msg = None
         try:
             result, message = self.run_manager_action()
-        except Exception:
-            error_msg = _("Unable to run action over environment.")
+        except Exception as e:
+            error_msg = _(f"Unable to run action over environment: {str(e)}")
 
         self.error = error_msg
         try:

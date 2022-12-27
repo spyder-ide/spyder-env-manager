@@ -40,6 +40,10 @@ from spyder.utils.icon_manager import ima
 from spyder.utils.palette import QStylePalette
 from spyder.widgets.browser import FrameWebView
 
+from spyder_env_manager.spyder.config import (
+    DEFAULT_BACKENDS_ROOT_PATH,
+    conda_like_executable,
+)
 from spyder_env_manager.spyder.workers import EnvironmentManagerWorker
 from spyder_env_manager.spyder.widgets.helper_widgets import MessageComboBox
 from spyder_env_manager.spyder.widgets.packages_table import (
@@ -99,23 +103,31 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     # PluginMainWidget class constants
     ENABLE_SPINNER = True
+    NO_ENVIRONMENTS_AVAILABLE = _("No environments available")
 
     def __init__(self, name=None, plugin=None, parent=None):
         super().__init__(name, plugin, parent)
 
-        self.envs = Manager.list_environments(backend=CondaLikeInterface.ID)
+        envs, _ = Manager.list_environments(
+            backend=CondaLikeInterface.ID,
+            root_path=self.get_conf("environments_path", DEFAULT_BACKENDS_ROOT_PATH),
+            external_executable=self.get_conf(
+                "conda_file_executable_path", conda_like_executable()
+            ),
+        )
         self.env_manager_action_thread = QThread(None)
         self.manager_worker = None
         self._actions_enabled = True
         self.select_environment = QComboBox(self)
         self.select_environment.ID = SpyderEnvManagerWidgetActions.SelectEnvironment
 
-        for env_name, env_directory in self.envs.items():
-            self.select_environment.addItem(env_name, env_directory)
-
-        if not self.envs:
-            self.envs = {"No environments available"}
-            self.select_environment.addItems(self.envs)
+        if not envs:
+            self.envs_available = False
+            self.select_environment.addItem(self.NO_ENVIRONMENTS_AVAILABLE, None)
+        else:
+            for env_name, env_directory in envs.items():
+                self.select_environment.addItem(env_name, env_directory)
+            self.envs_available = True
 
         self.select_environment.setToolTip("Select an environment")
         self.select_environment.setSizeAdjustPolicy(
@@ -138,6 +150,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 QWebEnginePage.DelegateAllLinks
             )
         self.table_layout = EnvironmentPackagesTable(self, text_color=ima.MAIN_FG_COLOR)
+        self.table_layout.sig_action_context_menu.connect(self.table_context_menu)
         self.stack_layout = layout = QStackedLayout()
         layout.addWidget(self.infowidget)
         layout.addWidget(self.table_layout)
@@ -245,6 +258,32 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self._rich_font = rich_font
         self.infowidget.set_font(rich_font)
 
+    def table_context_menu(self, action, row):
+        if action == "Update":
+            title = _("Update packages")
+            messages = _("Are you sure you want to update the selected packages?")
+            self._message_box(title, messages, "Update")
+        elif action == "Uninstall":
+            title = _("Uninstall packages")
+            messages = _("Are you sure you want to uninstall the selected packages?")
+            self._message_box(title, messages, "Uninstall")
+        elif action == "Change":
+            title = _("Change package version constraint")
+            messages = ["Package", "Constraint", "Version"]
+            types = ["Label", "ComboBox", "LineEditVersion"]
+            contents = [
+                {self.table_layout.getPackageByRow(row)["package"]},
+                {"==", "<=", ">=", "<", ">", "latest"},
+                {},
+            ]
+            self._message_box_editable(
+                title,
+                messages,
+                contents,
+                types,
+                action="Change",
+            )
+
     def source_changed(self):
         current_environment = self.select_environment.currentText()
         environments_available = current_environment != "No environments available"
@@ -278,11 +317,13 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         for action_id, action in self.get_actions().items():
             if action_id not in PluginMainWidgetActions.__dict__.values():
                 action.setEnabled(False)
+        self.select_environment.setDisabled(True)
         super().start_spinner()
 
     def stop_spinner(self):
         self._actions_enabled = True
         self.update_actions()
+        self.select_environment.setDisabled(False)
         super().stop_spinner()
 
     def on_close(self):
@@ -309,35 +350,52 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def _add_new_environment_entry(self, manager, action_result, result_message):
         if action_result:
-            if self.envs == {"No environments available"}:
+            if not self.envs_available:
                 self.select_environment.clear()
             self.select_environment.addItem(manager.env_name, manager.env_directory)
             self.select_environment.setCurrentText(manager.env_name)
             self.set_conf("selected_environment", manager.env_name)
-            self.set_conf(
-                "environments_list", Manager.list_environments(CondaLikeInterface.ID)
-            )
+            self.envs_available = True
         else:
-            # TODO: Show error message
-            # result_message -> str
-            print(self.manager_worker.error)
-            print(result_message)
+            self._message_error_box(result_message)
         self.stop_spinner()
 
     def _add_new_environment_entry_from_import(
         self, manager, action_result, result_message
     ):
-        # Add new imported environment entry
-        self._add_new_environment_entry(manager, action_result, result_message)
-        # Install needed spyder-kernels version
-        packages = [f"spyder-kernels{SPYDER_KERNELS_VERSION}"]
-        self._run_env_action(
-            manager,
-            manager.install,
-            self.source_changed,
-            packages,
-            force=True,
-        )
+        if action_result:
+            # Add new imported environment entry
+            self._add_new_environment_entry(manager, action_result, result_message)
+            # Install needed spyder-kernels version
+            packages = [f"spyder-kernels{SPYDER_KERNELS_VERSION}"]
+            self._run_env_action(
+                manager,
+                manager.install,
+                self.source_changed,
+                packages,
+                force=True,
+            )
+        else:
+            self._message_error_box(result_message)
+        self.stop_spinner()
+
+    def _install_package(self, manager, action_result, result_message):
+        if action_result:
+            self.source_changed()
+        else:
+            self._message_error_box(result_message)
+        self.stop_spinner()
+
+    def _delete_environment(self, manager, action_result, result_message):
+        if action_result:
+            env_name = self.select_environment.currentIndex()
+            self.select_environment.removeItem(env_name)
+            if self.select_environment.count() == 0:
+                self.envs_available = False
+                self.select_environment.addItem(self.NO_ENVIRONMENTS_AVAILABLE, None)
+        else:
+            self._message_error_box(result_message)
+        self.stop_spinner()
 
     def _run_env_action(
         self,
@@ -423,25 +481,40 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._run_env_action(
                 manager,
                 manager.install,
-                self.source_changed,
+                self._install_package,
                 packages,
                 force=True,
             )
+        elif action == SpyderEnvManagerWidgetActions.DeleteEnvironment:
+            env_name = self.select_environment.currentText()
+            manager = Manager(
+                backend,
+                root_path=root_path,
+                env_name=env_name,
+                external_executable=external_executable,
+            )
+            self._run_env_action(
+                manager,
+                manager.delete_environment,
+                self._delete_environment,
+                force=True,
+            )
+        else:
+            self._message_error_box("Action no available at this moment.")
 
     def _message_save_environment(self):
         title = _("File save dialog")
         messages = _("Select where to save the exported environment file")
-        self._message_box(title, messages)
+        self._message_box(
+            title, messages, SpyderEnvManagerWidgetActions.ExportEnvironment
+        )
 
     def _message_delete_environment(self):
         title = _("Delete environment")
         messages = _("Are you sure you want to delete the current environment?")
-        self._message_box(title, messages)
-
-    def _message_update_packages(self):
-        title = _("Update packages")
-        messages = _("Are you sure you want to update the selected packages?")
-        self._message_box(title, messages)
+        self._message_box(
+            title, messages, action=SpyderEnvManagerWidgetActions.DeleteEnvironment
+        )
 
     def _message_import_environment(self):
         title = _("Import Python environment")
@@ -502,11 +575,22 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         if result == QDialog.Accepted:
             self._env_action(box, action=action)
 
-    def _message_box(self, title, message):
+    def _message_box(self, title, message, action=None):
         box = QMessageBox(self)
         box.setWindowTitle(title)
         box.setIcon(QMessageBox.Question)
         box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
         box.setDefaultButton(QMessageBox.Ok)
         box.setText(message)
-        box.show()
+        result = box.exec_()
+        if result == QMessageBox.Ok:
+            self._env_action(box, action=action)
+
+    def _message_error_box(self, message):
+        box = QMessageBox(self)
+        box.setWindowTitle("Error message")
+        box.setIcon(QMessageBox.Critical)
+        box.setStandardButtons(QMessageBox.Ok)
+        box.setDefaultButton(QMessageBox.Ok)
+        box.setText(message)
+        box.exec_()
