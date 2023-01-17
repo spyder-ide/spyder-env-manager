@@ -78,6 +78,7 @@ class SpyderEnvManagerWidgetActions:
     NewEnvironment = "new_environment"
     DeleteEnvironment = "delete_environment"
     InstallPackage = "install_package"
+    ListPackages = "list_packages"
 
     # Options menu actions
     ImportEnvironment = "import_environment_action"
@@ -149,11 +150,13 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.infowidget.page().setLinkDelegationPolicy(
                 QWebEnginePage.DelegateAllLinks
             )
-        self.table_layout = EnvironmentPackagesTable(self, text_color=ima.MAIN_FG_COLOR)
-        self.table_layout.sig_action_context_menu.connect(self.table_context_menu)
+        self.packages_table = EnvironmentPackagesTable(
+            self, text_color=ima.MAIN_FG_COLOR
+        )
+        self.packages_table.sig_action_context_menu.connect(self.table_context_menu)
         self.stack_layout = layout = QStackedLayout()
         layout.addWidget(self.infowidget)
-        layout.addWidget(self.table_layout)
+        layout.addWidget(self.packages_table)
         self.setLayout(self.stack_layout)
 
         # Signals
@@ -171,7 +174,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             SpyderEnvManagerWidgetActions.ToggleExcludeDependency,
             text=_("Exclude dependency packages"),
             tip=_("Exclude dependency packages"),
-            toggled=self.packages_dependences,
+            toggled=self.update_packages,
         )
 
         import_environment_action = self.create_action(
@@ -272,7 +275,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             messages = ["Package", "Constraint", "Version"]
             types = ["Label", "ComboBox", "LineEditVersion"]
             contents = [
-                {self.table_layout.getPackageByRow(row)["package"]},
+                {self.packages_table.getPackageByRow(row)["package"]},
                 {"==", "<=", ">=", "<", ">", "latest"},
                 {},
             ]
@@ -288,11 +291,14 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         current_environment = self.select_environment.currentText()
         environments_available = current_environment != "No environments available"
         if environments_available:
-            self.stack_layout.setCurrentWidget(self.table_layout)
+            self._env_action(
+                dialog=None, action=SpyderEnvManagerWidgetActions.ListPackages
+            )
+            self.stack_layout.setCurrentWidget(self.packages_table)
             # TODO: Set selected env interpreter as Spyder main interpreter
         else:
             self.stack_layout.setCurrentWidget(self.infowidget)
-        self.stop_spinner()
+            self.stop_spinner()
 
     def update_actions(self):
         if self._actions_enabled:
@@ -309,8 +315,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 else:
                     action.setEnabled(True)
 
-    def packages_dependences(self, value):
-        self.table_layout.load_packages(value)
+    def update_packages(self, option, packages=None):
+        self.exclude_non_requested_packages = option
+        self.packages_table.load_packages(option, packages)
+        self.stop_spinner()
 
     def start_spinner(self):
         self._actions_enabled = False
@@ -397,6 +405,13 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._message_error_box(result_message)
         self.stop_spinner()
 
+    def _list_environment_packages(self, manager, action_result, result_message):
+        if action_result:
+            self.update_packages(False, result_message["packages"])
+        else:
+            self._message_error_box(result_message)
+        self.stop_spinner()
+
     def _run_env_action(
         self,
         manager,
@@ -422,11 +437,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.start_spinner()
         self.env_manager_action_thread.start()
 
-    def _env_action(self, dialog, action=None):
+    def _env_action(self, dialog=None, action=None):
         root_path = Path(self.get_conf("environments_path"))
         external_executable = self.get_conf("conda_file_executable_path")
         backend = "conda-like"
-        if action == SpyderEnvManagerWidgetActions.NewEnvironment:
+        if dialog and action == SpyderEnvManagerWidgetActions.NewEnvironment:
             backend = dialog.combobox.currentText()
             env_name = dialog.lineedit_string.text()
             python_version = dialog.combobox_edit.currentText()
@@ -447,7 +462,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 packages=packages,
                 force=True,
             )
-        elif action == SpyderEnvManagerWidgetActions.ImportEnvironment:
+        elif dialog and action == SpyderEnvManagerWidgetActions.ImportEnvironment:
             backend = dialog.combobox.currentText()
             env_name = dialog.lineedit_string.text()
             import_file_path = dialog.cus_exec_combo.combobox.currentText()
@@ -464,7 +479,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 import_file_path,
                 force=True,
             )
-        elif action == SpyderEnvManagerWidgetActions.InstallPackage:
+        elif dialog and action == SpyderEnvManagerWidgetActions.InstallPackage:
             package_name = dialog.lineedit_string.text()
             package_constraint = dialog.combobox.currentText()
             package_version = dialog.lineedit_version.text()
@@ -499,6 +514,20 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 self._delete_environment,
                 force=True,
             )
+        elif action == SpyderEnvManagerWidgetActions.ListPackages:
+            env_directory = self.select_environment.currentData()
+            print(env_directory)
+            if env_directory:
+                manager = Manager(
+                    backend,
+                    env_directory=env_directory,
+                    external_executable=external_executable,
+                )
+                self._run_env_action(
+                    manager,
+                    manager.list,
+                    self._list_environment_packages,
+                )
         else:
             self._message_error_box("Action no available at this moment.")
 
@@ -573,7 +602,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         box.setMinimumHeight(box.height())
         result = box.exec_()
         if result == QDialog.Accepted:
-            self._env_action(box, action=action)
+            self._env_action(dialog=box, action=action)
 
     def _message_box(self, title, message, action=None):
         box = QMessageBox(self)
@@ -584,7 +613,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         box.setText(message)
         result = box.exec_()
         if result == QMessageBox.Ok:
-            self._env_action(box, action=action)
+            self._env_action(dialog=box, action=action)
 
     def _message_error_box(self, message):
         box = QMessageBox(self)

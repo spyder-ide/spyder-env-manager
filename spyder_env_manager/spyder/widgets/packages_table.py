@@ -29,7 +29,7 @@ from spyder.utils.qthelpers import add_actions, create_action
 _ = get_translation("spyder")
 
 
-PACKAGE, DESCRIPTION, VERSION = [0, 1, 2]
+NAME, DESCRIPTION, VERSION = [0, 1, 2]
 
 
 class EnvironmentPackagesModel(QAbstractTableModel):
@@ -38,7 +38,7 @@ class EnvironmentPackagesModel(QAbstractTableModel):
         self._parent = parent
 
         self.packages = []
-        self.server_map = {}
+        self.packages_map = {}
         self.rich_text = []
         self.normal_text = []
         self.letters = ""
@@ -78,8 +78,8 @@ class EnvironmentPackagesModel(QAbstractTableModel):
         column = index.column()
 
         if role == Qt.DisplayRole:
-            if column == PACKAGE:
-                text = package["package"]
+            if column == NAME:
+                text = package["name"]
                 return to_qvariant(text)
             elif column == DESCRIPTION:
                 text = package["description"]
@@ -92,7 +92,7 @@ class EnvironmentPackagesModel(QAbstractTableModel):
         elif role == Qt.FontRole:
             return to_qvariant(get_font(font_size_delta=DEFAULT_SMALL_DELTA))
         elif role == Qt.BackgroundColorRole:
-            if package["dependence"]:
+            if package["requested"]:
                 return to_qvariant(QColor(SpyderPalette.COLOR_OCCURRENCE_4))
         return to_qvariant()
 
@@ -105,8 +105,8 @@ class EnvironmentPackagesModel(QAbstractTableModel):
         if role != Qt.DisplayRole:
             return to_qvariant()
         if orientation == Qt.Horizontal:
-            if section == PACKAGE:
-                return to_qvariant(_("Package"))
+            if section == NAME:
+                return to_qvariant(_("Name"))
             elif section == DESCRIPTION:
                 return to_qvariant(_("Description"))
             elif section == VERSION:
@@ -158,7 +158,7 @@ class EnvironmentPackagesTable(QTableView):
         """Setup context menu"""
         row = self.rowAt(event.pos().y())
         packages = self.source_model.packages
-        if not packages[row]["dependence"]:
+        if packages and packages[row]["requested"]:
             self.update_action = create_action(
                 self,
                 _("Update package(s)"),
@@ -196,45 +196,39 @@ class EnvironmentPackagesTable(QTableView):
 
     def adjust_cells(self):
         """Adjust column size based on contents."""
-        self.resizeColumnsToContents()
         fm = self.horizontalHeader().fontMetrics()
-        names = [fm.width(s["description"]) for s in self.source_model.packages]
+        names = [fm.width(p["name"]) for p in self.source_model.packages]
         if names:
-            self.setColumnWidth(DESCRIPTION, max(names))
+            self.setColumnWidth(NAME, max(names))
+        descriptions = [fm.width(p["description"]) for p in self.source_model.packages]
+        if descriptions:
+            self.setColumnWidth(DESCRIPTION, max(descriptions))
         self.horizontalHeader().setStretchLastSection(True)
 
-    def load_packages(self, option, packages=None):
-        packages = [
-            {
-                "package": "aa",
-                "description": "Fragmento de un escrito con unidad temática, que queda diferenciado del resto de fragmentos ",
-                "version": "2.3.5",
-                "dependence": False,
-            },
-            {
-                "package": "bb",
-                "description": "Fragmento de un escrito con unidad temática, diferenciado del resto de fragmentos ",
-                "version": "2.5",
-                "dependence": False,
-            },
-            {
-                "package": "cc",
-                "description": "Fragmento de un escrito con unidad temática, ",
-                "version": "2",
-                "dependence": True,
-            },
-        ]
-        if option:
-            packages = list(filter(lambda x: not x["dependence"], packages))
-        for i, package in enumerate(packages):
-            package["index"] = i
+    def load_packages(self, only_requested=False, packages=None):
+        #     packages = [
+        #         {
+        #             "name": "package name",
+        #             "description": "package description",
+        #             "version": "0.0.1",
+        #             "requested": False,
+        #         },
+        #     ]
+        if not packages and self.source_model.packages:
+            packages = self.source_model.packages
 
-        package_map = {x["package"]: x for x in packages}
-        self.source_model.packages = packages
-        self.source_model.server_map = package_map
-        self.source_model.reset()
-        self.adjust_cells()
-        self.sortByColumn(PACKAGE, Qt.AscendingOrder)
+        if packages:
+            if only_requested:
+                packages = list(filter(lambda x: not x["requested"], packages))
+            for idx, package in enumerate(packages):
+                package["index"] = idx
+            packages_map = {x["name"]: x for x in packages}
+
+            self.source_model.packages = packages
+            self.source_model.packages_map = packages_map
+            self.source_model.reset()
+            self.adjust_cells()
+            self.sortByColumn(NAME, Qt.AscendingOrder)
 
     def next_row(self):
         """Move to next row from currently selected row."""
