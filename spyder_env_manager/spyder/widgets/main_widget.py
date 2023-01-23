@@ -315,9 +315,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 else:
                     action.setEnabled(True)
 
-    def update_packages(self, option, packages=None):
-        self.exclude_non_requested_packages = option
-        self.packages_table.load_packages(option, packages)
+    def update_packages(self, only_requested, packages=None):
+        self.exclude_non_requested_packages = only_requested
+        self.packages_table.load_packages(only_requested, packages)
         self.stop_spinner()
 
     def start_spinner(self):
@@ -516,7 +516,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             )
         elif action == SpyderEnvManagerWidgetActions.ListPackages:
             env_directory = self.select_environment.currentData()
-            print(env_directory)
             if env_directory:
                 manager = Manager(
                     backend,

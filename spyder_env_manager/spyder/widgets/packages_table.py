@@ -37,6 +37,7 @@ class EnvironmentPackagesModel(QAbstractTableModel):
         QAbstractTableModel.__init__(self)
         self._parent = parent
 
+        self.all_packages = []
         self.packages = []
         self.packages_map = {}
         self.rich_text = []
@@ -214,15 +215,16 @@ class EnvironmentPackagesTable(QTableView):
         #             "requested": False,
         #         },
         #     ]
-        if not packages and self.source_model.packages:
-            packages = self.source_model.packages
-
+        if packages and not self.source_model.all_packages:
+            self.source_model.all_packages = packages
+        if not packages and self.source_model.all_packages:
+            packages = self.source_model.all_packages
         if packages:
             if only_requested:
-                packages = list(filter(lambda x: not x["requested"], packages))
+                packages = list(filter(lambda package: package["requested"], packages))
             for idx, package in enumerate(packages):
                 package["index"] = idx
-            packages_map = {x["name"]: x for x in packages}
+            packages_map = {package["name"]: package for package in packages}
 
             self.source_model.packages = packages
             self.source_model.packages_map = packages_map
