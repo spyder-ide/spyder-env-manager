@@ -32,6 +32,13 @@ _ = get_translation("spyder")
 NAME, DESCRIPTION, VERSION = [0, 1, 2]
 
 
+class EnvironmentPackagesActions:
+    # Triggers
+    UpdatePackage = "update_package"
+    UninstallPackage = "unistall_package"
+    InstallPackageVersion = "install_package_version"
+
+
 class EnvironmentPackagesModel(QAbstractTableModel):
     def __init__(self, parent, text_color=None, text_color_highlight=None):
         QAbstractTableModel.__init__(self)
@@ -134,7 +141,7 @@ class EnvironmentPackagesModel(QAbstractTableModel):
 
 class EnvironmentPackagesTable(QTableView):
 
-    sig_action_context_menu = Signal(str, int)
+    sig_action_context_menu = Signal(str, dict)
 
     def __init__(self, parent, text_color=None):
         QTableView.__init__(self, parent)
@@ -162,18 +169,24 @@ class EnvironmentPackagesTable(QTableView):
         if packages and packages[row]["requested"]:
             self.update_action = create_action(
                 self,
-                _("Update package(s)"),
-                triggered=lambda: self.selection(row, "Update"),
+                _("Update package"),
+                triggered=lambda: self.selection(
+                    EnvironmentPackagesActions.UpdatePackage, packages[row]
+                ),
             )
             self.uninstall_action = create_action(
                 self,
-                _("Uninstall package(s)"),
-                triggered=lambda: self.selection(row, "Uninstall"),
+                _("Uninstall package"),
+                triggered=lambda: self.selection(
+                    EnvironmentPackagesActions.UninstallPackage, packages[row]
+                ),
             )
             self.change_action = create_action(
                 self,
-                _("Change package version with a version constraint"),
-                triggered=lambda: self.selection(row, "Change"),
+                _("Change package version with a constraint"),
+                triggered=lambda: self.selection(
+                    EnvironmentPackagesActions.InstallPackageVersion, packages[row]
+                ),
             )
             menu = QMenu(self)
             self.menu_actions = [
@@ -191,9 +204,9 @@ class EnvironmentPackagesTable(QTableView):
         super(EnvironmentPackagesTable, self).focusInEvent(e)
         self.selectRow(self.currentIndex().row())
 
-    def selection(self, index, action):
+    def selection(self, action, package_info):
         """Update selected row."""
-        self.sig_action_context_menu.emit(action, index)
+        self.sig_action_context_menu.emit(action, package_info)
 
     def adjust_cells(self):
         """Adjust column size based on contents."""
@@ -215,7 +228,7 @@ class EnvironmentPackagesTable(QTableView):
         #             "requested": False,
         #         },
         #     ]
-        if packages and not self.source_model.all_packages:
+        if packages:
             self.source_model.all_packages = packages
         if not packages and self.source_model.all_packages:
             packages = self.source_model.all_packages
@@ -260,6 +273,5 @@ class EnvironmentPackagesTable(QTableView):
         else:
             super(EnvironmentPackagesTable, self).keyPressEvent(event)
 
-    def getPackageByRow(self, row):
-        packages = self.source_model.packages
-        return packages[row]
+    def get_package_info(self, index):
+        return self.source_model.packages[index]

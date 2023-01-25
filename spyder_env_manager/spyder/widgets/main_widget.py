@@ -45,8 +45,9 @@ from spyder_env_manager.spyder.config import (
     conda_like_executable,
 )
 from spyder_env_manager.spyder.workers import EnvironmentManagerWorker
-from spyder_env_manager.spyder.widgets.helper_widgets import MessageComboBox
+from spyder_env_manager.spyder.widgets.helper_widgets import QMessageComboBox
 from spyder_env_manager.spyder.widgets.packages_table import (
+    EnvironmentPackagesActions,
     EnvironmentPackagesTable,
 )
 
@@ -116,6 +117,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 "conda_file_executable_path", conda_like_executable()
             ),
         )
+        self.exclude_non_requested_packages = False
         self.env_manager_action_thread = QThread(None)
         self.manager_worker = None
         self._actions_enabled = True
@@ -153,7 +155,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.packages_table = EnvironmentPackagesTable(
             self, text_color=ima.MAIN_FG_COLOR
         )
-        self.packages_table.sig_action_context_menu.connect(self.table_context_menu)
+        self.packages_table.sig_action_context_menu.connect(
+            self.table_context_menu_actions
+        )
         self.stack_layout = layout = QStackedLayout()
         layout.addWidget(self.infowidget)
         layout.addWidget(self.packages_table)
@@ -261,21 +265,31 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self._rich_font = rich_font
         self.infowidget.set_font(rich_font)
 
-    def table_context_menu(self, action, row):
-        if action == "Update":
-            title = _("Update packages")
-            messages = _("Are you sure you want to update the selected packages?")
-            self._message_box(title, messages, "Update")
-        elif action == "Uninstall":
-            title = _("Uninstall packages")
-            messages = _("Are you sure you want to uninstall the selected packages?")
-            self._message_box(title, messages, "Uninstall")
-        elif action == "Change":
+    def table_context_menu_actions(self, action, package_info):
+        if action == EnvironmentPackagesActions.UpdatePackage:
+            title = _("Update package")
+            messages = _("Are you sure you want to update the selected package?")
+            self._message_box(
+                title,
+                messages,
+                action=EnvironmentPackagesActions.UpdatePackage,
+                package_info=package_info,
+            )
+        elif action == EnvironmentPackagesActions.UninstallPackage:
+            title = _("Uninstall package")
+            messages = _("Are you sure you want to uninstall the selected package?")
+            self._message_box(
+                title,
+                messages,
+                action=EnvironmentPackagesActions.UninstallPackage,
+                package_info=package_info,
+            )
+        elif action == EnvironmentPackagesActions.InstallPackageVersion:
             title = _("Change package version constraint")
             messages = ["Package", "Constraint", "Version"]
             types = ["Label", "ComboBox", "LineEditVersion"]
             contents = [
-                {self.packages_table.getPackageByRow(row)["package"]},
+                {package_info["name"]},
                 {"==", "<=", ">=", "<", ">", "latest"},
                 {},
             ]
@@ -284,7 +298,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 messages,
                 contents,
                 types,
-                action="Change",
+                action=EnvironmentPackagesActions.InstallPackageVersion,
+                package_info=package_info,
             )
 
     def source_changed(self):
@@ -326,12 +341,14 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             if action_id not in PluginMainWidgetActions.__dict__.values():
                 action.setEnabled(False)
         self.select_environment.setDisabled(True)
+        self.packages_table.setDisabled(True)
         super().start_spinner()
 
     def stop_spinner(self):
         self._actions_enabled = True
         self.update_actions()
         self.select_environment.setDisabled(False)
+        self.packages_table.setDisabled(False)
         super().stop_spinner()
 
     def on_close(self):
@@ -341,7 +358,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.env_manager_action_thread
             and self.env_manager_action_thread.isRunning()
         ):
-            self.env_manager_action_thread.quit()
+            self.env_manager_action_thread.terminate()
             self.env_manager_action_thread.wait()
 
     # ---- Private API
@@ -407,7 +424,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def _list_environment_packages(self, manager, action_result, result_message):
         if action_result:
-            self.update_packages(False, result_message["packages"])
+            self.update_packages(
+                self.exclude_non_requested_packages, result_message["packages"]
+            )
         else:
             self._message_error_box(result_message)
         self.stop_spinner()
@@ -436,6 +455,66 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.env_manager_action_thread.started.connect(self.manager_worker.start)
         self.start_spinner()
         self.env_manager_action_thread.start()
+
+    def _package_action(self, package_info, dialog=None, action=None):
+        root_path = Path(self.get_conf("environments_path"))
+        external_executable = self.get_conf("conda_file_executable_path")
+        backend = "conda-like"
+        package_name = package_info["name"]
+        if action == EnvironmentPackagesActions.UpdatePackage:
+            env_name = self.select_environment.currentText()
+            manager = Manager(
+                backend,
+                root_path=root_path,
+                env_name=env_name,
+                external_executable=external_executable,
+            )
+            self._run_env_action(
+                manager,
+                manager.update,
+                self.source_changed,
+                [package_name],
+                force=True,
+                capture_output=True,
+            )
+        elif action == EnvironmentPackagesActions.UninstallPackage:
+            env_name = self.select_environment.currentText()
+            manager = Manager(
+                backend,
+                root_path=root_path,
+                env_name=env_name,
+                external_executable=external_executable,
+            )
+            self._run_env_action(
+                manager,
+                manager.uninstall,
+                self.source_changed,
+                [package_name],
+                force=True,
+                capture_output=True,
+            )
+        elif dialog and action == EnvironmentPackagesActions.InstallPackageVersion:
+            package_constraint = dialog.combobox.currentText()
+            package_version = dialog.lineedit_version.text()
+            packages = [f"{package_name}"]
+            if package_constraint != "latest" and package_version:
+                packages = [f"{package_name}{package_constraint}{package_version}"]
+            env_name = self.select_environment.currentText()
+            manager = Manager(
+                backend,
+                root_path=root_path,
+                env_name=env_name,
+                external_executable=external_executable,
+            )
+            self._run_env_action(
+                manager,
+                manager.install,
+                self._install_package,
+                packages,
+                force=True,
+            )
+        else:
+            self._message_error_box("Action unavailable at this moment.")
 
     def _env_action(self, dialog=None, action=None):
         root_path = Path(self.get_conf("environments_path"))
@@ -528,7 +607,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                     self._list_environment_packages,
                 )
         else:
-            self._message_error_box("Action no available at this moment.")
+            self._message_error_box("Action unavailable at this moment.")
 
     def _message_save_environment(self):
         title = _("File save dialog")
@@ -587,8 +666,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             action=SpyderEnvManagerWidgetActions.InstallPackage,
         )
 
-    def _message_box_editable(self, title, messages, contents, types, action=None):
-        box = MessageComboBox(
+    def _message_box_editable(
+        self, title, messages, contents, types, action=None, package_info=None
+    ):
+        box = QMessageComboBox(
             self,
             title=title,
             messages=messages,
@@ -601,18 +682,24 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         box.setMinimumHeight(box.height())
         result = box.exec_()
         if result == QDialog.Accepted:
-            self._env_action(dialog=box, action=action)
+            if package_info:
+                self._package_action(package_info, dialog=box, action=action)
+            else:
+                self._env_action(dialog=box, action=action)
 
-    def _message_box(self, title, message, action=None):
+    def _message_box(self, title, message, action=None, package_info=None):
         box = QMessageBox(self)
         box.setWindowTitle(title)
         box.setIcon(QMessageBox.Question)
-        box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-        box.setDefaultButton(QMessageBox.Ok)
+        box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        box.setDefaultButton(QMessageBox.Yes)
         box.setText(message)
         result = box.exec_()
-        if result == QMessageBox.Ok:
-            self._env_action(dialog=box, action=action)
+        if result == QMessageBox.Yes:
+            if package_info:
+                self._package_action(package_info, action=action)
+            else:
+                self._env_action(dialog=box, action=action)
 
     def _message_error_box(self, message):
         box = QMessageBox(self)

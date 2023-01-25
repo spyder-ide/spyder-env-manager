@@ -40,7 +40,7 @@ from spyder.widgets.comboboxes import FileComboBox
 from spyder.widgets.helperwidgets import IconLineEdit
 
 
-class MessageComboBox(QDialog):
+class QMessageComboBox(QDialog):
     valid = Signal(bool, bool)
 
     def __init__(self, editor, title, messages, types, contents):
@@ -91,7 +91,7 @@ class MessageComboBox(QDialog):
                 glayout.addWidget(self.line_string, i, 1, 1, 2, Qt.AlignVCenter)
             elif types[i] == "LineEditString":
                 self.lineedit_string = QLineEdit()
-                re = QRegularExpression("[a-zA-Z]+")
+                re = QRegularExpression("[a-zA-Z_-]+")
                 validator = QRegularExpressionValidator(re, self)
                 self.lineedit_string.setValidator(validator)
                 glayout.addWidget(self.lineedit_string, i, 1, 1, 2, Qt.AlignVCenter)
