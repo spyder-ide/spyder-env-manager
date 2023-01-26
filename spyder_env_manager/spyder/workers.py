@@ -62,6 +62,6 @@ class EnvironmentManagerWorker(QObject):
 
         self.error = error_msg
         try:
-            self.sig_ready.emit(self.manager, result, message)
+            self.sig_ready.emit(self.manager, result, message or error_msg)
         except RuntimeError:
             pass
