@@ -45,7 +45,10 @@ from spyder_env_manager.spyder.config import (
     conda_like_executable,
 )
 from spyder_env_manager.spyder.workers import EnvironmentManagerWorker
-from spyder_env_manager.spyder.widgets.helper_widgets import QMessageComboBox
+from spyder_env_manager.spyder.widgets.helper_widgets import (
+    CustomParametersDialog,
+    CustomParametersDialogWidgets,
+)
 from spyder_env_manager.spyder.widgets.packages_table import (
     EnvironmentPackagesActions,
     EnvironmentPackagesTable,
@@ -192,7 +195,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             SpyderEnvManagerWidgetActions.ExportEnvironment,
             text=_("Export environment to file (.yml, .txt)"),
             tip=_("Export environment to file (.yml, .txt)"),
-            triggered=self._message_save_environment,
+            triggered=self._message_export_environment,
         )
 
         # ---- Toolbar actions
@@ -404,6 +407,17 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._message_error_box(result_message)
         self.stop_spinner()
 
+    def _export_environment(self, manager, action_result, result_message):
+        if action_result:
+            QMessageBox.information(
+                self,
+                _("Environment exported"),
+                _(f"Python Environment {manager.env_name} was exported."),
+            )
+        else:
+            self._message_error_box(result_message)
+        self.stop_spinner()
+
     def _install_package(self, manager, action_result, result_message):
         if action_result:
             self.source_changed()
@@ -544,7 +558,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         elif dialog and action == SpyderEnvManagerWidgetActions.ImportEnvironment:
             backend = dialog.combobox.currentText()
             env_name = dialog.lineedit_string.text()
-            import_file_path = dialog.cus_exec_combo.combobox.currentText()
+            import_file_path = dialog.file_combobox.combobox.currentText()
             manager = Manager(
                 backend,
                 root_path=root_path,
@@ -606,14 +620,39 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                     manager.list,
                     self._list_environment_packages,
                 )
+        elif dialog and action == SpyderEnvManagerWidgetActions.ExportEnvironment:
+            backend = dialog.combobox.currentText()
+            env_name = self.select_environment.currentText()
+            export_file_path = dialog.file_lineedit.lineedit.text()
+            manager = Manager(
+                backend,
+                root_path=root_path,
+                env_name=env_name,
+                external_executable=external_executable,
+            )
+            self._run_env_action(
+                manager,
+                manager.export_environment,
+                self._export_environment,
+                export_file_path=export_file_path,
+            )
         else:
             self._message_error_box("Action unavailable at this moment.")
 
-    def _message_save_environment(self):
-        title = _("File save dialog")
-        messages = _("Select where to save the exported environment file")
-        self._message_box(
-            title, messages, SpyderEnvManagerWidgetActions.ExportEnvironment
+    def _message_export_environment(self):
+        title = _("Export Python environment")
+        messages = [_("Manager to use"), _("Environment file")]
+        types = [
+            CustomParametersDialogWidgets.ComboBox,
+            CustomParametersDialogWidgets.LineEditFile,
+        ]
+        contents = [{"conda-like"}, {}]
+        self._message_box_editable(
+            title,
+            messages,
+            contents,
+            types,
+            action=SpyderEnvManagerWidgetActions.ExportEnvironment,
         )
 
     def _message_delete_environment(self):
@@ -625,8 +664,12 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def _message_import_environment(self):
         title = _("Import Python environment")
-        messages = [_("Manager to use"), _("Environment name"), _("Packages file")]
-        types = ["ComboBox", "LineEditString", "Other"]
+        messages = [_("Manager to use"), _("Environment name"), _("Environment file")]
+        types = [
+            CustomParametersDialogWidgets.ComboBox,
+            CustomParametersDialogWidgets.LineEditString,
+            CustomParametersDialogWidgets.ComboBoxFile,
+        ]
         contents = [{"conda-like"}, {}, {}]
         self._message_box_editable(
             title,
@@ -639,7 +682,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def _message_new_environment(self):
         title = _("New Python environment")
         messages = ["Manager to use", "Environment Name", "Python version"]
-        types = ["ComboBox", "LineEditString", "ComboBoxEdit"]
+        types = [
+            CustomParametersDialogWidgets.ComboBox,
+            CustomParametersDialogWidgets.LineEditString,
+            CustomParametersDialogWidgets.ComboBoxEdit,
+        ]
         contents = [
             {"conda-like"},
             {},
@@ -656,7 +703,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def _message_install_package(self):
         title = _("Install package")
         messages = ["Package", "Constraint", "Version"]
-        types = ["LineEditString", "ComboBox", "LineEditVersion"]
+        types = [
+            CustomParametersDialogWidgets.LineEditString,
+            CustomParametersDialogWidgets.ComboBox,
+            CustomParametersDialogWidgets.LineEditVersion,
+        ]
         contents = [{}, ["==", "<=", ">=", "<", ">", "latest"], {}]
         self._message_box_editable(
             title,
@@ -669,7 +720,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def _message_box_editable(
         self, title, messages, contents, types, action=None, package_info=None
     ):
-        box = QMessageComboBox(
+        box = CustomParametersDialog(
             self,
             title=title,
             messages=messages,

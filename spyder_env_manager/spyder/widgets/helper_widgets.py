@@ -6,14 +6,13 @@
 # Licensed under the terms of the MIT license
 # ----------------------------------------------------------------------------
 
-
 # Standard imports
 import os
 import os.path as osp
 
 # Third party imports
 import requests
-from qtpy.compat import getopenfilename
+from qtpy.compat import getopenfilename, getsavefilename
 from qtpy.QtCore import QRegularExpression, Qt, Signal
 from qtpy.QtGui import QRegularExpressionValidator
 from qtpy.QtWidgets import (
@@ -32,19 +31,31 @@ from qtpy.QtWidgets import (
 
 # Spyder and local imports
 from spyder.config.base import _
-from spyder.config.user import NoDefault
-from spyder.py3compat import to_text_string
 from spyder.utils.icon_manager import ima
 from spyder.utils.misc import getcwd_or_home
 from spyder.widgets.comboboxes import FileComboBox
 from spyder.widgets.helperwidgets import IconLineEdit
 
 
-class QMessageComboBox(QDialog):
+class CustomParametersDialogWidgets:
+    ComboBox = "combobox"
+    ComboBoxEdit = "combobox_edit"
+    ComboBoxFile = "combobox_file"
+    Label = "label"
+    LineEditVersion = "lineedit_version"
+    LineEditString = "lineedit_string"
+    LineEditFile = "lineedit_file"
+
+
+class WidgetTypeNotFound(Exception):
+    pass
+
+
+class CustomParametersDialog(QDialog):
     valid = Signal(bool, bool)
 
-    def __init__(self, editor, title, messages, types, contents):
-        QDialog.__init__(self, editor, Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
+    def __init__(self, parent, title, messages, types, contents):
+        super().__init__(parent, Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
 
         self.resize(450, 130)
         self.setWindowTitle(_(title))
@@ -53,18 +64,18 @@ class QMessageComboBox(QDialog):
 
         glayout = QGridLayout()
         glayout.setContentsMargins(0, 0, 0, 0)
-        for i, message in enumerate(messages):
+        for idx, message in enumerate(messages):
             label = QLabel(_((message + ": ")))
-            glayout.addWidget(label, i, 0, alignment=Qt.AlignVCenter)
-            if types[i] == "ComboBox":
+            glayout.addWidget(label, idx, 0, alignment=Qt.AlignVCenter)
+            if types[idx] == CustomParametersDialogWidgets.ComboBox:
                 self.combobox = QComboBox()
-                self.combobox.addItems(contents[i])
-                glayout.addWidget(self.combobox, i, 1, 1, 2, Qt.AlignVCenter)
-            elif types[i] == "ComboBoxEdit":
+                self.combobox.addItems(contents[idx])
+                glayout.addWidget(self.combobox, idx, 1, 1, 2, Qt.AlignVCenter)
+            elif types[idx] == CustomParametersDialogWidgets.ComboBoxEdit:
                 re = QRegularExpression("[0-9]+([.][0-9]+)*?")
                 validator = QRegularExpressionValidator(re, self)
                 self.combobox_edit = QComboBox()
-                self.combobox_edit.addItems(contents[i])
+                self.combobox_edit.addItems(contents[idx])
                 line_edit = IconLineEdit(self)
                 self.combobox_edit.setLineEdit(line_edit)
                 self.combobox_edit.setEditable(True)
@@ -76,39 +87,55 @@ class QMessageComboBox(QDialog):
                 )
                 if show_status:
                     show_status()
-                glayout.addWidget(self.combobox_edit, i, 1, 1, 2, Qt.AlignVCenter)
-
-            elif types[i] == "LineEditVersion":
+                glayout.addWidget(self.combobox_edit, idx, 1, 1, 2, Qt.AlignVCenter)
+            elif types[idx] == CustomParametersDialogWidgets.LineEditVersion:
                 self.lineedit_version = QLineEdit()
                 re = QRegularExpression("[0-9]+([.][0-9]+)*?")
                 validator = QRegularExpressionValidator(re, self)
                 self.lineedit_version.setValidator(validator)
-                glayout.addWidget(self.lineedit_version, i, 1, 1, 2, Qt.AlignVCenter)
-            elif types[i] == "Label":
+                glayout.addWidget(self.lineedit_version, idx, 1, 1, 2, Qt.AlignVCenter)
+            elif types[idx] == CustomParametersDialogWidgets.Label:
                 self.line_string = QLineEdit()
                 self.line_string.setReadOnly(True)
-                self.line_string.setText(list(contents[i])[0])
-                glayout.addWidget(self.line_string, i, 1, 1, 2, Qt.AlignVCenter)
-            elif types[i] == "LineEditString":
+                self.line_string.setText(list(contents[idx])[0])
+                glayout.addWidget(self.line_string, idx, 1, 1, 2, Qt.AlignVCenter)
+            elif types[idx] == CustomParametersDialogWidgets.LineEditString:
                 self.lineedit_string = QLineEdit()
                 re = QRegularExpression("[a-zA-Z_-]+")
                 validator = QRegularExpressionValidator(re, self)
                 self.lineedit_string.setValidator(validator)
-                glayout.addWidget(self.lineedit_string, i, 1, 1, 2, Qt.AlignVCenter)
-            else:
+                glayout.addWidget(self.lineedit_string, idx, 1, 1, 2, Qt.AlignVCenter)
+            elif types[idx] == CustomParametersDialogWidgets.ComboBoxFile:
                 if os.name == "nt":
                     filters = _("Files") + " (*.yml)"
                 else:
                     filters = None
-                self.cus_exec_combo = self.create_file_combobox(
+                self.file_combobox = self.create_file_combobox(
                     _("No file choosen"),
-                    contents[i],
-                    "No file choosen",
+                    contents[idx],
+                    tip=_("No file choosen"),
                     filters=filters,
                 )
-                glayout.addWidget(self.cus_exec_combo, i, 1, i, 2, Qt.AlignVCenter)
+                glayout.addWidget(self.file_combobox, idx, 1, idx, 2, Qt.AlignVCenter)
+            elif types[idx] == CustomParametersDialogWidgets.LineEditFile:
+                if os.name == "nt":
+                    filters = _("Files") + " (*.yml)"
+                else:
+                    filters = None
+                self.file_lineedit = self.create_file_lineedit(
+                    _("No file choosen"),
+                    tip=_("No file choosen"),
+                    filters=filters,
+                )
+                glayout.addWidget(self.file_lineedit, idx, 1, idx, 2, Qt.AlignVCenter)
+            else:
+                raise WidgetTypeNotFound(
+                    "Widget type should be a valid value."
+                    "For valid types check the 'CustomParametersDialogWidgets' class"
+                )
             glayout.setVerticalSpacing(0)
 
+        # Dialog buttons layout
         bbox = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel, Qt.Horizontal, self
         )
@@ -117,8 +144,7 @@ class QMessageComboBox(QDialog):
         btnlayout = QHBoxLayout()
         btnlayout.addWidget(bbox)
 
-        ok_button = bbox.button(QDialogButtonBox.Ok)
-
+        # Dialog layout
         layout = QVBoxLayout()
         layout.addLayout(glayout, Qt.AlignTop)
         layout.addLayout(btnlayout)
@@ -156,41 +182,35 @@ class QMessageComboBox(QDialog):
         self,
         text,
         choices,
-        option,
-        default=NoDefault,
         tip=None,
-        restart=False,
         filters=None,
         adjust_to_contents=True,
         default_line_edit=False,
-        section=None,
     ):
         """choices: couples (name, key)"""
-        if section is not None and section != self.CONF_SECTION:
-            self.cross_section_options[option] = section
         combobox = FileComboBox(
             self,
             adjust_to_contents=adjust_to_contents,
             default_line_edit=default_line_edit,
         )
-        combobox.restart_required = restart
         combobox.label_text = text
         edit = combobox.lineEdit()
         edit.label_text = text
-        edit.restart_required = restart
-        self.lineedits[edit] = (section, option, default)
 
         if tip is not None:
             combobox.setToolTip(tip)
         combobox.addItems(choices)
         combobox.choices = choices
 
-        msg = _("Invalid file path")
         browse_btn = QPushButton(ima.icon("FileIcon"), "", self)
         browse_btn.setToolTip(_("Select file"))
-        options = QFileDialog.DontResolveSymlinks
         browse_btn.clicked.connect(
-            lambda: self.select_file(edit, filters, options=options)
+            lambda: self._select_file(
+                edit,
+                filters=filters,
+                function=getopenfilename,
+                options=QFileDialog.DontResolveSymlinks,
+            )
         )
 
         layout = QGridLayout()
@@ -204,14 +224,40 @@ class QMessageComboBox(QDialog):
 
         return widget
 
-    def select_file(self, edit, filters=None, **kwargs):
-        """Select File"""
-        basedir = osp.dirname(to_text_string(edit.text()))
+    def _select_file(self, edit, filters=None, function=getopenfilename, **kwargs):
+        """Select File."""
+        basedir = osp.dirname(str(edit.text()))
         if not osp.isdir(basedir):
             basedir = getcwd_or_home()
         if filters is None:
             filters = _("All files (*)")
         title = _("Select file")
-        filename, _selfilter = getopenfilename(self, title, basedir, filters, **kwargs)
+        filename, _selfilter = function(self, title, basedir, filters, **kwargs)
         if filename:
             edit.setText(filename)
+
+    def create_file_lineedit(self, text, tip=None, filters=None, **kwargs):
+        """Select File to use for saving."""
+        lineedit = QLineEdit()
+
+        browse_btn = QPushButton(ima.icon("FileIcon"), "", self)
+        browse_btn.setToolTip(_("Select file"))
+        browse_btn.clicked.connect(
+            lambda: self._select_file(
+                lineedit,
+                filters=filters,
+                function=getsavefilename,
+                options=QFileDialog.DontResolveSymlinks,
+            )
+        )
+
+        layout = QGridLayout()
+        layout.addWidget(lineedit, 0, 0, 0, 9)
+        layout.addWidget(browse_btn, 0, 10)
+        layout.setContentsMargins(0, 0, 0, 0)
+        widget = QWidget(self)
+        widget.lineedit = lineedit
+        widget.browse_btn = browse_btn
+        widget.setLayout(layout)
+
+        return widget
