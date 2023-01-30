@@ -290,7 +290,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         elif action == EnvironmentPackagesActions.InstallPackageVersion:
             title = _("Change package version constraint")
             messages = ["Package", "Constraint", "Version"]
-            types = ["Label", "ComboBox", "LineEditVersion"]
+            types = [
+                CustomParametersDialogWidgets.Label,
+                CustomParametersDialogWidgets.ComboBox,
+                CustomParametersDialogWidgets.LineEditVersion,
+            ]
             contents = [
                 {package_info["name"]},
                 {"==", "<=", ">=", "<", ">", "latest"},
@@ -423,7 +427,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.source_changed()
         else:
             self._message_error_box(result_message)
-        self.stop_spinner()
+            self.stop_spinner()
 
     def _delete_environment(self, manager, action_result, result_message):
         if action_result:
