@@ -159,9 +159,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             )
 
         # Package table widget
-        self.packages_table = EnvironmentPackagesTable(
-            self, text_color=ima.MAIN_FG_COLOR
-        )
+        self.packages_table = EnvironmentPackagesTable(self)
 
         # Layout
         self.stack_layout = layout = QStackedLayout()

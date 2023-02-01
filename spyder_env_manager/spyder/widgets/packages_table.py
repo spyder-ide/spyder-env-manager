@@ -30,7 +30,7 @@ _ = get_translation("spyder")
 
 
 # Column constants
-NAME, DESCRIPTION, VERSION = [0, 1, 2]
+NAME, VERSION, DESCRIPTION = [0, 1, 2]
 
 
 class EnvironmentPackagesActions:
@@ -41,8 +41,8 @@ class EnvironmentPackagesActions:
 
 
 class EnvironmentPackagesModel(QAbstractTableModel):
-    def __init__(self, parent, text_color=None, text_color_highlight=None):
-        QAbstractTableModel.__init__(self)
+    def __init__(self, parent):
+        super().__init__(parent)
         self._parent = parent
         self.all_packages = []
         self.packages = []
@@ -121,34 +121,23 @@ class EnvironmentPackagesTable(QTableView):
 
     sig_action_context_menu = Signal(str, dict)
 
-    def __init__(self, parent, text_color=None):
-        QTableView.__init__(self, parent)
+    def __init__(self, parent):
+        super().__init__(parent)
         # Setup table model
-        self.source_model = EnvironmentPackagesModel(self, text_color=text_color)
+        self.source_model = EnvironmentPackagesModel(self)
         self.setModel(self.source_model)
 
         # Setup table
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.setSortingEnabled(True)
         self.setEditTriggers(QAbstractItemView.AllEditTriggers)
         self.verticalHeader().hide()
+        self.horizontalHeader().setStretchLastSection(True)
         self.load_packages(False)
 
     def selection(self, action, package_info):
         """Update selected row."""
         self.sig_action_context_menu.emit(action, package_info)
-
-    def adjust_cells(self):
-        """Adjust column size based on contents."""
-        fm = self.horizontalHeader().fontMetrics()
-        names = [fm.width(p["name"]) for p in self.source_model.packages]
-        if names:
-            self.setColumnWidth(NAME, max(names))
-        descriptions = [fm.width(p["description"]) for p in self.source_model.packages]
-        if descriptions:
-            self.setColumnWidth(DESCRIPTION, max(descriptions))
-        self.horizontalHeader().setStretchLastSection(True)
 
     def get_package_info(self, index):
         return self.source_model.packages[index]
@@ -176,8 +165,7 @@ class EnvironmentPackagesTable(QTableView):
             self.source_model.packages = packages
             self.source_model.packages_map = packages_map
             self.source_model.reset()
-            self.adjust_cells()
-            self.sortByColumn(NAME, Qt.AscendingOrder)
+            self.resizeColumnToContents(NAME)
 
     def next_row(self):
         """Move to next row from currently selected row."""
