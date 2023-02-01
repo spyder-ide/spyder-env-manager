@@ -16,7 +16,7 @@ This is the main widget used in the Spyder env Manager plugin
 from qtpy.compat import to_qvariant
 from qtpy.QtCore import QAbstractTableModel, QModelIndex, Qt, Signal
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QAbstractItemView, QLabel, QMenu, QTableView
+from qtpy.QtWidgets import QAbstractItemView, QMenu, QTableView
 
 # Spyder and local imports
 from spyder.api.translations import get_translation
@@ -29,6 +29,7 @@ from spyder.utils.qthelpers import add_actions, create_action
 _ = get_translation("spyder")
 
 
+# Column constants
 NAME, DESCRIPTION, VERSION = [0, 1, 2]
 
 
@@ -43,32 +44,9 @@ class EnvironmentPackagesModel(QAbstractTableModel):
     def __init__(self, parent, text_color=None, text_color_highlight=None):
         QAbstractTableModel.__init__(self)
         self._parent = parent
-
         self.all_packages = []
         self.packages = []
         self.packages_map = {}
-        self.rich_text = []
-        self.normal_text = []
-        self.letters = ""
-        self.label = QLabel()
-        self.widths = []
-
-        # Needed to compensate for the HTMLDelegate color selection unawareness
-        palette = parent.palette()
-        if text_color is None:
-            self.text_color = palette.text().color().name()
-        else:
-            self.text_color = text_color
-
-        if text_color_highlight is None:
-            self.text_color_highlight = palette.highlightedText().color().name()
-        else:
-            self.text_color_highlight = text_color_highlight
-
-    def sortByName(self):
-        """Qt Override."""
-        self.packages = sorted(self.packages, key=lambda x: x.language)
-        self.reset()
 
     def flags(self, index):
         """Qt Override."""
@@ -134,7 +112,7 @@ class EnvironmentPackagesModel(QAbstractTableModel):
         return self.packages[row_num]
 
     def reset(self):
-        """ "Reset model to take into account new search letters."""
+        """Reset model to take into account new search letters."""
         self.beginResetModel()
         self.endResetModel()
 
@@ -145,64 +123,17 @@ class EnvironmentPackagesTable(QTableView):
 
     def __init__(self, parent, text_color=None):
         QTableView.__init__(self, parent)
-        self.menu = None
-        self.menu_actions = []
-        self.empty_ws_menu = None
-        self.update_action = None
-        self.uninstall_action = None
-        self.change_action = None
-        self._parent = parent
-        self.delete_queue = []
+        # Setup table model
         self.source_model = EnvironmentPackagesModel(self, text_color=text_color)
         self.setModel(self.source_model)
+
+        # Setup table
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setSelectionMode(QAbstractItemView.SingleSelection)
         self.setSortingEnabled(True)
         self.setEditTriggers(QAbstractItemView.AllEditTriggers)
         self.verticalHeader().hide()
         self.load_packages(False)
-
-    def contextMenuEvent(self, event):
-        """Setup context menu"""
-        row = self.rowAt(event.pos().y())
-        packages = self.source_model.packages
-        if packages and packages[row]["requested"]:
-            self.update_action = create_action(
-                self,
-                _("Update package"),
-                triggered=lambda: self.selection(
-                    EnvironmentPackagesActions.UpdatePackage, packages[row]
-                ),
-            )
-            self.uninstall_action = create_action(
-                self,
-                _("Uninstall package"),
-                triggered=lambda: self.selection(
-                    EnvironmentPackagesActions.UninstallPackage, packages[row]
-                ),
-            )
-            self.change_action = create_action(
-                self,
-                _("Change package version with a constraint"),
-                triggered=lambda: self.selection(
-                    EnvironmentPackagesActions.InstallPackageVersion, packages[row]
-                ),
-            )
-            menu = QMenu(self)
-            self.menu_actions = [
-                self.update_action,
-                self.uninstall_action,
-                self.change_action,
-            ]
-            add_actions(menu, self.menu_actions)
-            menu.setMinimumWidth(100)
-            menu.popup(event.globalPos())
-            event.accept()
-
-    def focusInEvent(self, e):
-        """Qt Override."""
-        super(EnvironmentPackagesTable, self).focusInEvent(e)
-        self.selectRow(self.currentIndex().row())
 
     def selection(self, action, package_info):
         """Update selected row."""
@@ -218,6 +149,9 @@ class EnvironmentPackagesTable(QTableView):
         if descriptions:
             self.setColumnWidth(DESCRIPTION, max(descriptions))
         self.horizontalHeader().setStretchLastSection(True)
+
+    def get_package_info(self, index):
+        return self.source_model.packages[index]
 
     def load_packages(self, only_requested=False, packages=None):
         #     packages = [
@@ -261,6 +195,48 @@ class EnvironmentPackagesTable(QTableView):
             row = rows
         self.selectRow(row - 1)
 
+    def contextMenuEvent(self, event):
+        """Setup context menu"""
+        row = self.rowAt(event.pos().y())
+        packages = self.source_model.packages
+        if packages and packages[row]["requested"]:
+            update_action = create_action(
+                self,
+                _("Update package"),
+                triggered=lambda: self.selection(
+                    EnvironmentPackagesActions.UpdatePackage, packages[row]
+                ),
+            )
+            uninstall_action = create_action(
+                self,
+                _("Uninstall package"),
+                triggered=lambda: self.selection(
+                    EnvironmentPackagesActions.UninstallPackage, packages[row]
+                ),
+            )
+            change_action = create_action(
+                self,
+                _("Change package version with a constraint"),
+                triggered=lambda: self.selection(
+                    EnvironmentPackagesActions.InstallPackageVersion, packages[row]
+                ),
+            )
+            menu = QMenu(self)
+            menu_actions = [
+                update_action,
+                uninstall_action,
+                change_action,
+            ]
+            add_actions(menu, menu_actions)
+            menu.setMinimumWidth(100)
+            menu.popup(event.globalPos())
+            event.accept()
+
+    def focusInEvent(self, e):
+        """Qt Override."""
+        super(EnvironmentPackagesTable, self).focusInEvent(e)
+        self.selectRow(self.currentIndex().row())
+
     def keyPressEvent(self, event):
         """Qt Override."""
         key = event.key()
@@ -272,6 +248,3 @@ class EnvironmentPackagesTable(QTableView):
             super(EnvironmentPackagesTable, self).keyPressEvent(event)
         else:
             super(EnvironmentPackagesTable, self).keyPressEvent(event)
-
-    def get_package_info(self, index):
-        return self.source_model.packages[index]

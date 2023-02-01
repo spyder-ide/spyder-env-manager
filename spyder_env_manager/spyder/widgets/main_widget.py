@@ -113,6 +113,13 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def __init__(self, name=None, plugin=None, parent=None):
         super().__init__(name, plugin, parent)
 
+        # General attributes
+        self.actions_enabled = True
+        self.exclude_non_requested_packages = False
+        self.env_manager_action_thread = QThread(None)
+        self.manager_worker = None
+
+        # Select environment widget
         envs, _ = Manager.list_environments(
             backend=CondaLikeInterface.ID,
             root_path=self.get_conf("environments_path", DEFAULT_BACKENDS_ROOT_PATH),
@@ -120,13 +127,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 "conda_file_executable_path", conda_like_executable()
             ),
         )
-        self.exclude_non_requested_packages = False
-        self.env_manager_action_thread = QThread(None)
-        self.manager_worker = None
-        self._actions_enabled = True
         self.select_environment = QComboBox(self)
         self.select_environment.ID = SpyderEnvManagerWidgetActions.SelectEnvironment
-
         if not envs:
             self.envs_available = False
             self.select_environment.addItem(self.NO_ENVIRONMENTS_AVAILABLE, None)
@@ -134,7 +136,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             for env_name, env_directory in envs.items():
                 self.select_environment.addItem(env_name, env_directory)
             self.envs_available = True
-
         self.select_environment.setToolTip("Select an environment")
         self.select_environment.setSizeAdjustPolicy(
             QComboBox.AdjustToMinimumContentsLength
@@ -143,8 +144,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         selected_environment = self.get_conf("selected_environment", None)
         if selected_environment:
             self.select_environment.setCurrentText(selected_environment)
-        self.css_path = self.get_conf("css_path", CSS_PATH, "appearance")
 
+        # Usage widget
+        self.css_path = self.get_conf("css_path", CSS_PATH, "appearance")
         self.infowidget = FrameWebView(self)
         if WEBENGINE:
             self.infowidget.web_widget.page().setBackgroundColor(QColor(MAIN_BG_COLOR))
@@ -155,19 +157,25 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.infowidget.page().setLinkDelegationPolicy(
                 QWebEnginePage.DelegateAllLinks
             )
+
+        # Package table widget
         self.packages_table = EnvironmentPackagesTable(
             self, text_color=ima.MAIN_FG_COLOR
         )
-        self.packages_table.sig_action_context_menu.connect(
-            self.table_context_menu_actions
-        )
+
+        # Layout
         self.stack_layout = layout = QStackedLayout()
         layout.addWidget(self.infowidget)
         layout.addWidget(self.packages_table)
         self.setLayout(self.stack_layout)
 
         # Signals
-        self.select_environment.currentIndexChanged.connect(self.source_changed)
+        self.packages_table.sig_action_context_menu.connect(
+            self._package_table_context_menu_actions
+        )
+        self.select_environment.currentIndexChanged.connect(
+            self.current_environment_changed
+        )
 
     # ---- PluginMainWidget API
     # ------------------------------------------------------------------------
@@ -176,7 +184,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def setup(self):
         # ---- Options menu actions
-
         exclude_dependency_action = self.create_action(
             SpyderEnvManagerWidgetActions.ToggleExcludeDependency,
             text=_("Exclude dependency packages"),
@@ -252,7 +259,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             )
 
         self.show_intro_message()
-        self.source_changed()
+        self.current_environment_changed()
 
     def show_intro_message(self):
         """Show introduction message on how to use the plugin."""
@@ -268,7 +275,78 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self._rich_font = rich_font
         self.infowidget.set_font(rich_font)
 
-    def table_context_menu_actions(self, action, package_info):
+    def current_environment_changed(self):
+        current_environment = self.select_environment.currentText()
+        environments_available = current_environment != "No environments available"
+        if environments_available:
+            self._env_action(
+                dialog=None, action=SpyderEnvManagerWidgetActions.ListPackages
+            )
+            self.stack_layout.setCurrentWidget(self.packages_table)
+            # TODO: Set selected env interpreter as Spyder main interpreter
+        else:
+            self.stack_layout.setCurrentWidget(self.infowidget)
+            self.stop_spinner()
+
+    def update_actions(self):
+        if self.actions_enabled:
+            current_environment = self.select_environment.currentText()
+            environments_available = current_environment != "No environments available"
+            actions_ids = [
+                SpyderEnvManagerWidgetActions.InstallPackage,
+                SpyderEnvManagerWidgetActions.DeleteEnvironment,
+                SpyderEnvManagerWidgetActions.ExportEnvironment,
+            ]
+            for action_id, action in self.get_actions().items():
+                if action_id in actions_ids:
+                    action.setEnabled(environments_available)
+                else:
+                    action.setEnabled(True)
+
+    def update_packages(self, only_requested, packages=None):
+        self.exclude_non_requested_packages = only_requested
+        self.packages_table.load_packages(only_requested, packages)
+        self.stop_spinner()
+
+    def start_spinner(self):
+        self.actions_enabled = False
+        for action_id, action in self.get_actions().items():
+            if action_id not in PluginMainWidgetActions.__dict__.values():
+                action.setEnabled(False)
+        self.select_environment.setDisabled(True)
+        self.packages_table.setDisabled(True)
+        super().start_spinner()
+
+    def stop_spinner(self):
+        self.actions_enabled = True
+        self.update_actions()
+        self.select_environment.setDisabled(False)
+        self.packages_table.setDisabled(False)
+        super().stop_spinner()
+
+    def on_close(self):
+        env_name = self.select_environment.currentText()
+        self.set_conf("selected_environment", env_name)
+        if (
+            self.env_manager_action_thread
+            and self.env_manager_action_thread.isRunning()
+        ):
+            self.env_manager_action_thread.terminate()
+            self.env_manager_action_thread.wait()
+
+    # ---- Private API
+    # ------------------------------------------------------------------------
+
+    def _create_info_environment_page(self, title, message):
+        """Create html page to show if no environment exists."""
+        with open(ENVIRONMENT_MESSAGE) as template_message:
+            environment_message_template = Template(template_message.read())
+            page = environment_message_template.substitute(
+                css_path=self.css_path, title=title, message=message
+            )
+        return page
+
+    def _package_table_context_menu_actions(self, action, package_info):
         if action == EnvironmentPackagesActions.UpdatePackage:
             title = _("Update package")
             messages = _("Are you sure you want to update the selected package?")
@@ -309,77 +387,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 package_info=package_info,
             )
 
-    def source_changed(self):
-        current_environment = self.select_environment.currentText()
-        environments_available = current_environment != "No environments available"
-        if environments_available:
-            self._env_action(
-                dialog=None, action=SpyderEnvManagerWidgetActions.ListPackages
-            )
-            self.stack_layout.setCurrentWidget(self.packages_table)
-            # TODO: Set selected env interpreter as Spyder main interpreter
-        else:
-            self.stack_layout.setCurrentWidget(self.infowidget)
-            self.stop_spinner()
-
-    def update_actions(self):
-        if self._actions_enabled:
-            current_environment = self.select_environment.currentText()
-            environments_available = current_environment != "No environments available"
-            actions_ids = [
-                SpyderEnvManagerWidgetActions.InstallPackage,
-                SpyderEnvManagerWidgetActions.DeleteEnvironment,
-                SpyderEnvManagerWidgetActions.ExportEnvironment,
-            ]
-            for action_id, action in self.get_actions().items():
-                if action_id in actions_ids:
-                    action.setEnabled(environments_available)
-                else:
-                    action.setEnabled(True)
-
-    def update_packages(self, only_requested, packages=None):
-        self.exclude_non_requested_packages = only_requested
-        self.packages_table.load_packages(only_requested, packages)
-        self.stop_spinner()
-
-    def start_spinner(self):
-        self._actions_enabled = False
-        for action_id, action in self.get_actions().items():
-            if action_id not in PluginMainWidgetActions.__dict__.values():
-                action.setEnabled(False)
-        self.select_environment.setDisabled(True)
-        self.packages_table.setDisabled(True)
-        super().start_spinner()
-
-    def stop_spinner(self):
-        self._actions_enabled = True
-        self.update_actions()
-        self.select_environment.setDisabled(False)
-        self.packages_table.setDisabled(False)
-        super().stop_spinner()
-
-    def on_close(self):
-        env_name = self.select_environment.currentText()
-        self.set_conf("selected_environment", env_name)
-        if (
-            self.env_manager_action_thread
-            and self.env_manager_action_thread.isRunning()
-        ):
-            self.env_manager_action_thread.terminate()
-            self.env_manager_action_thread.wait()
-
-    # ---- Private API
-    # ------------------------------------------------------------------------
-
-    def _create_info_environment_page(self, title, message):
-        """Create html page to show while the kernel is starting"""
-        with open(ENVIRONMENT_MESSAGE) as templete_message:
-            environment_message_template = Template(templete_message.read())
-            page = environment_message_template.substitute(
-                css_path=self.css_path, title=title, message=message
-            )
-        return page
-
     def _add_new_environment_entry(self, manager, action_result, result_message):
         if action_result:
             if not self.envs_available:
@@ -403,7 +410,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._run_env_action(
                 manager,
                 manager.install,
-                self.source_changed,
+                self.current_environment_changed,
                 packages,
                 force=True,
             )
@@ -424,7 +431,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def _install_package(self, manager, action_result, result_message):
         if action_result:
-            self.source_changed()
+            self.current_environment_changed()
         else:
             self._message_error_box(result_message)
             self.stop_spinner()
@@ -490,7 +497,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._run_env_action(
                 manager,
                 manager.update,
-                self.source_changed,
+                self.current_environment_changed,
                 [package_name],
                 force=True,
                 capture_output=True,
@@ -506,7 +513,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._run_env_action(
                 manager,
                 manager.uninstall,
-                self.source_changed,
+                self.current_environment_changed,
                 [package_name],
                 force=True,
                 capture_output=True,

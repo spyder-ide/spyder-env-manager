@@ -1,5 +1,5 @@
-git+https://github.com/dalthviz/env-manager@list_packages  # envs-manager dependency
+envs-manager>=0.1.2
 qtawesome
 qtpy
 setuptools
-spyder>=5.4.0
+spyder>=5.4.2
