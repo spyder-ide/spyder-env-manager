@@ -20,10 +20,12 @@ from qtpy.QtWidgets import QAbstractItemView, QMenu, QTableView
 
 # Spyder and local imports
 from spyder.api.translations import get_translation
+from spyder.api.widgets.mixins import SpyderWidgetMixin
 from spyder.config.fonts import DEFAULT_SMALL_DELTA
 from spyder.config.gui import get_font
 from spyder.utils.palette import SpyderPalette
 from spyder.utils.qthelpers import add_actions, create_action
+
 
 # Localization
 _ = get_translation("spyder")
@@ -34,16 +36,19 @@ NAME, VERSION, DESCRIPTION = [0, 1, 2]
 
 
 class EnvironmentPackagesActions:
-    # Triggers
+    # Actions available for a package (from the context menu)
     UpdatePackage = "update_package"
     UninstallPackage = "unistall_package"
     InstallPackageVersion = "install_package_version"
 
 
+class EnvironmentPackagesMenu:
+    PackageContextMenu = "package_context_menu"
+
+
 class EnvironmentPackagesModel(QAbstractTableModel):
     def __init__(self, parent):
         super().__init__(parent)
-        self._parent = parent
         self.all_packages = []
         self.packages = []
         self.packages_map = {}
@@ -107,22 +112,27 @@ class EnvironmentPackagesModel(QAbstractTableModel):
         """Qt Override."""
         return 3
 
-    def row(self, row_num):
-        """Get row based on model index. Needed for the custom proxy model."""
-        return self.packages[row_num]
 
-    def reset(self):
-        """Reset model to take into account new search letters."""
-        self.beginResetModel()
-        self.endResetModel()
-
-
-class EnvironmentPackagesTable(QTableView):
+class EnvironmentPackagesTable(QTableView, SpyderWidgetMixin):
+    """Table widget to show the packages inside an enviroment."""
 
     sig_action_context_menu = Signal(str, dict)
+    """
+    This signal is emitted when an action in the widget context menu is triggered.
+
+    Parameters
+    ----------
+    action : str
+        The action being processed.
+    package_info : dict
+        The information available for the package from where the context menu was raised.
+    """
 
     def __init__(self, parent):
-        super().__init__(parent)
+        super().__init__(parent, class_parent=parent)
+        # Setup context menu
+        self.context_menu = self.create_menu(EnvironmentPackagesMenu.PackageContextMenu)
+
         # Setup table model
         self.source_model = EnvironmentPackagesModel(self)
         self.setModel(self.source_model)
@@ -135,22 +145,51 @@ class EnvironmentPackagesTable(QTableView):
         self.horizontalHeader().setStretchLastSection(True)
         self.load_packages(False)
 
-    def selection(self, action, package_info):
-        """Update selected row."""
-        self.sig_action_context_menu.emit(action, package_info)
-
     def get_package_info(self, index):
+        """
+        Get package information by index/row
+
+        Parameters
+        ----------
+        index : int
+            Index of the request package.
+
+        Returns
+        -------
+        dict
+            Package information available.
+
+        """
         return self.source_model.packages[index]
 
     def load_packages(self, only_requested=False, packages=None):
-        #     packages = [
-        #         {
-        #             "name": "package name",
-        #             "description": "package description",
-        #             "version": "0.0.1",
-        #             "requested": False,
-        #         },
-        #     ]
+        """
+        Load given packages and filter them if needed.
+
+        Parameters
+        ----------
+        only_requested : bool, optional
+            True if the packages should be filtered and only requested packages be kept. The default is False.
+        packages : list[dict], optional
+            List of packages to be set on the widget. The default is None.
+            The expected package structure is as follows:
+            ```
+            packages = [
+                {
+                    "name": "package name",
+                    "description": "package description",
+                    "version": "0.0.1",
+                    "requested": False,
+                },
+            ]
+            ```
+
+        Returns
+        -------
+        None.
+
+        """
+
         if packages:
             self.source_model.all_packages = packages
         if not packages and self.source_model.all_packages:
@@ -161,10 +200,11 @@ class EnvironmentPackagesTable(QTableView):
             for idx, package in enumerate(packages):
                 package["index"] = idx
             packages_map = {package["name"]: package for package in packages}
-
+            self.source_model.beginResetModel()
             self.source_model.packages = packages
             self.source_model.packages_map = packages_map
-            self.source_model.reset()
+            self.source_model.endResetModel()
+
             self.resizeColumnToContents(NAME)
 
     def next_row(self):
@@ -184,40 +224,41 @@ class EnvironmentPackagesTable(QTableView):
         self.selectRow(row - 1)
 
     def contextMenuEvent(self, event):
-        """Setup context menu"""
+        """Qt Override."""
+        self.context_menu.clear_actions()
         row = self.rowAt(event.pos().y())
         packages = self.source_model.packages
         if packages and packages[row]["requested"]:
-            update_action = create_action(
+            update_action = self.create_action(
                 self,
                 _("Update package"),
-                triggered=lambda: self.selection(
+                triggered=lambda triggered: self.sig_action_context_menu.emit(
                     EnvironmentPackagesActions.UpdatePackage, packages[row]
                 ),
             )
-            uninstall_action = create_action(
+            uninstall_action = self.create_action(
                 self,
                 _("Uninstall package"),
-                triggered=lambda: self.selection(
+                triggered=lambda triggered: self.sig_action_context_menu.emit(
                     EnvironmentPackagesActions.UninstallPackage, packages[row]
                 ),
             )
-            change_action = create_action(
+            change_action = self.create_action(
                 self,
                 _("Change package version with a constraint"),
-                triggered=lambda: self.selection(
+                triggered=lambda triggered: self.sig_action_context_menu.emit(
                     EnvironmentPackagesActions.InstallPackageVersion, packages[row]
                 ),
             )
-            menu = QMenu(self)
             menu_actions = [
                 update_action,
                 uninstall_action,
                 change_action,
             ]
-            add_actions(menu, menu_actions)
-            menu.setMinimumWidth(100)
-            menu.popup(event.globalPos())
+            for menu_action in menu_actions:
+                self.add_item_to_menu(menu_action, self.context_menu)
+            self.context_menu.setMinimumWidth(100)
+            self.context_menu.popup(event.globalPos())
             event.accept()
 
     def focusInEvent(self, e):
