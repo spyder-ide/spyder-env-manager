@@ -16,7 +16,7 @@ This is the main widget used in the Spyder env Manager plugin
 from qtpy.compat import to_qvariant
 from qtpy.QtCore import QAbstractTableModel, QModelIndex, Qt, Signal
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QAbstractItemView, QMenu, QTableView
+from qtpy.QtWidgets import QAbstractItemView, QTableView
 
 # Spyder and local imports
 from spyder.api.translations import get_translation
@@ -24,7 +24,6 @@ from spyder.api.widgets.mixins import SpyderWidgetMixin
 from spyder.config.fonts import DEFAULT_SMALL_DELTA
 from spyder.config.gui import get_font
 from spyder.utils.palette import SpyderPalette
-from spyder.utils.qthelpers import add_actions, create_action
 
 
 # Localization
@@ -235,6 +234,7 @@ class EnvironmentPackagesTable(QTableView, SpyderWidgetMixin):
                 triggered=lambda triggered: self.sig_action_context_menu.emit(
                     EnvironmentPackagesActions.UpdatePackage, packages[row]
                 ),
+                overwrite=True,
             )
             uninstall_action = self.create_action(
                 self,
@@ -242,6 +242,7 @@ class EnvironmentPackagesTable(QTableView, SpyderWidgetMixin):
                 triggered=lambda triggered: self.sig_action_context_menu.emit(
                     EnvironmentPackagesActions.UninstallPackage, packages[row]
                 ),
+                overwrite=True,
             )
             change_action = self.create_action(
                 self,
@@ -249,6 +250,7 @@ class EnvironmentPackagesTable(QTableView, SpyderWidgetMixin):
                 triggered=lambda triggered: self.sig_action_context_menu.emit(
                     EnvironmentPackagesActions.InstallPackageVersion, packages[row]
                 ),
+                overwrite=True,
             )
             menu_actions = [
                 update_action,

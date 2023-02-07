@@ -277,6 +277,22 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.infowidget.set_font(rich_font)
 
     def current_environment_changed(self, index=None):
+        """
+        Handle changing environment or changes inside the current environment.
+
+        Either the current environment being displayed is different or
+        the packages inside the current environment have changed.
+
+        Parameters
+        ----------
+        index : int, optional
+            Index of the current environment selected. The default is None.
+
+        Returns
+        -------
+        None.
+
+        """
         if index:
             current_environment = self.select_environment.itemText(index)
         else:
@@ -483,7 +499,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._run_action_in_env(
                 manager,
                 manager.install,
-                self.current_environment_changed,
+                self._after_package_changed,
                 packages,
                 force=True,
             )
@@ -521,9 +537,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._message_error_box(result_message)
         self.stop_spinner()
 
-    def _after_install_package(self, manager, action_result, result_message):
+    def _after_package_changed(self, manager, action_result, result_message):
         """
-        Handle the result of installing a package functionality.
+        Handle the result of installing, uninstalling or updating a package functionality.
 
         Updates the current environment (packages listed).
 
@@ -693,7 +709,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._run_action_in_env(
                 manager,
                 manager.update,
-                self.current_environment_changed,
+                self._after_package_changed,
                 [package_name],
                 force=True,
                 capture_output=True,
@@ -709,7 +725,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._run_action_in_env(
                 manager,
                 manager.uninstall,
-                self.current_environment_changed,
+                self._after_package_changed,
                 [package_name],
                 force=True,
                 capture_output=True,
@@ -730,9 +746,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._run_action_in_env(
                 manager,
                 manager.install,
-                self._after_install_package,
+                self._after_package_changed,
                 packages,
                 force=True,
+                capture_output=True,
             )
         else:
             self._message_error_box("Action unavailable at this moment.")
@@ -816,9 +833,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._run_action_in_env(
                 manager,
                 manager.install,
-                self._after_install_package,
+                self._after_package_changed,
                 packages,
                 force=True,
+                capture_output=True,
             )
         elif action == SpyderEnvManagerWidgetActions.DeleteEnvironment:
             env_name = self.select_environment.currentText()
