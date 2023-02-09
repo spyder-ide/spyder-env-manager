@@ -982,7 +982,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         messages : list[str]
             Dialog message or labels to show. Each index is a field.
         contents : list[iterable]
-            Initial values to set to custom widget to add.
+            Initial values to set to the custom widget to add.
         types : list[str]
             Widget types that should be constructed in the dialog. Each index is a field that correspond to the `messages` list.
         action : str, optional

@@ -178,6 +178,7 @@ class EnvironmentPackagesTable(QTableView, SpyderWidgetMixin):
             List of packages to be displayed on the widget. The default is None.
             The expected package structure is as follows:
 
+
             ```
             packages = [
                 {
