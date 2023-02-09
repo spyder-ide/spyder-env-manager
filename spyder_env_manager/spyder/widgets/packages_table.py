@@ -35,7 +35,11 @@ NAME, VERSION, DESCRIPTION = [0, 1, 2]
 
 
 class EnvironmentPackagesActions:
-    # Actions available for a package (from the context menu)
+    """
+    Actions available for a package from the `EnvironmentPackagesTable`
+    context menu.
+    """
+
     UpdatePackage = "update_package"
     UninstallPackage = "unistall_package"
     InstallPackageVersion = "install_package_version"
@@ -113,7 +117,7 @@ class EnvironmentPackagesModel(QAbstractTableModel):
 
 
 class EnvironmentPackagesTable(QTableView, SpyderWidgetMixin):
-    """Table widget to show the packages inside an enviroment."""
+    """Table widget to show the installed packages in an environment."""
 
     sig_action_context_menu = Signal(str, dict)
     """
@@ -124,7 +128,8 @@ class EnvironmentPackagesTable(QTableView, SpyderWidgetMixin):
     action : str
         The action being processed.
     package_info : dict
-        The information available for the package from where the context menu was raised.
+        Available information for the package on top of which the user requested to
+        show the context menu of this widget.
     """
 
     def __init__(self, parent):
@@ -146,7 +151,7 @@ class EnvironmentPackagesTable(QTableView, SpyderWidgetMixin):
 
     def get_package_info(self, index):
         """
-        Get package information by index/row
+        Get package information by index (i.e. row).
 
         Parameters
         ----------
@@ -170,8 +175,9 @@ class EnvironmentPackagesTable(QTableView, SpyderWidgetMixin):
         only_requested : bool, optional
             True if the packages should be filtered and only requested packages be kept. The default is False.
         packages : list[dict], optional
-            List of packages to be set on the widget. The default is None.
+            List of packages to be displayed on the widget. The default is None.
             The expected package structure is as follows:
+
             ```
             packages = [
                 {
