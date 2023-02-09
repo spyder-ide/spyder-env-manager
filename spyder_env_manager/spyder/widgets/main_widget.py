@@ -171,7 +171,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         # Signals
         self.packages_table.sig_action_context_menu.connect(
-            self._package_table_context_menu_actions
+            self._handle_package_table_context_menu_actions
         )
         self.select_environment.currentIndexChanged.connect(
             self.current_environment_changed
@@ -381,7 +381,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             )
         return page
 
-    def _package_table_context_menu_actions(self, action, package_info):
+    def _handle_package_table_context_menu_actions(self, action, package_info):
         """
         Handle context menu actions defined in the packages table widget.
 
@@ -496,14 +496,14 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         # Install needed spyder-kernels version
         if action_result:
             packages = [f"spyder-kernels{SPYDER_KERNELS_VERSION}"]
-            self._run_action_in_env(
+            self._run_env_manager_action(
                 manager,
                 manager.install,
                 self._after_package_changed,
                 packages,
                 force=True,
+                capture_output=True,
             )
-        self.stop_spinner()
 
     def _after_export_environment(self, manager, action_result, result_message):
         """
@@ -619,7 +619,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._message_error_box(result_message)
         self.stop_spinner()
 
-    def _run_action_in_env(
+    def _run_env_manager_action(
         self,
         manager,
         manager_action,
@@ -652,7 +652,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.env_manager_action_thread
             and self.env_manager_action_thread.isRunning()
         ):
-            self.env_manager_action_thread.quit()
+            self.env_manager_action_thread.terminate()
             self.env_manager_action_thread.wait()
 
         self.manager_worker = EnvironmentManagerWorker(
@@ -704,7 +704,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 env_name=env_name,
                 external_executable=external_executable,
             )
-            self._run_action_in_env(
+            self._run_env_manager_action(
                 manager,
                 manager.update,
                 self._after_package_changed,
@@ -720,7 +720,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 env_name=env_name,
                 external_executable=external_executable,
             )
-            self._run_action_in_env(
+            self._run_env_manager_action(
                 manager,
                 manager.uninstall,
                 self._after_package_changed,
@@ -741,7 +741,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 env_name=env_name,
                 external_executable=external_executable,
             )
-            self._run_action_in_env(
+            self._run_env_manager_action(
                 manager,
                 manager.install,
                 self._after_package_changed,
@@ -790,7 +790,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 env_name=env_name,
                 external_executable=external_executable,
             )
-            self._run_action_in_env(
+            self._run_env_manager_action(
                 manager,
                 manager.create_environment,
                 self._add_new_environment_entry,
@@ -807,7 +807,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 env_name=env_name,
                 external_executable=external_executable,
             )
-            self._run_action_in_env(
+            self._run_env_manager_action(
                 manager,
                 manager.import_environment,
                 self._after_import_environment,
@@ -828,7 +828,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 env_name=env_name,
                 external_executable=external_executable,
             )
-            self._run_action_in_env(
+            self._run_env_manager_action(
                 manager,
                 manager.install,
                 self._after_package_changed,
@@ -844,7 +844,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 env_name=env_name,
                 external_executable=external_executable,
             )
-            self._run_action_in_env(
+            self._run_env_manager_action(
                 manager,
                 manager.delete_environment,
                 self._after_delete_environment,
@@ -858,7 +858,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                     env_directory=env_directory,
                     external_executable=external_executable,
                 )
-                self._run_action_in_env(
+                self._run_env_manager_action(
                     manager,
                     manager.list,
                     self._after_list_environment_packages,
@@ -873,7 +873,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 env_name=env_name,
                 external_executable=external_executable,
             )
-            self._run_action_in_env(
+            self._run_env_manager_action(
                 manager,
                 manager.export_environment,
                 self._after_export_environment,
