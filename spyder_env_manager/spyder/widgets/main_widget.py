@@ -400,9 +400,12 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         None.
 
         """
+        package_name = package_info["name"]
         if action == EnvironmentPackagesActions.UpdatePackage:
             title = _("Update package")
-            messages = _("Are you sure you want to update the selected package?")
+            messages = _(
+                "Are you sure you want to update <tt>{package_name}</tt>?"
+            ).format(package_name=package_name)
             self._message_box(
                 title,
                 messages,
@@ -411,7 +414,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             )
         elif action == EnvironmentPackagesActions.UninstallPackage:
             title = _("Uninstall package")
-            messages = _("Are you sure you want to uninstall the selected package?")
+            messages = _(
+                "Are you sure you want to uninstall <tt>{package_name}</tt>?"
+            ).format(package_name=package_name)
             self._message_box(
                 title,
                 messages,
@@ -427,8 +432,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 CustomParametersDialogWidgets.LineEditVersion,
             ]
             contents = [
-                {package_info["name"]},
-                {"==", "<=", ">=", "<", ">", "latest"},
+                [package_info["name"]],
+                ["==", "<=", ">=", "<", ">", "latest"],
                 {},
             ]
             self._message_box_editable(
@@ -529,7 +534,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             QMessageBox.information(
                 self,
                 _("Environment exported"),
-                _(f"Python Environment {manager.env_name} was exported."),
+                _("Python Environment <tt>{env_name}</tt> was exported.").format(
+                    env_name=manager.env_name
+                ),
             )
         else:
             self._message_error_box(result_message)
