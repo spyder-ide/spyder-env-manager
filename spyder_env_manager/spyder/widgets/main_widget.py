@@ -18,7 +18,7 @@ from string import Template
 
 # Third party imports
 from envs_manager.backends.conda_like_interface import CondaLikeInterface
-from envs_manager.manager import Manager
+from envs_manager.manager import DEFAULT_BACKENDS_ROOT_PATH, Manager
 import qtawesome as qta
 from qtpy.QtCore import QThread, QUrl
 from qtpy.QtGui import QColor
@@ -33,16 +33,26 @@ from qtpy.QtWidgets import (
 
 # Spyder and local imports
 from spyder.api.translations import get_translation
-from spyder.api.widgets.main_widget import PluginMainWidget, PluginMainWidgetActions
+from spyder.api.widgets.main_widget import (
+    PluginMainWidget,
+    PluginMainWidgetActions,
+)
 from spyder.config.base import get_module_source_path
 from spyder.dependencies import SPYDER_KERNELS_REQVER
 from spyder.utils.icon_manager import ima
 from spyder.utils.palette import QStylePalette
 from spyder.widgets.browser import FrameWebView
 
+from spyder_env_manager.spyder.config import (
+    conda_like_executable,
+)
 from spyder_env_manager.spyder.workers import EnvironmentManagerWorker
-from spyder_env_manager.spyder.widgets.helper_widgets import MessageComboBox
+from spyder_env_manager.spyder.widgets.helper_widgets import (
+    CustomParametersDialog,
+    CustomParametersDialogWidgets,
+)
 from spyder_env_manager.spyder.widgets.packages_table import (
+    EnvironmentPackagesActions,
     EnvironmentPackagesTable,
 )
 
@@ -74,6 +84,7 @@ class SpyderEnvManagerWidgetActions:
     NewEnvironment = "new_environment"
     DeleteEnvironment = "delete_environment"
     InstallPackage = "install_package"
+    ListPackages = "list_packages"
 
     # Options menu actions
     ImportEnvironment = "import_environment_action"
@@ -99,24 +110,34 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     # PluginMainWidget class constants
     ENABLE_SPINNER = True
+    NO_ENVIRONMENTS_AVAILABLE = _("No environments available")
 
     def __init__(self, name=None, plugin=None, parent=None):
         super().__init__(name, plugin, parent)
 
-        self.envs = Manager.list_environments(backend=CondaLikeInterface.ID)
+        # General attributes
+        self.actions_enabled = True
+        self.exclude_non_requested_packages = True
         self.env_manager_action_thread = QThread(None)
         self.manager_worker = None
-        self._actions_enabled = True
+
+        # Select environment widget
+        envs, _ = Manager.list_environments(
+            backend=CondaLikeInterface.ID,
+            root_path=self.get_conf("environments_path", DEFAULT_BACKENDS_ROOT_PATH),
+            external_executable=self.get_conf(
+                "conda_file_executable_path", conda_like_executable()
+            ),
+        )
         self.select_environment = QComboBox(self)
         self.select_environment.ID = SpyderEnvManagerWidgetActions.SelectEnvironment
-
-        for env_name, env_directory in self.envs.items():
-            self.select_environment.addItem(env_name, env_directory)
-
-        if not self.envs:
-            self.envs = {"No environments available"}
-            self.select_environment.addItems(self.envs)
-
+        if not envs:
+            self.envs_available = False
+            self.select_environment.addItem(self.NO_ENVIRONMENTS_AVAILABLE, None)
+        else:
+            for env_name, env_directory in envs.items():
+                self.select_environment.addItem(env_name, env_directory)
+            self.envs_available = True
         self.select_environment.setToolTip("Select an environment")
         self.select_environment.setSizeAdjustPolicy(
             QComboBox.AdjustToMinimumContentsLength
@@ -125,8 +146,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         selected_environment = self.get_conf("selected_environment", None)
         if selected_environment:
             self.select_environment.setCurrentText(selected_environment)
-        self.css_path = self.get_conf("css_path", CSS_PATH, "appearance")
 
+        # Usage widget
+        self.css_path = self.get_conf("css_path", CSS_PATH, "appearance")
         self.infowidget = FrameWebView(self)
         if WEBENGINE:
             self.infowidget.web_widget.page().setBackgroundColor(QColor(MAIN_BG_COLOR))
@@ -137,14 +159,23 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.infowidget.page().setLinkDelegationPolicy(
                 QWebEnginePage.DelegateAllLinks
             )
-        self.table_layout = EnvironmentPackagesTable(self, text_color=ima.MAIN_FG_COLOR)
+
+        # Package table widget
+        self.packages_table = EnvironmentPackagesTable(self)
+
+        # Layout
         self.stack_layout = layout = QStackedLayout()
         layout.addWidget(self.infowidget)
-        layout.addWidget(self.table_layout)
+        layout.addWidget(self.packages_table)
         self.setLayout(self.stack_layout)
 
         # Signals
-        self.select_environment.currentIndexChanged.connect(self.source_changed)
+        self.packages_table.sig_action_context_menu.connect(
+            self._handle_package_table_context_menu_actions
+        )
+        self.select_environment.currentIndexChanged.connect(
+            self.current_environment_changed
+        )
 
     # ---- PluginMainWidget API
     # ------------------------------------------------------------------------
@@ -153,13 +184,13 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def setup(self):
         # ---- Options menu actions
-
         exclude_dependency_action = self.create_action(
             SpyderEnvManagerWidgetActions.ToggleExcludeDependency,
             text=_("Exclude dependency packages"),
             tip=_("Exclude dependency packages"),
-            toggled=self.packages_dependences,
+            toggled=self.update_packages,
         )
+        exclude_dependency_action.setChecked(self.exclude_non_requested_packages)
 
         import_environment_action = self.create_action(
             SpyderEnvManagerWidgetActions.ImportEnvironment,
@@ -172,7 +203,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             SpyderEnvManagerWidgetActions.ExportEnvironment,
             text=_("Export environment to file (.yml, .txt)"),
             tip=_("Export environment to file (.yml, .txt)"),
-            triggered=self._message_save_environment,
+            triggered=self._message_export_environment,
         )
 
         # ---- Toolbar actions
@@ -229,12 +260,17 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             )
 
         self.show_intro_message()
-        self.source_changed()
+        self.current_environment_changed()
 
     def show_intro_message(self):
         """Show introduction message on how to use the plugin."""
         intro_message_eq = _(
-            "Click <span title='New environment' style='border : 0.5px solid #c0c0c0;'>&#xFF0B;</span> to create a new environment or to import an environment definition from a file , click the <span title='Options' style='border : 1px solid #c0c0c0;'>&#9776;</span> button on the top right too."
+            "Click "
+            "<span title='New environment' style='border : 0.5px solid #c0c0c0;'>"
+            "&#xFF0B;</span> to create a new environment or to import an environment"
+            " definition from a file, click the "
+            "<span title='Options' style='border : 1px solid #c0c0c0;'>"
+            "&#9776;</span> button on the top right too."
         )
         self.mainMessage = self._create_info_environment_page(
             title="Usage", message=intro_message_eq
@@ -245,18 +281,41 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self._rich_font = rich_font
         self.infowidget.set_font(rich_font)
 
-    def source_changed(self):
-        current_environment = self.select_environment.currentText()
+    def current_environment_changed(self, index=None):
+        """
+        Handle changing environment or changes inside the current environment.
+
+        Either the current environment being displayed is different or
+        the packages inside the current environment have changed.
+
+        Parameters
+        ----------
+        index : int, optional
+            Index of the current environment selected. The default is None.
+
+        Returns
+        -------
+        None.
+
+        """
+        if index:
+            current_environment = self.select_environment.itemText(index)
+        else:
+            current_environment = self.select_environment.currentText()
         environments_available = current_environment != "No environments available"
         if environments_available:
-            self.stack_layout.setCurrentWidget(self.table_layout)
+            self.start_spinner()
+            self._run_action_for_env(
+                dialog=None, action=SpyderEnvManagerWidgetActions.ListPackages
+            )
+            self.stack_layout.setCurrentWidget(self.packages_table)
             # TODO: Set selected env interpreter as Spyder main interpreter
         else:
             self.stack_layout.setCurrentWidget(self.infowidget)
-        self.stop_spinner()
+            self.stop_spinner()
 
     def update_actions(self):
-        if self._actions_enabled:
+        if self.actions_enabled:
             current_environment = self.select_environment.currentText()
             environments_available = current_environment != "No environments available"
             actions_ids = [
@@ -270,19 +329,25 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 else:
                     action.setEnabled(True)
 
-    def packages_dependences(self, value):
-        self.table_layout.load_packages(value)
+    def update_packages(self, only_requested, packages=None):
+        self.exclude_non_requested_packages = only_requested
+        self.packages_table.load_packages(only_requested, packages)
+        self.stop_spinner()
 
     def start_spinner(self):
-        self._actions_enabled = False
+        self.actions_enabled = False
         for action_id, action in self.get_actions().items():
             if action_id not in PluginMainWidgetActions.__dict__.values():
                 action.setEnabled(False)
+        self.select_environment.setDisabled(True)
+        self.packages_table.setDisabled(True)
         super().start_spinner()
 
     def stop_spinner(self):
-        self._actions_enabled = True
+        self.actions_enabled = True
         self.update_actions()
+        self.select_environment.setDisabled(False)
+        self.packages_table.setDisabled(False)
         super().stop_spinner()
 
     def on_close(self):
@@ -292,54 +357,286 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.env_manager_action_thread
             and self.env_manager_action_thread.isRunning()
         ):
-            self.env_manager_action_thread.quit()
+            self.env_manager_action_thread.terminate()
             self.env_manager_action_thread.wait()
 
     # ---- Private API
     # ------------------------------------------------------------------------
 
     def _create_info_environment_page(self, title, message):
-        """Create html page to show while the kernel is starting"""
-        with open(ENVIRONMENT_MESSAGE) as templete_message:
-            environment_message_template = Template(templete_message.read())
+        """
+        Create html page to describe the basic plugin functionality if no
+        environment exists.
+
+        Parameters
+        ----------
+        title : str
+            Title that the page should show.
+        message : str
+            Content that the page should show.
+
+        Returns
+        -------
+        page : str
+            string representation of the page.
+        """
+        with open(ENVIRONMENT_MESSAGE) as template_message:
+            environment_message_template = Template(template_message.read())
             page = environment_message_template.substitute(
                 css_path=self.css_path, title=title, message=message
             )
         return page
 
+    def _handle_package_table_context_menu_actions(self, action, package_info):
+        """
+        Handle context menu actions defined in the packages table widget.
+
+        The possible actions to choose affect a specific package.
+
+        Parameters
+        ----------
+        action : str
+            The Python environment action to be done.
+            The action should defined on the `EnvironmentPackagesActions` enum class.
+        package_info : dict
+            Dictionary with the information of the package that will be modified
+            by the action.
+
+        Returns
+        -------
+        None.
+
+        """
+        package_name = package_info["name"]
+        if action == EnvironmentPackagesActions.UpdatePackage:
+            title = _("Update package")
+            messages = _(
+                "Are you sure you want to update <tt>{package_name}</tt>?"
+            ).format(package_name=package_name)
+            self._message_box(
+                title,
+                messages,
+                action=EnvironmentPackagesActions.UpdatePackage,
+                package_info=package_info,
+            )
+        elif action == EnvironmentPackagesActions.UninstallPackage:
+            title = _("Uninstall package")
+            messages = _(
+                "Are you sure you want to uninstall <tt>{package_name}</tt>?"
+            ).format(package_name=package_name)
+            self._message_box(
+                title,
+                messages,
+                action=EnvironmentPackagesActions.UninstallPackage,
+                package_info=package_info,
+            )
+        elif action == EnvironmentPackagesActions.InstallPackageVersion:
+            title = _("Change package version constraint")
+            messages = ["Package", "Constraint", "Version"]
+            types = [
+                CustomParametersDialogWidgets.Label,
+                CustomParametersDialogWidgets.ComboBox,
+                CustomParametersDialogWidgets.LineEditVersion,
+            ]
+            contents = [
+                [package_info["name"]],
+                ["==", "<=", ">=", "<", ">", "latest"],
+                {},
+            ]
+            self._message_box_editable(
+                title,
+                messages,
+                contents,
+                types,
+                action=EnvironmentPackagesActions.InstallPackageVersion,
+                package_info=package_info,
+            )
+
     def _add_new_environment_entry(self, manager, action_result, result_message):
+        """
+        Handle the addition of a new Python environment to the GUI.
+
+        Add an entry into the `selected_environment` combobox and update the
+        the `selected_environment` config option.
+
+        Parameters
+        ----------
+        manager : envs_manager.manager.Manager
+            Python environment manager instance that is handling the environment.
+        action_result : bool
+            True if the environment creation was successful. False otherwise.
+        result_message : str
+            Resulting error or failure message in case `action_result` is False.
+
+        Returns
+        -------
+        None.
+
+        """
         if action_result:
-            if self.envs == {"No environments available"}:
+            if not self.envs_available:
                 self.select_environment.clear()
             self.select_environment.addItem(manager.env_name, manager.env_directory)
             self.select_environment.setCurrentText(manager.env_name)
             self.set_conf("selected_environment", manager.env_name)
-            self.set_conf(
-                "environments_list", Manager.list_environments(CondaLikeInterface.ID)
-            )
+            self.envs_available = True
         else:
-            # TODO: Show error message
-            # result_message -> str
-            print(self.manager_worker.error)
-            print(result_message)
+            self._message_error_box(result_message)
         self.stop_spinner()
 
-    def _add_new_environment_entry_from_import(
-        self, manager, action_result, result_message
-    ):
+    def _after_import_environment(self, manager, action_result, result_message):
+        """
+        Handle the result of trying to create a new Python environment via the import
+        functionality.
+
+        Parameters
+        ----------
+        manager : envs_manager.manager.Manager
+            Python environment manager instance that is handling the env creation.
+        action_result : bool
+            True if the environment creation was successful. False otherwise.
+        result_message : str
+            Resulting error or failure message in case `action_result` is False.
+
+        Returns
+        -------
+        None.
+
+        """
         # Add new imported environment entry
         self._add_new_environment_entry(manager, action_result, result_message)
-        # Install needed spyder-kernels version
-        packages = [f"spyder-kernels{SPYDER_KERNELS_VERSION}"]
-        self._run_env_action(
-            manager,
-            manager.install,
-            self.source_changed,
-            packages,
-            force=True,
-        )
 
-    def _run_env_action(
+        # Install needed spyder-kernels version
+        if action_result:
+            packages = [f"spyder-kernels{SPYDER_KERNELS_VERSION}"]
+            self._run_env_manager_action(
+                manager,
+                manager.install,
+                self._after_package_changed,
+                packages,
+                force=True,
+                capture_output=True,
+            )
+
+    def _after_export_environment(self, manager, action_result, result_message):
+        """
+        Handle the result of trying to export a Python environment.
+
+        This shows a message box mentioning that the operation was successful or
+        failed.
+
+        Parameters
+        ----------
+        manager : envs_manager.manager.Manager
+            Python environment manager instance that is handling the operation.
+        action_result : bool
+            True if the environment exportation was successful. False otherwise.
+        result_message : str
+            Resulting error or failure message in case `action_result` is False.
+
+        Returns
+        -------
+        None.
+
+        """
+        if action_result:
+            QMessageBox.information(
+                self,
+                _("Environment exported"),
+                _("Python Environment <tt>{env_name}</tt> was exported.").format(
+                    env_name=manager.env_name
+                ),
+            )
+        else:
+            self._message_error_box(result_message)
+        self.stop_spinner()
+
+    def _after_package_changed(self, manager, action_result, result_message):
+        """
+        Handle the result of trying to install, uninstall or update a package.
+
+        This updates the list of packages in the current environment if the operation
+        was successful.
+
+        Parameters
+        ----------
+        manager : envs_manager.manager.Manager
+            Python environment manager instance that is handling the environment.
+        action_result : bool
+            True if the package installation was successful. False otherwise.
+        result_message : str
+            Resulting error or failure message in case `action_result` is False.
+
+        Returns
+        -------
+        None.
+
+        """
+        if action_result:
+            self.current_environment_changed()
+        else:
+            self._message_error_box(result_message)
+            self.stop_spinner()
+
+    def _after_delete_environment(self, manager, action_result, result_message):
+        """
+        Handle the result of deleting a Python environment.
+
+        This removes the environment item from the `selected_environment` combobox.
+
+        Parameters
+        ----------
+        manager : envs_manager.manager.Manager
+            Python environment manager instance that deleted the environment.
+        action_result : bool
+            True if the environment deletion was successful. False otherwise.
+        result_message : str
+            Resulting error or failure message in case `action_result` is False.
+
+        Returns
+        -------
+        None.
+
+        """
+        if action_result:
+            env_name = self.select_environment.currentIndex()
+            self.select_environment.removeItem(env_name)
+            if self.select_environment.count() == 0:
+                self.envs_available = False
+                self.select_environment.addItem(self.NO_ENVIRONMENTS_AVAILABLE, None)
+        else:
+            self._message_error_box(result_message)
+        self.stop_spinner()
+
+    def _after_list_environment_packages(self, manager, action_result, result_message):
+        """
+        Handle the result of computing the current selected environment packages list.
+
+        This updates the packages table widget with the new information.
+
+        Parameters
+        ----------
+        manager : envs_manager.manager.Manager
+            Python environment manager instance that is handling the environment.
+        action_result : bool
+            True if the package listing was successful. False otherwise.
+        result_message : str
+            Resulting error or failure message in case `action_result` is False.
+
+        Returns
+        -------
+        None.
+
+        """
+        if action_result:
+            self.update_packages(
+                self.exclude_non_requested_packages, result_message["packages"]
+            )
+        else:
+            self._message_error_box(result_message)
+        self.stop_spinner()
+
+    def _run_env_manager_action(
         self,
         manager,
         manager_action,
@@ -347,15 +644,41 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         *manager_action_args,
         **manager_action_kwargs,
     ):
+        """
+        Run Python environment manager in a worker and connect the result to a given
+        callback.
+
+        Parameters
+        ----------
+        manager : envs_manager.manager.Manager
+            Python environment manager instance to use.
+        manager_action : envs_manager.manager.Manager callable
+            Method to run from the Python environment manager instance.
+        on_ready : SpyderEnvManagerWidget callable
+            Method to run when the action finishes.
+        *manager_action_args : list
+            args for the manager callable to be run by the worker.
+        **manager_action_kwargs : dict
+            kwargs for the manager callable to be run by the worker.
+
+        Returns
+        -------
+        None.
+
+        """
         if (
             self.env_manager_action_thread
             and self.env_manager_action_thread.isRunning()
         ):
-            self.env_manager_action_thread.quit()
+            self.env_manager_action_thread.terminate()
             self.env_manager_action_thread.wait()
 
         self.manager_worker = EnvironmentManagerWorker(
-            self, manager, manager_action, *manager_action_args, **manager_action_kwargs
+            self,
+            manager,
+            manager_action,
+            *manager_action_args,
+            **manager_action_kwargs,
         )
         self.manager_worker.sig_ready.connect(on_ready)
         self.manager_worker.sig_ready.connect(self.env_manager_action_thread.quit)
@@ -364,11 +687,114 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.start_spinner()
         self.env_manager_action_thread.start()
 
-    def _env_action(self, dialog, action=None):
+    def _run_action_for_package(self, package_info, dialog=None, action=None):
+        """
+        Setup an environment manager instance and run a package related action through
+        it in the current environment.
+
+        In case an invalid action was given an error dialog is shown.
+
+        Parameters
+        ----------
+        package_info : dict
+            Dictionary containing the info of the package to modify.
+        dialog : CustomParametersDialog, optional
+            Dialog instance that can have information about the package action
+            that needs to be performed. The default is None.
+        action : str, optional
+            The package action to be performed. It should defined on the
+            `EnvironmentPackagesActions` enum class. The default is None.
+
+        Returns
+        -------
+        None.
+
+        """
         root_path = Path(self.get_conf("environments_path"))
         external_executable = self.get_conf("conda_file_executable_path")
         backend = "conda-like"
-        if action == SpyderEnvManagerWidgetActions.NewEnvironment:
+        package_name = package_info["name"]
+        if action == EnvironmentPackagesActions.UpdatePackage:
+            env_name = self.select_environment.currentText()
+            manager = Manager(
+                backend,
+                root_path=root_path,
+                env_name=env_name,
+                external_executable=external_executable,
+            )
+            self._run_env_manager_action(
+                manager,
+                manager.update,
+                self._after_package_changed,
+                [package_name],
+                force=True,
+                capture_output=True,
+            )
+        elif action == EnvironmentPackagesActions.UninstallPackage:
+            env_name = self.select_environment.currentText()
+            manager = Manager(
+                backend,
+                root_path=root_path,
+                env_name=env_name,
+                external_executable=external_executable,
+            )
+            self._run_env_manager_action(
+                manager,
+                manager.uninstall,
+                self._after_package_changed,
+                [package_name],
+                force=True,
+                capture_output=True,
+            )
+        elif dialog and action == EnvironmentPackagesActions.InstallPackageVersion:
+            package_constraint = dialog.combobox.currentText()
+            package_version = dialog.lineedit_version.text()
+            packages = [f"{package_name}"]
+            if package_constraint != "latest" and package_version:
+                packages = [f"{package_name}{package_constraint}{package_version}"]
+            env_name = self.select_environment.currentText()
+            manager = Manager(
+                backend,
+                root_path=root_path,
+                env_name=env_name,
+                external_executable=external_executable,
+            )
+            self._run_env_manager_action(
+                manager,
+                manager.install,
+                self._after_package_changed,
+                packages,
+                force=True,
+                capture_output=True,
+            )
+        else:
+            self._message_error_box("Action unavailable at this moment.")
+
+    def _run_action_for_env(self, dialog=None, action=None):
+        """
+        Setup an environment manager instance and run an environment related
+        action through it.
+
+        In case an invalid action was given an error dialog is shown.
+
+        Parameters
+        ----------
+        dialog : CustomParametersDialog, optional
+            Dialog instance that can have information about the environment
+            action that needs to be performed. The default is None.
+        action : str, optional
+            Environment action to be performed. The action should defined on the
+            `SpyderEnvManagerWidgetActions` enum class. The default is None.
+
+        Returns
+        -------
+        None.
+
+        """
+        root_path = Path(self.get_conf("environments_path"))
+        external_executable = self.get_conf("conda_file_executable_path")
+        backend = "conda-like"
+        if dialog and action == SpyderEnvManagerWidgetActions.NewEnvironment:
             backend = dialog.combobox.currentText()
             env_name = dialog.lineedit_string.text()
             python_version = dialog.combobox_edit.currentText()
@@ -382,31 +808,31 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 env_name=env_name,
                 external_executable=external_executable,
             )
-            self._run_env_action(
+            self._run_env_manager_action(
                 manager,
                 manager.create_environment,
                 self._add_new_environment_entry,
                 packages=packages,
                 force=True,
             )
-        elif action == SpyderEnvManagerWidgetActions.ImportEnvironment:
+        elif dialog and action == SpyderEnvManagerWidgetActions.ImportEnvironment:
             backend = dialog.combobox.currentText()
             env_name = dialog.lineedit_string.text()
-            import_file_path = dialog.cus_exec_combo.combobox.currentText()
+            import_file_path = dialog.file_combobox.combobox.currentText()
             manager = Manager(
                 backend,
                 root_path=root_path,
                 env_name=env_name,
                 external_executable=external_executable,
             )
-            self._run_env_action(
+            self._run_env_manager_action(
                 manager,
                 manager.import_environment,
-                self._add_new_environment_entry_from_import,
+                self._after_import_environment,
                 import_file_path,
                 force=True,
             )
-        elif action == SpyderEnvManagerWidgetActions.InstallPackage:
+        elif dialog and action == SpyderEnvManagerWidgetActions.InstallPackage:
             package_name = dialog.lineedit_string.text()
             package_constraint = dialog.combobox.currentText()
             package_version = dialog.lineedit_version.text()
@@ -420,33 +846,97 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 env_name=env_name,
                 external_executable=external_executable,
             )
-            self._run_env_action(
+            self._run_env_manager_action(
                 manager,
                 manager.install,
-                self.source_changed,
+                self._after_package_changed,
                 packages,
                 force=True,
+                capture_output=True,
             )
+        elif action == SpyderEnvManagerWidgetActions.DeleteEnvironment:
+            env_name = self.select_environment.currentText()
+            manager = Manager(
+                backend,
+                root_path=root_path,
+                env_name=env_name,
+                external_executable=external_executable,
+            )
+            self._run_env_manager_action(
+                manager,
+                manager.delete_environment,
+                self._after_delete_environment,
+                force=True,
+            )
+        elif action == SpyderEnvManagerWidgetActions.ListPackages:
+            env_directory = self.select_environment.currentData()
+            if env_directory:
+                manager = Manager(
+                    backend,
+                    env_directory=env_directory,
+                    external_executable=external_executable,
+                )
+                self._run_env_manager_action(
+                    manager,
+                    manager.list,
+                    self._after_list_environment_packages,
+                )
+        elif dialog and action == SpyderEnvManagerWidgetActions.ExportEnvironment:
+            backend = dialog.combobox.currentText()
+            env_name = self.select_environment.currentText()
+            export_file_path = dialog.file_lineedit.lineedit.text()
+            manager = Manager(
+                backend,
+                root_path=root_path,
+                env_name=env_name,
+                external_executable=external_executable,
+            )
+            self._run_env_manager_action(
+                manager,
+                manager.export_environment,
+                self._after_export_environment,
+                export_file_path=export_file_path,
+            )
+        else:
+            self._message_error_box("Action unavailable at this moment.")
 
-    def _message_save_environment(self):
-        title = _("File save dialog")
-        messages = _("Select where to save the exported environment file")
-        self._message_box(title, messages)
+    def _message_export_environment(self):
+        title = _("Export Python environment")
+        messages = [_("Manager to use"), _("Environment file")]
+        types = [
+            CustomParametersDialogWidgets.ComboBox,
+            CustomParametersDialogWidgets.LineEditFile,
+        ]
+        contents = [{"conda-like"}, {}]
+        self._message_box_editable(
+            title,
+            messages,
+            contents,
+            types,
+            action=SpyderEnvManagerWidgetActions.ExportEnvironment,
+        )
 
     def _message_delete_environment(self):
         title = _("Delete environment")
         messages = _("Are you sure you want to delete the current environment?")
-        self._message_box(title, messages)
-
-    def _message_update_packages(self):
-        title = _("Update packages")
-        messages = _("Are you sure you want to update the selected packages?")
-        self._message_box(title, messages)
+        self._message_box(
+            title,
+            messages,
+            action=SpyderEnvManagerWidgetActions.DeleteEnvironment,
+        )
 
     def _message_import_environment(self):
         title = _("Import Python environment")
-        messages = [_("Manager to use"), _("Environment name"), _("Packages file")]
-        types = ["ComboBox", "LineEditString", "Other"]
+        messages = [
+            _("Manager to use"),
+            _("Environment name"),
+            _("Environment file"),
+        ]
+        types = [
+            CustomParametersDialogWidgets.ComboBox,
+            CustomParametersDialogWidgets.LineEditString,
+            CustomParametersDialogWidgets.ComboBoxFile,
+        ]
         contents = [{"conda-like"}, {}, {}]
         self._message_box_editable(
             title,
@@ -459,7 +949,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def _message_new_environment(self):
         title = _("New Python environment")
         messages = ["Manager to use", "Environment Name", "Python version"]
-        types = ["ComboBox", "LineEditString", "ComboBoxEdit"]
+        types = [
+            CustomParametersDialogWidgets.ComboBox,
+            CustomParametersDialogWidgets.LineEditString,
+            CustomParametersDialogWidgets.ComboBoxEdit,
+        ]
         contents = [
             {"conda-like"},
             {},
@@ -476,7 +970,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def _message_install_package(self):
         title = _("Install package")
         messages = ["Package", "Constraint", "Version"]
-        types = ["LineEditString", "ComboBox", "LineEditVersion"]
+        types = [
+            CustomParametersDialogWidgets.LineEditString,
+            CustomParametersDialogWidgets.ComboBox,
+            CustomParametersDialogWidgets.LineEditVersion,
+        ]
         contents = [{}, ["==", "<=", ">=", "<", ">", "latest"], {}]
         self._message_box_editable(
             title,
@@ -486,8 +984,40 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             action=SpyderEnvManagerWidgetActions.InstallPackage,
         )
 
-    def _message_box_editable(self, title, messages, contents, types, action=None):
-        box = MessageComboBox(
+    def _message_box_editable(
+        self, title, messages, contents, types, action=None, package_info=None
+    ):
+        """
+        Launch a `CustomParametersDialog` instance to get the needed information
+        from the user to perform a given action over an environment.
+
+        The action can modify an environment or a specific package on it.
+
+        Parameters
+        ----------
+        title : str
+            Dialog title.
+        messages : list[str]
+            Dialog message or labels to show. Each index is a field.
+        contents : list[iterable]
+            Initial values to set to the custom widget to add.
+        types : list[str]
+            Widget types that should be constructed in the dialog. Each index is a
+            field that correspond to the `messages` list.
+        action : str, optional
+            Action to be performed with the collected information. It needs to be
+            available in the `SpyderEnvManagerWidgetActions` or
+            `EnvironmentPackagesActions` enum classes. The default is None.
+        package_info : dict, optional
+            Package information in case the action affects a specific package inside
+            the environment. The default is None.
+
+        Returns
+        -------
+        None.
+
+        """
+        box = CustomParametersDialog(
             self,
             title=title,
             messages=messages,
@@ -500,13 +1030,68 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         box.setMinimumHeight(box.height())
         result = box.exec_()
         if result == QDialog.Accepted:
-            self._env_action(box, action=action)
+            if package_info:
+                self._run_action_for_package(package_info, dialog=box, action=action)
+            else:
+                self._run_action_for_env(dialog=box, action=action)
 
-    def _message_box(self, title, message):
+    def _message_box(self, title, message, action=None, package_info=None):
+        """
+        Launch a `QMessageBox` instance to get user approval before running the given
+        action over an environment.
+
+        The action can modify an environment or a specific package on it.
+
+        Parameters
+        ----------
+        title : str
+            Dialog title.
+        message : str
+            Dialog message to show.
+        action : str, optional
+            Action to be performed with the user's approval. It needs to be available
+            in the `SpyderEnvManagerWidgetActions` or `EnvironmentPackagesActions`
+            enum classes. The default is None.
+        package_info : dict, optional
+            Package information in case the action affects a specific package inside
+            the environment. The default is None.
+
+        Returns
+        -------
+        None.
+
+        """
         box = QMessageBox(self)
         box.setWindowTitle(title)
         box.setIcon(QMessageBox.Question)
-        box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        box.setDefaultButton(QMessageBox.Yes)
+        box.setText(message)
+        result = box.exec_()
+        if result == QMessageBox.Yes:
+            if package_info:
+                self._run_action_for_package(package_info, action=action)
+            else:
+                self._run_action_for_env(dialog=box, action=action)
+
+    def _message_error_box(self, message):
+        """
+        Launch a `QMessageBox` instance to show an error message.
+
+        Parameters
+        ----------
+        message : str
+            Error message to be shown.
+
+        Returns
+        -------
+        None.
+
+        """
+        box = QMessageBox(self)
+        box.setWindowTitle("Error message")
+        box.setIcon(QMessageBox.Critical)
+        box.setStandardButtons(QMessageBox.Ok)
         box.setDefaultButton(QMessageBox.Ok)
         box.setText(message)
-        box.show()
+        box.exec_()

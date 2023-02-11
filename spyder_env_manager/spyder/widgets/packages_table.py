@@ -16,51 +16,45 @@ This is the main widget used in the Spyder env Manager plugin
 from qtpy.compat import to_qvariant
 from qtpy.QtCore import QAbstractTableModel, QModelIndex, Qt, Signal
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QAbstractItemView, QLabel, QMenu, QTableView
+from qtpy.QtWidgets import QAbstractItemView, QTableView
 
 # Spyder and local imports
 from spyder.api.translations import get_translation
+from spyder.api.widgets.mixins import SpyderWidgetMixin
 from spyder.config.fonts import DEFAULT_SMALL_DELTA
 from spyder.config.gui import get_font
 from spyder.utils.palette import SpyderPalette
-from spyder.utils.qthelpers import add_actions, create_action
+
 
 # Localization
 _ = get_translation("spyder")
 
 
-PACKAGE, DESCRIPTION, VERSION = [0, 1, 2]
+# Column constants
+NAME, VERSION, DESCRIPTION = [0, 1, 2]
+
+
+class EnvironmentPackagesActions:
+    """
+    Actions available for a package from the `EnvironmentPackagesTable`
+    context menu.
+    """
+
+    UpdatePackage = "update_package"
+    UninstallPackage = "unistall_package"
+    InstallPackageVersion = "install_package_version"
+
+
+class EnvironmentPackagesMenu:
+    PackageContextMenu = "package_context_menu"
 
 
 class EnvironmentPackagesModel(QAbstractTableModel):
-    def __init__(self, parent, text_color=None, text_color_highlight=None):
-        QAbstractTableModel.__init__(self)
-        self._parent = parent
-
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.all_packages = []
         self.packages = []
-        self.server_map = {}
-        self.rich_text = []
-        self.normal_text = []
-        self.letters = ""
-        self.label = QLabel()
-        self.widths = []
-
-        # Needed to compensate for the HTMLDelegate color selection unawareness
-        palette = parent.palette()
-        if text_color is None:
-            self.text_color = palette.text().color().name()
-        else:
-            self.text_color = text_color
-
-        if text_color_highlight is None:
-            self.text_color_highlight = palette.highlightedText().color().name()
-        else:
-            self.text_color_highlight = text_color_highlight
-
-    def sortByName(self):
-        """Qt Override."""
-        self.packages = sorted(self.packages, key=lambda x: x.language)
-        self.reset()
+        self.packages_map = {}
 
     def flags(self, index):
         """Qt Override."""
@@ -78,8 +72,8 @@ class EnvironmentPackagesModel(QAbstractTableModel):
         column = index.column()
 
         if role == Qt.DisplayRole:
-            if column == PACKAGE:
-                text = package["package"]
+            if column == NAME:
+                text = package["name"]
                 return to_qvariant(text)
             elif column == DESCRIPTION:
                 text = package["description"]
@@ -92,7 +86,7 @@ class EnvironmentPackagesModel(QAbstractTableModel):
         elif role == Qt.FontRole:
             return to_qvariant(get_font(font_size_delta=DEFAULT_SMALL_DELTA))
         elif role == Qt.BackgroundColorRole:
-            if package["dependence"]:
+            if package["requested"]:
                 return to_qvariant(QColor(SpyderPalette.COLOR_OCCURRENCE_4))
         return to_qvariant()
 
@@ -105,8 +99,8 @@ class EnvironmentPackagesModel(QAbstractTableModel):
         if role != Qt.DisplayRole:
             return to_qvariant()
         if orientation == Qt.Horizontal:
-            if section == PACKAGE:
-                return to_qvariant(_("Package"))
+            if section == NAME:
+                return to_qvariant(_("Name"))
             elif section == DESCRIPTION:
                 return to_qvariant(_("Description"))
             elif section == VERSION:
@@ -121,118 +115,104 @@ class EnvironmentPackagesModel(QAbstractTableModel):
         """Qt Override."""
         return 3
 
-    def row(self, row_num):
-        """Get row based on model index. Needed for the custom proxy model."""
-        return self.packages[row_num]
 
-    def reset(self):
-        """ "Reset model to take into account new search letters."""
-        self.beginResetModel()
-        self.endResetModel()
+class EnvironmentPackagesTable(QTableView, SpyderWidgetMixin):
+    """Table widget to show the installed packages in an environment."""
 
+    sig_action_context_menu = Signal(str, dict)
+    """
+    This signal is emitted when an action in the widget context menu is triggered.
 
-class EnvironmentPackagesTable(QTableView):
+    Parameters
+    ----------
+    action : str
+        The action being processed.
+    package_info : dict
+        Available information for the package on top of which the user requested to
+        show the context menu of this widget.
+    """
 
-    sig_update_package = Signal()
-    sig_uninstall_package = Signal()
-    sig_change_package_version = Signal()
+    def __init__(self, parent):
+        super().__init__(parent, class_parent=parent)
+        # Setup context menu
+        self.context_menu = self.create_menu(EnvironmentPackagesMenu.PackageContextMenu)
 
-    def __init__(self, parent, text_color=None):
-        QTableView.__init__(self, parent)
-        self.menu = None
-        self.menu_actions = []
-        self.empty_ws_menu = None
-        self.update_action = None
-        self.uninstall_action = None
-        self.change_action = None
-        self._parent = parent
-        self.delete_queue = []
-        self.source_model = EnvironmentPackagesModel(self, text_color=text_color)
+        # Setup table model
+        self.source_model = EnvironmentPackagesModel(self)
         self.setModel(self.source_model)
+
+        # Setup table
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.setSortingEnabled(True)
         self.setEditTriggers(QAbstractItemView.AllEditTriggers)
         self.verticalHeader().hide()
+        self.horizontalHeader().setStretchLastSection(True)
         self.load_packages(False)
 
-    def contextMenuEvent(self, event):
-        """Setup context menu"""
-        row = self.rowAt(event.pos().y())
-        packages = self.source_model.packages
-        if not packages[row]["dependence"]:
-            self.update_action = create_action(
-                self, _("Update package(s)"), triggered=self.selection
-            )
-            self.uninstall_action = create_action(
-                self, _("Uninstall package(s)"), triggered=self.selection
-            )
-            self.change_action = create_action(
-                self,
-                _("Change package version with a version constraint"),
-                triggered=self.selection,
-            )
-            menu = QMenu(self)
-            self.menu_actions = [
-                self.update_action,
-                self.uninstall_action,
-                self.change_action,
+    def get_package_info(self, index):
+        """
+        Get package information by index (i.e. row).
+
+        Parameters
+        ----------
+        index : int
+            Index of the request package.
+
+        Returns
+        -------
+        dict
+            Package information available.
+
+        """
+        return self.source_model.packages[index]
+
+    def load_packages(self, only_requested=False, packages=None):
+        """
+        Load given packages and filter them if needed.
+
+        Parameters
+        ----------
+        only_requested : bool, optional
+            True if the packages should be filtered and only requested packages
+            be kept. The default is False.
+        packages : list[dict], optional
+            List of packages to be displayed on the widget. The default is None.
+            The expected package structure is as follows:
+
+
+            ```
+            packages = [
+                {
+                    "name": "package name",
+                    "description": "package description",
+                    "version": "0.0.1",
+                    "requested": False,
+                },
             ]
-            add_actions(menu, self.menu_actions)
-            menu.setMinimumWidth(100)
-            menu.popup(event.globalPos())
-            event.accept()
+            ```
 
-    def focusInEvent(self, e):
-        """Qt Override."""
-        super(EnvironmentPackagesTable, self).focusInEvent(e)
-        self.selectRow(self.currentIndex().row())
+        Returns
+        -------
+        None.
 
-    def selection(self, index):
-        """Update selected row."""
-        self._parent.delete_btn.setEnabled(True)
+        """
 
-    def adjust_cells(self):
-        """Adjust column size based on contents."""
-        self.resizeColumnsToContents()
-        fm = self.horizontalHeader().fontMetrics()
-        names = [fm.width(s["description"]) for s in self.source_model.packages]
-        if names:
-            self.setColumnWidth(DESCRIPTION, max(names))
-        self.horizontalHeader().setStretchLastSection(True)
+        if packages:
+            self.source_model.all_packages = packages
+        if not packages and self.source_model.all_packages:
+            packages = self.source_model.all_packages
+        if packages:
+            if only_requested:
+                packages = list(filter(lambda package: package["requested"], packages))
+            for idx, package in enumerate(packages):
+                package["index"] = idx
+            packages_map = {package["name"]: package for package in packages}
+            self.source_model.beginResetModel()
+            self.source_model.packages = packages
+            self.source_model.packages_map = packages_map
+            self.source_model.endResetModel()
 
-    def load_packages(self, option):
-        packages = [
-            {
-                "package": "aa",
-                "description": "Fragmento de un escrito con unidad temática, que queda diferenciado del resto de fragmentos ",
-                "version": "2.3.5",
-                "dependence": False,
-            },
-            {
-                "package": "bb",
-                "description": "Fragmento de un escrito con unidad temática, diferenciado del resto de fragmentos ",
-                "version": "2.5",
-                "dependence": False,
-            },
-            {
-                "package": "cc",
-                "description": "Fragmento de un escrito con unidad temática, ",
-                "version": "2",
-                "dependence": True,
-            },
-        ]
-        if option:
-            packages = list(filter(lambda x: not x["dependence"], packages))
-        for i, package in enumerate(packages):
-            package["index"] = i
-
-        package_map = {x["package"]: x for x in packages}
-        self.source_model.packages = packages
-        self.source_model.server_map = package_map
-        self.source_model.reset()
-        self.adjust_cells()
-        self.sortByColumn(PACKAGE, Qt.AscendingOrder)
+            self.resizeColumnToContents(NAME)
 
     def next_row(self):
         """Move to next row from currently selected row."""
@@ -249,6 +229,52 @@ class EnvironmentPackagesTable(QTableView):
         if row == 0:
             row = rows
         self.selectRow(row - 1)
+
+    def contextMenuEvent(self, event):
+        """Qt Override."""
+        self.context_menu.clear_actions()
+        row = self.rowAt(event.pos().y())
+        packages = self.source_model.packages
+        if packages and packages[row]["requested"]:
+            update_action = self.create_action(
+                self,
+                _("Update package"),
+                triggered=lambda triggered: self.sig_action_context_menu.emit(
+                    EnvironmentPackagesActions.UpdatePackage, packages[row]
+                ),
+                overwrite=True,
+            )
+            uninstall_action = self.create_action(
+                self,
+                _("Uninstall package"),
+                triggered=lambda triggered: self.sig_action_context_menu.emit(
+                    EnvironmentPackagesActions.UninstallPackage, packages[row]
+                ),
+                overwrite=True,
+            )
+            change_action = self.create_action(
+                self,
+                _("Change package version with a constraint"),
+                triggered=lambda triggered: self.sig_action_context_menu.emit(
+                    EnvironmentPackagesActions.InstallPackageVersion, packages[row]
+                ),
+                overwrite=True,
+            )
+            menu_actions = [
+                update_action,
+                uninstall_action,
+                change_action,
+            ]
+            for menu_action in menu_actions:
+                self.add_item_to_menu(menu_action, self.context_menu)
+            self.context_menu.setMinimumWidth(100)
+            self.context_menu.popup(event.globalPos())
+            event.accept()
+
+    def focusInEvent(self, e):
+        """Qt Override."""
+        super(EnvironmentPackagesTable, self).focusInEvent(e)
+        self.selectRow(self.currentIndex().row())
 
     def keyPressEvent(self, event):
         """Qt Override."""

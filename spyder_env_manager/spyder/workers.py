@@ -6,6 +6,10 @@
 # Licensed under the terms of the MIT license
 # ----------------------------------------------------------------------------
 
+# Standard library imports
+import logging
+import subprocess
+
 # Third-party imports
 from qtpy.QtCore import QObject, Signal
 
@@ -14,6 +18,9 @@ from spyder.api.translations import get_translation
 
 # Localization
 _ = get_translation("spyder")
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 
 class EnvironmentManagerWorker(QObject):
@@ -49,7 +56,15 @@ class EnvironmentManagerWorker(QObject):
 
     def run_manager_action(self):
         """Execute environment manager action and return."""
-        return self.manager_action(*self.manager_args, **self.manager_kwargs)
+        logger.info(f"Running manager action: {self.manager_action}")
+
+        manager_action_result = self.manager_action(
+            *self.manager_args, **self.manager_kwargs
+        )
+
+        logger.debug(f"Manager action result: {manager_action_result}")
+
+        return manager_action_result
 
     def start(self):
         """Main method of the worker."""
@@ -57,11 +72,17 @@ class EnvironmentManagerWorker(QObject):
         message = error_msg = None
         try:
             result, message = self.run_manager_action()
-        except Exception:
-            error_msg = _("Unable to run action over environment.")
+            if isinstance(message, subprocess.CompletedProcess):
+                message = message.stdout
+        except Exception as e:
+            error_msg = _(
+                "Unable to run action over environment: "
+                "<br><br> <tt>{exception_string}</tt>"
+            ).format(exception_string=str(e))
+            logger.exception(error_msg)
 
         self.error = error_msg
         try:
-            self.sig_ready.emit(self.manager, result, message)
+            self.sig_ready.emit(self.manager, result, message or error_msg)
         except RuntimeError:
             pass

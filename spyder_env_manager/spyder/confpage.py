@@ -36,7 +36,8 @@ class SpyderEnvManagerConfigPage(PluginConfigPage):
         environments_path_label = QLabel(_("Root directory for environments location:"))
         environments_path_label.setToolTip(
             _(
-                "Path to the root directory where created and managed environments are located"
+                "Path to the root directory where created and managed environments"
+                " are located"
             )
         )
         environments_path_label.setWordWrap(True)
