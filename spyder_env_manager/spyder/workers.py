@@ -56,11 +56,14 @@ class EnvironmentManagerWorker(QObject):
 
     def run_manager_action(self):
         """Execute environment manager action and return."""
-        logger.info(f"Manager action: {self.manager_action}")
+        logger.info(f"Running manager action: {self.manager_action}")
+
         manager_action_result = self.manager_action(
             *self.manager_args, **self.manager_kwargs
         )
+
         logger.debug(f"Manager action result: {manager_action_result}")
+
         return manager_action_result
 
     def start(self):
