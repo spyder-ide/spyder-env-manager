@@ -73,7 +73,8 @@ class EnvironmentManagerWorker(QObject):
                 message = message.stdout
         except Exception as e:
             error_msg = _(
-                "Unable to run action over environment: <br><br> <tt>{exception_string}</tt>"
+                "Unable to run action over environment: "
+                "<br><br> <tt>{exception_string}</tt>"
             ).format(exception_string=str(e))
             logger.exception(error_msg)
 

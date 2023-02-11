@@ -173,7 +173,8 @@ class EnvironmentPackagesTable(QTableView, SpyderWidgetMixin):
         Parameters
         ----------
         only_requested : bool, optional
-            True if the packages should be filtered and only requested packages be kept. The default is False.
+            True if the packages should be filtered and only requested packages
+            be kept. The default is False.
         packages : list[dict], optional
             List of packages to be displayed on the widget. The default is None.
             The expected package structure is as follows:

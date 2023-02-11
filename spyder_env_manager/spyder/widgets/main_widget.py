@@ -265,7 +265,12 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def show_intro_message(self):
         """Show introduction message on how to use the plugin."""
         intro_message_eq = _(
-            "Click <span title='New environment' style='border : 0.5px solid #c0c0c0;'>&#xFF0B;</span> to create a new environment or to import an environment definition from a file , click the <span title='Options' style='border : 1px solid #c0c0c0;'>&#9776;</span> button on the top right too."
+            "Click "
+            "<span title='New environment' style='border : 0.5px solid #c0c0c0;'>"
+            "&#xFF0B;</span> to create a new environment or to import an environment"
+            " definition from a file, click the "
+            "<span title='Options' style='border : 1px solid #c0c0c0;'>"
+            "&#9776;</span> button on the top right too."
         )
         self.mainMessage = self._create_info_environment_page(
             title="Usage", message=intro_message_eq
@@ -360,7 +365,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def _create_info_environment_page(self, title, message):
         """
-        Create html page to describe the basic plugin functionality if no environment exists.
+        Create html page to describe the basic plugin functionality if no
+        environment exists.
 
         Parameters
         ----------
@@ -393,7 +399,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             The Python environment action to be done.
             The action should defined on the `EnvironmentPackagesActions` enum class.
         package_info : dict
-            Dictionary with the information of the package that will be modified by the action.
+            Dictionary with the information of the package that will be modified
+            by the action.
 
         Returns
         -------
@@ -479,7 +486,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def _after_import_environment(self, manager, action_result, result_message):
         """
-        Handle the result of trying to create a new Python environment via the import functionality.
+        Handle the result of trying to create a new Python environment via the import
+        functionality.
 
         Parameters
         ----------
@@ -514,7 +522,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         """
         Handle the result of trying to export a Python environment.
 
-        This shows a message box mentioning that the operation was successful or failed.
+        This shows a message box mentioning that the operation was successful or
+        failed.
 
         Parameters
         ----------
@@ -546,7 +555,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         """
         Handle the result of trying to install, uninstall or update a package.
 
-        This updates the list of packages in the current environment if the operation was successful.
+        This updates the list of packages in the current environment if the operation
+        was successful.
 
         Parameters
         ----------
@@ -635,7 +645,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         **manager_action_kwargs,
     ):
         """
-        Run Python environment manager in a worker and connect the result to a given callback.
+        Run Python environment manager in a worker and connect the result to a given
+        callback.
 
         Parameters
         ----------
@@ -678,8 +689,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def _run_action_for_package(self, package_info, dialog=None, action=None):
         """
-        Setup an environment manager instance and run a package related action through it
-        in the current environment.
+        Setup an environment manager instance and run a package related action through
+        it in the current environment.
 
         In case an invalid action was given an error dialog is shown.
 
@@ -991,13 +1002,15 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         contents : list[iterable]
             Initial values to set to the custom widget to add.
         types : list[str]
-            Widget types that should be constructed in the dialog. Each index is a field that correspond to the `messages` list.
+            Widget types that should be constructed in the dialog. Each index is a
+            field that correspond to the `messages` list.
         action : str, optional
             Action to be performed with the collected information. It needs to be
             available in the `SpyderEnvManagerWidgetActions` or
             `EnvironmentPackagesActions` enum classes. The default is None.
         package_info : dict, optional
-            Package information in case the action affects a specific package inside the environment. The default is None.
+            Package information in case the action affects a specific package inside
+            the environment. The default is None.
 
         Returns
         -------
@@ -1024,7 +1037,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def _message_box(self, title, message, action=None, package_info=None):
         """
-        Launch a `QMessageBox` instance to get user approval before running the given action over an environment.
+        Launch a `QMessageBox` instance to get user approval before running the given
+        action over an environment.
 
         The action can modify an environment or a specific package on it.
 
@@ -1039,7 +1053,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             in the `SpyderEnvManagerWidgetActions` or `EnvironmentPackagesActions`
             enum classes. The default is None.
         package_info : dict, optional
-            Package information in case the action affects a specific package inside the environment. The default is None.
+            Package information in case the action affects a specific package inside
+            the environment. The default is None.
 
         Returns
         -------
