@@ -20,7 +20,7 @@ from string import Template
 from envs_manager.backends.conda_like_interface import CondaLikeInterface
 from envs_manager.manager import DEFAULT_BACKENDS_ROOT_PATH, Manager
 import qtawesome as qta
-from qtpy.QtCore import QThread, QUrl
+from qtpy.QtCore import QThread, QUrl, Signal
 from qtpy.QtGui import QColor
 from qtpy.QtWebEngineWidgets import WEBENGINE, QWebEnginePage
 from qtpy.QtWidgets import (
@@ -89,12 +89,14 @@ class SpyderEnvManagerWidgetActions:
     # Options menu actions
     ImportEnvironment = "import_environment_action"
     ExportEnvironment = "export_environment_action"
+    EnvironmentAsCustomInterpreter = "environment_as_custom_interpreter"
     ToggleExcludeDependency = "exclude_dependency_action"
 
 
 class SpyderEnvManagerWidgetOptionsMenuSections:
-    Display = "excludes_section"
-    Highlight = "highlight_section"
+    PackagesDisplay = "packages_displays_section"
+    InterpreterUsage = "environment_interpreter_usage"
+    ImportExport = "import_export_section"
 
 
 class SpyderEnvManagerWidgetMainToolBarSections:
@@ -108,9 +110,23 @@ class SpyderEnvManagerWidgetMainToolBarSections:
 
 class SpyderEnvManagerWidget(PluginMainWidget):
 
-    # PluginMainWidget class constants
+    # --- PluginMainWidget class constants
     ENABLE_SPINNER = True
     NO_ENVIRONMENTS_AVAILABLE = _("No environments available")
+
+    # --- Signals
+    sig_set_spyder_custom_interpreter = Signal(str, str)
+    """
+    Signal to inform that the user wnats to set an environment Python interpreter
+    as Spyder custom interpreter.
+
+    Parameters
+    ----------
+    environment_name: str
+        Environment name.
+    environment_python_path: str
+        Path to the environment Python interpreter.
+    """
 
     def __init__(self, name=None, plugin=None, parent=None):
         super().__init__(name, plugin, parent)
@@ -206,6 +222,16 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             triggered=self._message_export_environment,
         )
 
+        environment_as_custom_interpreter_action = self.create_action(
+            SpyderEnvManagerWidgetActions.EnvironmentAsCustomInterpreter,
+            text=_("Set current environment as Spyder Python interpreter"),
+            tip=_(
+                "Set the current environment Python interpreter as "
+                "the interpreter used by Spyder"
+            ),
+            triggered=self._message_environment_as_custom_interpreter,
+        )
+
         # ---- Toolbar actions
         new_environment_action = self.create_action(
             SpyderEnvManagerWidgetActions.NewEnvironment,
@@ -231,17 +257,21 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         # Options menu
         options_menu = self.get_options_menu()
-        for item in [exclude_dependency_action]:
-            self.add_item_to_menu(
-                item,
-                menu=options_menu,
-                section=SpyderEnvManagerWidgetOptionsMenuSections.Highlight,
-            )
+        self.add_item_to_menu(
+            exclude_dependency_action,
+            menu=options_menu,
+            section=SpyderEnvManagerWidgetOptionsMenuSections.PackagesDisplay,
+        )
+        self.add_item_to_menu(
+            environment_as_custom_interpreter_action,
+            menu=options_menu,
+            section=SpyderEnvManagerWidgetOptionsMenuSections.InterpreterUsage,
+        )
         for item in [import_environment_action, export_environment_action]:
             self.add_item_to_menu(
                 item,
                 menu=options_menu,
-                section=SpyderEnvManagerWidgetOptionsMenuSections.Display,
+                section=SpyderEnvManagerWidgetOptionsMenuSections.ImportExport,
             )
 
         # Main toolbar
@@ -309,7 +339,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 dialog=None, action=SpyderEnvManagerWidgetActions.ListPackages
             )
             self.stack_layout.setCurrentWidget(self.packages_table)
-            # TODO: Set selected env interpreter as Spyder main interpreter
         else:
             self.stack_layout.setCurrentWidget(self.infowidget)
             self.stop_spinner()
@@ -322,6 +351,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 SpyderEnvManagerWidgetActions.InstallPackage,
                 SpyderEnvManagerWidgetActions.DeleteEnvironment,
                 SpyderEnvManagerWidgetActions.ExportEnvironment,
+                SpyderEnvManagerWidgetActions.EnvironmentAsCustomInterpreter,
             ]
             for action_id, action in self.get_actions().items():
                 if action_id in actions_ids:
@@ -899,6 +929,20 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             )
         else:
             self._message_error_box("Action unavailable at this moment.")
+
+    def _message_environment_as_custom_interpreter(self):
+        current_environment_path = self.select_environment.currentData()
+        # TODO: Use path to env to get path to env Python intepreter
+        external_executable = self.get_conf("conda_file_executable_path")
+        backend = "conda-like"
+        manager = Manager(
+            backend,
+            env_directory=current_environment_path,
+            external_executable=external_executable,
+        )
+        self.sig_set_spyder_custom_interpreter.emit(
+            manager.env_name, manager.backend_instance.python_executable_path
+        )
 
     def _message_export_environment(self):
         title = _("Export Python environment")
