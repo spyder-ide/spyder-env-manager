@@ -17,7 +17,7 @@ setup(
     version=__version__,
     author="Spyder Development Team and spyder-env-manager contributors",
     author_email="spyder.python@gmail.com",
-    description="Spyder 5+ plugin to manage Python virtual environments and packages",
+    description="Spyder 6+ plugin to manage Python virtual environments and packages",
     license="MIT license",
     url="https://github.com/spyder-ide/spyder-env-manager",
     python_requires=">= 3.7",
@@ -25,7 +25,8 @@ setup(
         "envs-manager>=0.1.1",
         "qtpy",
         "qtawesome",
-        "spyder>=5.4.0",
+        # Uncomment when Spyder 6 is available
+        # "spyder>=6",
     ],
     packages=find_packages(),
     entry_points={
