@@ -112,8 +112,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     ENABLE_SPINNER = True
     NO_ENVIRONMENTS_AVAILABLE = _("No environments available")
 
-    def __init__(self, name=None, plugin=None, parent=None):
-        super().__init__(name, plugin, parent)
+    def __init__(self, name, plugin, parent=None):
+        super().__init__(name, plugin, parent=parent)
 
         # General attributes
         self.actions_enabled = True
@@ -122,9 +122,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.manager_worker = None
 
         # Select environment widget
+        root_path = self.get_conf("environments_path", str(DEFAULT_BACKENDS_ROOT_PATH))
         envs, _ = Manager.list_environments(
             backend=CondaLikeInterface.ID,
-            root_path=self.get_conf("environments_path", DEFAULT_BACKENDS_ROOT_PATH),
+            root_path=root_path,
             external_executable=self.get_conf(
                 "conda_file_executable_path", conda_like_executable()
             ),
@@ -148,7 +149,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.select_environment.setCurrentText(selected_environment)
 
         # Usage widget
-        self.css_path = self.get_conf("css_path", CSS_PATH, "appearance")
+        self.css_path = self.get_conf("css_path", str(CSS_PATH), "appearance")
         self.infowidget = FrameWebView(self)
         if WEBENGINE:
             self.infowidget.web_widget.page().setBackgroundColor(QColor(MAIN_BG_COLOR))
@@ -299,10 +300,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         """
         if index:
-            current_environment = self.select_environment.itemText(index)
+            current_environment_path = self.select_environment.itemData(index)
         else:
-            current_environment = self.select_environment.currentText()
-        environments_available = current_environment != "No environments available"
+            current_environment_path = self.select_environment.currentData()
+        environments_available = current_environment_path is not None
         if environments_available:
             self.start_spinner()
             self._run_action_for_env(
@@ -316,8 +317,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def update_actions(self):
         if self.actions_enabled:
-            current_environment = self.select_environment.currentText()
-            environments_available = current_environment != "No environments available"
+            current_environment_path = self.select_environment.currentData()
+            environments_available = current_environment_path is not None
             actions_ids = [
                 SpyderEnvManagerWidgetActions.InstallPackage,
                 SpyderEnvManagerWidgetActions.DeleteEnvironment,
@@ -711,7 +712,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         """
         root_path = Path(self.get_conf("environments_path"))
-        external_executable = self.get_conf("conda_file_executable_path")
+        external_executable = self.get_conf(
+            "conda_file_executable_path", conda_like_executable()
+        )
         backend = "conda-like"
         package_name = package_info["name"]
         if action == EnvironmentPackagesActions.UpdatePackage:
@@ -792,7 +795,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         """
         root_path = Path(self.get_conf("environments_path"))
-        external_executable = self.get_conf("conda_file_executable_path")
+        external_executable = self.get_conf(
+            "conda_file_executable_path", conda_like_executable()
+        )
         backend = "conda-like"
         if dialog and action == SpyderEnvManagerWidgetActions.NewEnvironment:
             backend = dialog.combobox.currentText()
@@ -957,7 +962,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         contents = [
             {"conda-like"},
             {},
-            ["3.7.15", "3.8.15", "3.9.15", "3.10.8"],
+            ["3.7", "3.8", "3.9", "3.10"],
         ]
         self._message_box_editable(
             title,
