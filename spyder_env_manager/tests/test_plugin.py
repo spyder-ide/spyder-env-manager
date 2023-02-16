@@ -8,7 +8,8 @@
 Spyder Env Manager plugin tests.
 """
 # Standard library imports
-from unittest.mock import Mock, patch
+import logging
+from unittest.mock import Mock
 
 # Third-party imports
 import pytest
@@ -16,16 +17,20 @@ from qtpy.QtCore import QTimer
 from qtpy.QtWidgets import QMainWindow
 
 # Spyder imports
-from spyder.api.plugins import Plugins
 from spyder.config.manager import CONF
 
 # Local imports
 from spyder_env_manager.spyder.plugin import SpyderEnvManager
-from spyder_env_manager.spyder.widgets.main_widget import SpyderEnvManagerWidget
-from spyder_env_manager.spyder.widgets.helper_widgets import CustomParametersDialog
+from spyder_env_manager.spyder.widgets.main_widget import (
+    SpyderEnvManagerWidget,
+)
+from spyder_env_manager.spyder.widgets.helper_widgets import (
+    CustomParametersDialog,
+)
 
 # Constants
-OPERATION_TIMEOUT = 100000
+LONG_OPERATION_TIMEOUT = 100000
+OPERATION_TIMEOUT = 50000
 
 
 # ---- Fixtures
@@ -63,12 +68,15 @@ def spyder_env_manager(tmp_path, qtbot, monkeypatch):
 
     yield widget
 
-    qtbot.waitUntil(lambda: widget.actions_enabled, timeout=OPERATION_TIMEOUT)
+    qtbot.waitUntil(lambda: widget.actions_enabled, timeout=LONG_OPERATION_TIMEOUT)
     widget.close()
 
 
-def test_spyder_env_manager(spyder_env_manager, qtbot):
+# ---- Tests
+# ------------------------------------------------------------------------
+def test_spyder_env_manager(spyder_env_manager, qtbot, caplog):
     """Setup plugin widget, show it and create an environment."""
+    caplog.set_level(logging.DEBUG)
     assert (
         spyder_env_manager.select_environment.currentText()
         == "No environments available"
@@ -89,7 +97,10 @@ def test_spyder_env_manager(spyder_env_manager, qtbot):
     qtbot.waitUntil(
         lambda: spyder_env_manager.stack_layout.currentWidget()
         == spyder_env_manager.packages_table,
-        timeout=OPERATION_TIMEOUT,
+        timeout=LONG_OPERATION_TIMEOUT,
     )
     assert spyder_env_manager.select_environment.currentText() == "test_env"
-    assert spyder_env_manager.packages_table.source_model.rowCount() == 2
+    qtbot.waitUntil(
+        lambda: spyder_env_manager.packages_table.source_model.rowCount() == 2,
+        timeout=OPERATION_TIMEOUT,
+    )

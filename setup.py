@@ -22,7 +22,7 @@ setup(
     url="https://github.com/spyder-ide/spyder-env-manager",
     python_requires=">= 3.7",
     install_requires=[
-        "envs-manager>=0.1.1",
+        "envs-manager>=0.1.3",
         "qtpy",
         "qtawesome",
         # Uncomment when Spyder 6 is available
