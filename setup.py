@@ -25,8 +25,7 @@ setup(
         "envs-manager>=0.1.3",
         "qtpy",
         "qtawesome",
-        # Uncomment when Spyder 6 is available
-        # "spyder>=6",
+        "spyder>=6",
     ],
     packages=find_packages(),
     entry_points={
@@ -42,6 +41,7 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Education",
         "Intended Audience :: Science/Research",

@@ -27,8 +27,8 @@ def test_config(spyder_env_manager, qtbot):
     )
     page.initialize()
     dlg.add_page(page)
-    dlg.show()
     qtbot.addWidget(dlg)
+    dlg.show()
     # no assert, just check that the config page can be created
 
 

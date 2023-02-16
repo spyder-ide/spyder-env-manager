@@ -12,8 +12,8 @@ Spyder Env Manager main widget tests.
 from spyder_env_manager.spyder.widgets.main_widget import SpyderEnvManagerWidget
 
 
-def test_env_manager(qtbot, tmp_path, monkeypatch):
-    """Create plugin widget and show it."""
+def test_main_widget(qtbot, tmp_path, monkeypatch):
+    """Create widget and show it."""
     backends_root_path = tmp_path / "backends"
     backends_root_path.mkdir(parents=True)
 

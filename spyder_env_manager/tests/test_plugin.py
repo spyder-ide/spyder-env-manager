@@ -23,6 +23,7 @@ from spyder.config.manager import CONF
 from spyder_env_manager.spyder.plugin import SpyderEnvManager
 from spyder_env_manager.spyder.widgets.main_widget import (
     SpyderEnvManagerWidget,
+    SpyderEnvManagerWidgetActions,
 )
 from spyder_env_manager.spyder.widgets.helper_widgets import (
     CustomParametersDialog,
@@ -48,9 +49,10 @@ class MainMock(QMainWindow):
 
 @pytest.fixture
 def spyder_env_manager(tmp_path, qtbot, monkeypatch):
+    # Mocking mainwindow and config
+    window = MainMock()
     backends_root_path = tmp_path / "backends"
     backends_root_path.mkdir(parents=True)
-    window = MainMock()
 
     def get_conf(self, option, default=None, section=None):
         if option == "environments_path":
@@ -60,6 +62,7 @@ def spyder_env_manager(tmp_path, qtbot, monkeypatch):
 
     monkeypatch.setattr(SpyderEnvManagerWidget, "get_conf", get_conf)
 
+    # Setup plugin
     plugin = SpyderEnvManager(parent=window, configuration=CONF)
     widget = plugin.get_widget()
     window.setCentralWidget(widget)
@@ -68,18 +71,41 @@ def spyder_env_manager(tmp_path, qtbot, monkeypatch):
 
     yield plugin
 
+    # Wait for pending operations and close
     qtbot.waitUntil(lambda: widget.actions_enabled, timeout=LONG_OPERATION_TIMEOUT)
     widget.close()
+    del plugin
+    del window
 
 
 # ---- Tests
 # ------------------------------------------------------------------------
-def test_spyder_env_manager(spyder_env_manager, qtbot, caplog):
-    """Setup plugin widget, show it and create an environment."""
+def test_plugin_initial_state(spyder_env_manager, qtbot):
+    """Check plugin initialization and that actions and widgets have the correct state when initializing."""
+    widget = spyder_env_manager.get_widget()
+
+    # Check for widgets initialization
+    assert widget.select_environment.currentData() is None
+    assert widget.select_environment.isEnabled()
+    assert widget.stack_layout.currentWidget() == widget.infowidget
+
+    # Check widget actions
+    disabled_actions_ids = [
+        SpyderEnvManagerWidgetActions.InstallPackage,
+        SpyderEnvManagerWidgetActions.DeleteEnvironment,
+        SpyderEnvManagerWidgetActions.ExportEnvironment,
+    ]
+    for action_id, action in widget.get_actions().items():
+        if action_id in disabled_actions_ids:
+            assert not action.isEnabled()
+        else:
+            assert action.isEnabled()
+
+
+def test_environment_creation(spyder_env_manager, qtbot, caplog):
+    """Test creating an environment."""
     caplog.set_level(logging.DEBUG)
     widget = spyder_env_manager.get_widget()
-    assert widget.select_environment.currentText() == "No environments available"
-    assert widget.stack_layout.currentWidget() == widget.infowidget
 
     def handle_env_creation_dialog():
         dialog = widget.findChild(CustomParametersDialog)
