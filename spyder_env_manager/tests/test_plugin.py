@@ -9,6 +9,7 @@ Spyder Env Manager plugin tests.
 """
 # Standard library imports
 import logging
+from pathlib import Path
 from unittest.mock import Mock
 
 # Third-party imports
@@ -32,6 +33,7 @@ from spyder_env_manager.spyder.widgets.helper_widgets import (
 # Constants
 LONG_OPERATION_TIMEOUT = 100000
 OPERATION_TIMEOUT = 50000
+IMPORT_FILE_PATH = str(Path(__file__).parent / "data" / "import_env.yml")
 
 
 # ---- Fixtures
@@ -107,13 +109,13 @@ def test_environment_creation(spyder_env_manager, qtbot, caplog):
     caplog.set_level(logging.DEBUG)
     widget = spyder_env_manager.get_widget()
 
-    def handle_env_creation_dialog():
+    def handle_environment_creation_dialog():
         dialog = widget.findChild(CustomParametersDialog)
         dialog.lineedit_string.setText("test_env")
         dialog.combobox_edit.setCurrentText("3.8")
         dialog.accept()
 
-    QTimer.singleShot(100, handle_env_creation_dialog)
+    QTimer.singleShot(100, handle_environment_creation_dialog)
     widget._message_new_environment()
 
     qtbot.waitUntil(
@@ -123,5 +125,30 @@ def test_environment_creation(spyder_env_manager, qtbot, caplog):
     assert widget.select_environment.currentText() == "test_env"
     qtbot.waitUntil(
         lambda: widget.packages_table.source_model.rowCount() == 2,
+        timeout=OPERATION_TIMEOUT,
+    )
+
+
+def test_environment_import(spyder_env_manager, qtbot, caplog):
+    """Test importing an environment from a file."""
+    caplog.set_level(logging.DEBUG)
+    widget = spyder_env_manager.get_widget()
+
+    def handle_environment_import_dialog():
+        dialog = widget.findChild(CustomParametersDialog)
+        dialog.lineedit_string.setText("test_env_import")
+        dialog.file_combobox.combobox.lineEdit().setText(IMPORT_FILE_PATH)
+        dialog.accept()
+
+    QTimer.singleShot(100, handle_environment_import_dialog)
+    widget._message_import_environment()
+
+    qtbot.waitUntil(
+        lambda: widget.stack_layout.currentWidget() == widget.packages_table,
+        timeout=LONG_OPERATION_TIMEOUT,
+    )
+    assert widget.select_environment.currentText() == "test_env_import"
+    qtbot.waitUntil(
+        lambda: widget.packages_table.source_model.rowCount() == 3,
         timeout=OPERATION_TIMEOUT,
     )
