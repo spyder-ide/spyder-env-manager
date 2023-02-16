@@ -66,7 +66,7 @@ def spyder_env_manager(tmp_path, qtbot, monkeypatch):
     qtbot.addWidget(window)
     window.show()
 
-    yield widget
+    yield plugin
 
     qtbot.waitUntil(lambda: widget.actions_enabled, timeout=LONG_OPERATION_TIMEOUT)
     widget.close()
@@ -77,30 +77,25 @@ def spyder_env_manager(tmp_path, qtbot, monkeypatch):
 def test_spyder_env_manager(spyder_env_manager, qtbot, caplog):
     """Setup plugin widget, show it and create an environment."""
     caplog.set_level(logging.DEBUG)
-    assert (
-        spyder_env_manager.select_environment.currentText()
-        == "No environments available"
-    )
-    assert (
-        spyder_env_manager.stack_layout.currentWidget() == spyder_env_manager.infowidget
-    )
+    widget = spyder_env_manager.get_widget()
+    assert widget.select_environment.currentText() == "No environments available"
+    assert widget.stack_layout.currentWidget() == widget.infowidget
 
     def handle_env_creation_dialog():
-        dialog = spyder_env_manager.findChild(CustomParametersDialog)
+        dialog = widget.findChild(CustomParametersDialog)
         dialog.lineedit_string.setText("test_env")
-        dialog.combobox_edit.setCurrentText("3.9")
+        dialog.combobox_edit.setCurrentText("3.8")
         dialog.accept()
 
     QTimer.singleShot(100, handle_env_creation_dialog)
-    spyder_env_manager._message_new_environment()
+    widget._message_new_environment()
 
     qtbot.waitUntil(
-        lambda: spyder_env_manager.stack_layout.currentWidget()
-        == spyder_env_manager.packages_table,
+        lambda: widget.stack_layout.currentWidget() == widget.packages_table,
         timeout=LONG_OPERATION_TIMEOUT,
     )
-    assert spyder_env_manager.select_environment.currentText() == "test_env"
+    assert widget.select_environment.currentText() == "test_env"
     qtbot.waitUntil(
-        lambda: spyder_env_manager.packages_table.source_model.rowCount() == 2,
+        lambda: widget.packages_table.source_model.rowCount() == 2,
         timeout=OPERATION_TIMEOUT,
     )
