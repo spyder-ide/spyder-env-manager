@@ -52,8 +52,8 @@ class SpyderEnvManager(SpyderDockablePlugin):
     # --- Signals
     sig_set_spyder_custom_interpreter = Signal(str, str)
     """
-    Signal to inform that the user wnats to set an environment Python interpreter
-    as Spyder custom interpreter.
+    Signal to inform that the user wants to set an environment Python interpreter
+    as the Spyder custom one.
 
     Parameters
     ----------

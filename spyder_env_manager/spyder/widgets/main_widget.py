@@ -117,8 +117,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     # --- Signals
     sig_set_spyder_custom_interpreter = Signal(str, str)
     """
-    Signal to inform that the user wnats to set an environment Python interpreter
-    as Spyder custom interpreter.
+    Signal to inform that the user wants to set an environment Python interpreter
+    as the Spyder custom one.
 
     Parameters
     ----------
@@ -224,7 +224,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         environment_as_custom_interpreter_action = self.create_action(
             SpyderEnvManagerWidgetActions.EnvironmentAsCustomInterpreter,
-            text=_("Set current environment as Spyder Python interpreter"),
+            text=_("Set current environment as Spyder's Python interpreter"),
             tip=_(
                 "Set the current environment Python interpreter as "
                 "the interpreter used by Spyder"
