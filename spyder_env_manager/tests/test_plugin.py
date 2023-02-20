@@ -133,8 +133,8 @@ def test_plugin_initial_state(spyder_env_manager):
             assert action.isEnabled()
 
 
-def test_environment_creation(spyder_env_manager, qtbot, caplog):
-    """Test creating an environment and installing a package in it."""
+def test_environment_creation_and_deletion(spyder_env_manager, qtbot, caplog):
+    """Test creating and deleting an environment."""
     caplog.set_level(logging.DEBUG)
     widget = spyder_env_manager.get_widget()
 
@@ -157,6 +157,17 @@ def test_environment_creation(spyder_env_manager, qtbot, caplog):
         lambda: widget.packages_table.source_model.rowCount() == 2,
         timeout=OPERATION_TIMEOUT,
     )
+
+    # Delete environment
+    widget._run_action_for_env(
+        dialog=None, action=SpyderEnvManagerWidgetActions.DeleteEnvironment
+    )
+
+    qtbot.waitUntil(
+        lambda: widget.stack_layout.currentWidget() == widget.infowidget,
+        timeout=LONG_OPERATION_TIMEOUT,
+    )
+    assert widget.select_environment.currentData() is None
 
 
 def test_environment_import(spyder_env_manager, qtbot, caplog):
