@@ -31,7 +31,7 @@ from spyder_env_manager.spyder.widgets.helper_widgets import (
 )
 
 # Constants
-LONG_OPERATION_TIMEOUT = 100000
+LONG_OPERATION_TIMEOUT = 600000
 OPERATION_TIMEOUT = 50000
 IMPORT_FILE_PATH = str(Path(__file__).parent / "data" / "import_env.yml")
 
@@ -50,6 +50,36 @@ class MainMock(QMainWindow):
 
 
 @pytest.fixture
+def spyder_env_manager_conf(tmp_path, qtbot, monkeypatch):
+    # Mocking mainwindow and get_config
+    window = MainMock()
+    backends_root_path = tmp_path / "backends"
+    backends_root_path.mkdir(parents=True)
+
+    def get_conf(self, option, default=None, section=None):
+        if option == "environments_path":
+            return str(backends_root_path)
+        else:
+            return default
+
+    monkeypatch.setattr(SpyderEnvManagerWidget, "get_conf", get_conf)
+
+    # Setup plugin
+    plugin = SpyderEnvManager(parent=window, configuration=CONF)
+    window.setCentralWidget(plugin.get_widget())
+    window.show()
+
+    yield plugin
+
+    # Wait for pending operations and close
+    qtbot.waitUntil(
+        lambda: plugin.get_widget().actions_enabled,
+        timeout=LONG_OPERATION_TIMEOUT,
+    )
+    plugin.get_widget().close()
+
+
+@pytest.fixture
 def spyder_env_manager(tmp_path, qtbot, monkeypatch):
     # Mocking mainwindow and config
     window = MainMock()
@@ -65,24 +95,23 @@ def spyder_env_manager(tmp_path, qtbot, monkeypatch):
     monkeypatch.setattr(SpyderEnvManagerWidget, "get_conf", get_conf)
 
     # Setup plugin
-    plugin = SpyderEnvManager(parent=window, configuration=CONF)
-    widget = plugin.get_widget()
-    window.setCentralWidget(widget)
-    qtbot.addWidget(window)
+    plugin = SpyderEnvManager(parent=window, configuration=Mock())
+    window.setCentralWidget(plugin.get_widget())
     window.show()
 
     yield plugin
 
     # Wait for pending operations and close
-    qtbot.waitUntil(lambda: widget.actions_enabled, timeout=LONG_OPERATION_TIMEOUT)
-    widget.close()
-    del plugin
-    del window
+    qtbot.waitUntil(
+        lambda: plugin.get_widget().actions_enabled,
+        timeout=LONG_OPERATION_TIMEOUT,
+    )
+    plugin.get_widget().close()
 
 
 # ---- Tests
 # ------------------------------------------------------------------------
-def test_plugin_initial_state(spyder_env_manager, qtbot):
+def test_plugin_initial_state(spyder_env_manager):
     """Check plugin initialization and that actions and widgets have the correct state when initializing."""
     widget = spyder_env_manager.get_widget()
 
@@ -105,14 +134,15 @@ def test_plugin_initial_state(spyder_env_manager, qtbot):
 
 
 def test_environment_creation(spyder_env_manager, qtbot, caplog):
-    """Test creating an environment."""
+    """Test creating an environment and installing a package in it."""
     caplog.set_level(logging.DEBUG)
     widget = spyder_env_manager.get_widget()
 
+    # Create environment
     def handle_environment_creation_dialog():
         dialog = widget.findChild(CustomParametersDialog)
         dialog.lineedit_string.setText("test_env")
-        dialog.combobox_edit.setCurrentText("3.8")
+        dialog.combobox_edit.setCurrentText("3.8.16")
         dialog.accept()
 
     QTimer.singleShot(100, handle_environment_creation_dialog)
@@ -152,3 +182,60 @@ def test_environment_import(spyder_env_manager, qtbot, caplog):
         lambda: widget.packages_table.source_model.rowCount() == 3,
         timeout=OPERATION_TIMEOUT,
     )
+
+
+def test_environment_package_installation(spyder_env_manager, qtbot, caplog):
+    """Test creating an environment and installing a package in it."""
+    caplog.set_level(logging.DEBUG)
+    widget = spyder_env_manager.get_widget()
+
+    # Create environment
+    create_dialog = Mock()
+    create_dialog.combobox = combobox_mock = Mock()
+    combobox_mock.currentText = Mock(return_value="conda-like")
+    create_dialog.lineedit_string = lineedit_string_mock = Mock()
+    lineedit_string_mock.text = Mock(return_value="test_env")
+    create_dialog.combobox_edit = combobox_edit_mock = Mock()
+    combobox_edit_mock.currentText = Mock(return_value="3.9.16")
+
+    assert create_dialog.combobox.currentText() == "conda-like"
+    assert create_dialog.lineedit_string.text() == "test_env"
+    assert create_dialog.combobox_edit.currentText() == "3.9.16"
+
+    widget._run_action_for_env(
+        dialog=create_dialog, action=SpyderEnvManagerWidgetActions.NewEnvironment
+    )
+
+    qtbot.waitUntil(
+        lambda: widget.stack_layout.currentWidget() == widget.packages_table,
+        timeout=LONG_OPERATION_TIMEOUT,
+    )
+    assert widget.select_environment.currentText() == "test_env"
+    qtbot.waitUntil(
+        lambda: widget.packages_table.source_model.rowCount() == 2,
+        timeout=OPERATION_TIMEOUT,
+    )
+
+    # Install package in environment
+    install_dialog = Mock()
+    install_dialog.lineedit_string = lineedit_string_mock = Mock()
+    lineedit_string_mock.text = Mock(return_value="packaging")
+    install_dialog.combobox = combobox_mock = Mock()
+    combobox_mock.currentText = Mock(return_value="==")
+    install_dialog.lineedit_version = lineedit_version_mock = Mock()
+    lineedit_version_mock.text = Mock(return_value="22.0")
+
+    assert install_dialog.lineedit_string.text() == "packaging"
+    assert install_dialog.combobox.currentText() == "=="
+    assert install_dialog.lineedit_version.text() == "22.0"
+
+    widget._run_action_for_env(
+        dialog=install_dialog, action=SpyderEnvManagerWidgetActions.InstallPackage
+    )
+
+    qtbot.waitUntil(
+        lambda: widget.packages_table.source_model.rowCount() == 3,
+        timeout=LONG_OPERATION_TIMEOUT,
+    )
+    assert widget.packages_table.get_package_info(0)["name"] == "packaging"
+    assert widget.packages_table.get_package_info(0)["version"] == "22.0"

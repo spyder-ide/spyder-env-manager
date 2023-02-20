@@ -16,14 +16,14 @@ from spyder.plugins.preferences.widgets.configdialog import ConfigDialog
 
 # Local imports
 from spyder_env_manager.spyder.confpage import SpyderEnvManagerConfigPage
-from spyder_env_manager.tests.test_plugin import spyder_env_manager
+from spyder_env_manager.tests.test_plugin import spyder_env_manager_conf
 
 
-def test_config(spyder_env_manager, qtbot):
+def test_config(spyder_env_manager_conf, qtbot):
     """Test that config page can be created and shown."""
     dlg = ConfigDialog()
     page = SpyderEnvManagerConfigPage(
-        spyder_env_manager, parent=spyder_env_manager.main
+        spyder_env_manager_conf, parent=spyder_env_manager_conf.main
     )
     page.initialize()
     dlg.add_page(page)

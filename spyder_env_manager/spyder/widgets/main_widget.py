@@ -681,9 +681,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             *manager_action_args,
             **manager_action_kwargs,
         )
+        self.manager_worker.moveToThread(self.env_manager_action_thread)
         self.manager_worker.sig_ready.connect(on_ready)
         self.manager_worker.sig_ready.connect(self.env_manager_action_thread.quit)
-        self.manager_worker.moveToThread(self.env_manager_action_thread)
         self.env_manager_action_thread.started.connect(self.manager_worker.start)
         self.start_spinner()
         self.env_manager_action_thread.start()
@@ -962,7 +962,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         contents = [
             {"conda-like"},
             {},
-            ["3.7", "3.8", "3.9", "3.10"],
+            ["3.7.12", "3.8.16", "3.9.16", "3.10.9"],
         ]
         self._message_box_editable(
             title,

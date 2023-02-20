@@ -58,7 +58,7 @@ class CustomParametersDialog(QDialog):
         super().__init__(parent, Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
 
         self.resize(450, 130)
-        self.setWindowTitle(_(title))
+        self.setWindowTitle(title)
         self.setModal(True)
         self.lineedits = {}
 

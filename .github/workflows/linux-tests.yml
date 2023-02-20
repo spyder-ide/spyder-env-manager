@@ -21,6 +21,7 @@ jobs:
       matrix:
         PYTHON_VERSION: ['3.8', '3.9', '3.10']
         USE_CONDA: ['True', 'False']
+    timeout-minutes: 15
     steps:
       - name: Checkout branch
         uses: actions/checkout@v2
