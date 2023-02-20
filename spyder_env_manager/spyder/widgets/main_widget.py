@@ -932,8 +932,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def _message_environment_as_custom_interpreter(self):
         current_environment_path = self.select_environment.currentData()
-        # TODO: Use path to env to get path to env Python intepreter
-        external_executable = self.get_conf("conda_file_executable_path")
+        external_executable = self.get_conf(
+            "conda_file_executable_path", conda_like_executable()
+        )
         backend = "conda-like"
         manager = Manager(
             backend,

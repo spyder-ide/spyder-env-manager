@@ -90,9 +90,10 @@ class SpyderEnvManager(SpyderDockablePlugin):
     def on_maininterpreter_available(self):
         main_interpreter = self.get_plugin(Plugins.MainInterpreter)
         self.sig_set_spyder_custom_interpreter.connect(
-            lambda env_name, env_python_path: print(f"{env_name} - {env_python_path}")
+            lambda env_name, env_python_path: main_interpreter.set_custom_interpreter(
+                env_python_path
+            )
         )
-        # self.sig_set_spyder_custom_interpreter.connect(main_interpreter.set_custom_interpreter)
 
     @on_plugin_teardown(plugin=Plugins.Preferences)
     def on_preferences_teardown(self):
