@@ -101,6 +101,10 @@ class SpyderEnvManager(SpyderDockablePlugin):
         preferences = self.get_plugin(Plugins.Preferences)
         preferences.deregister_plugin_preferences(self)
 
+    @on_plugin_teardown(plugin=Plugins.MainInterpreter)
+    def on_maininterpreter_teardown(self):
+        self.sig_set_spyder_custom_interpreter.disconnect()
+
     def check_compatibility(self):
         message = _("")
         conda_like_executable_path = self.get_conf("conda_file_executable_path")
