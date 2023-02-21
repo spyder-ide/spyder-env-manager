@@ -220,6 +220,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             toggled=True,
             triggered=self.update_packages,
             option=SpyderEnvManagerWidgetActions.ToggleExcludeDependency,
+            initial=self.get_conf(
+                SpyderEnvManagerWidgetActions.ToggleExcludeDependency, True
+            ),
         )
 
         environment_as_custom_interpreter_action = self.create_action(
@@ -232,6 +235,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             toggled=True,
             triggered=lambda: self._environment_as_custom_interpreter(),
             option=SpyderEnvManagerWidgetActions.ToggleEnvironmentAsCustomInterpreter,
+            initial=self.get_conf(
+                SpyderEnvManagerWidgetActions.ToggleEnvironmentAsCustomInterpreter,
+                False,
+            ),
         )
 
         # ---- Toolbar actions
