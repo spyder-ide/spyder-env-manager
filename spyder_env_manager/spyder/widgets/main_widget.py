@@ -221,7 +221,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             triggered=self.update_packages,
             option=SpyderEnvManagerWidgetActions.ToggleExcludeDependency,
             initial=self.get_conf(
-                SpyderEnvManagerWidgetActions.ToggleExcludeDependency, True
+                SpyderEnvManagerWidgetActions.ToggleExcludeDependency,
             ),
         )
 
@@ -237,7 +237,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             option=SpyderEnvManagerWidgetActions.ToggleEnvironmentAsCustomInterpreter,
             initial=self.get_conf(
                 SpyderEnvManagerWidgetActions.ToggleEnvironmentAsCustomInterpreter,
-                False,
             ),
         )
 
