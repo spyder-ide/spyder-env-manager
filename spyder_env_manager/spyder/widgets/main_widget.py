@@ -95,7 +95,7 @@ class SpyderEnvManagerWidgetActions:
 
 class SpyderEnvManagerWidgetOptionsMenuSections:
     ImportExport = "import_export_section"
-    EnvironmentDisplayUsage = "environment_display_usage"
+    AdvancedOptions = "advanced_options"
 
 
 class SpyderEnvManagerWidgetMainToolBarSections:
@@ -280,7 +280,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.add_item_to_menu(
                 item,
                 menu=options_menu,
-                section=SpyderEnvManagerWidgetOptionsMenuSections.EnvironmentDisplayUsage,
+                section=SpyderEnvManagerWidgetOptionsMenuSections.AdvancedOptions,
             )
 
         # Main toolbar
@@ -350,7 +350,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.stack_layout.setCurrentWidget(self.packages_table)
             if self.get_conf(
                 SpyderEnvManagerWidgetActions.ToggleEnvironmentAsCustomInterpreter,
-                False,
             ):
                 self._environment_as_custom_interpreter(
                     environment_path=current_environment_path
