@@ -137,13 +137,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.manager_worker = None
 
         # Select environment widget
-        root_path = self.get_conf("environments_path", str(DEFAULT_BACKENDS_ROOT_PATH))
+        root_path = self.get_conf("environments_path")
         envs, _ = Manager.list_environments(
             backend=CondaLikeInterface.ID,
             root_path=root_path,
-            external_executable=self.get_conf(
-                "conda_file_executable_path", conda_like_executable()
-            ),
+            external_executable=self.get_conf("conda_file_executable_path"),
         )
         self.select_environment = QComboBox(self)
         self.select_environment.ID = SpyderEnvManagerWidgetActions.SelectEnvironment
@@ -159,7 +157,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             QComboBox.AdjustToMinimumContentsLength
         )
         self.select_environment.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        selected_environment = self.get_conf("selected_environment", None)
+        selected_environment = self.get_conf("selected_environment")
         if selected_environment:
             self.select_environment.setCurrentText(selected_environment)
 
@@ -521,9 +519,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             environment_path = self.select_environment.currentData()
         if not environment_path:
             return
-        external_executable = self.get_conf(
-            "conda_file_executable_path", conda_like_executable()
-        )
+        external_executable = self.get_conf("conda_file_executable_path")
         backend = "conda-like"
         manager = Manager(
             backend,
@@ -793,9 +789,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         """
         root_path = Path(self.get_conf("environments_path"))
-        external_executable = self.get_conf(
-            "conda_file_executable_path", conda_like_executable()
-        )
+        external_executable = self.get_conf("conda_file_executable_path")
         backend = "conda-like"
         package_name = package_info["name"]
         if action == EnvironmentPackagesActions.UpdatePackage:
@@ -876,9 +870,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         """
         root_path = Path(self.get_conf("environments_path"))
-        external_executable = self.get_conf(
-            "conda_file_executable_path", conda_like_executable()
-        )
+        external_executable = self.get_conf("conda_file_executable_path")
         backend = "conda-like"
         if dialog and action == SpyderEnvManagerWidgetActions.NewEnvironment:
             backend = dialog.combobox.currentText()

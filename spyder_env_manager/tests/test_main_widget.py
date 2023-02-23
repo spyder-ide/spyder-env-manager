@@ -30,6 +30,6 @@ def test_main_widget(qtbot, tmp_path, monkeypatch):
     monkeypatch.setattr(SpyderEnvManagerWidget, "get_conf", get_conf)
 
     SpyderEnvManagerWidget.CONF_SECTION = CONF_SECTION
-    widget = SpyderEnvManagerWidget(None)
+    widget = SpyderEnvManagerWidget(None, None)
     widget.setup()
     widget.show()

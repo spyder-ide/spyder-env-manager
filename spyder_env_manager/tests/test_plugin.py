@@ -21,6 +21,7 @@ from qtpy.QtWidgets import QMainWindow
 from spyder.config.manager import CONF
 
 # Local imports
+from spyder_env_manager.spyder.config import CONF_DEFAULTS
 from spyder_env_manager.spyder.plugin import SpyderEnvManager
 from spyder_env_manager.spyder.widgets.main_widget import (
     SpyderEnvManagerWidget,
@@ -60,7 +61,11 @@ def spyder_env_manager_conf(tmp_path, qtbot, monkeypatch):
         if option == "environments_path":
             return str(backends_root_path)
         else:
-            return default
+            try:
+                _, config_default_values = CONF_DEFAULTS[0]
+                return config_default_values[option]
+            except KeyError:
+                return None
 
     monkeypatch.setattr(SpyderEnvManagerWidget, "get_conf", get_conf)
 
@@ -81,7 +86,7 @@ def spyder_env_manager_conf(tmp_path, qtbot, monkeypatch):
 
 @pytest.fixture
 def spyder_env_manager(tmp_path, qtbot, monkeypatch):
-    # Mocking mainwindow and config
+    # Mocking mainwindow, get_config and CONF
     window = MainMock()
     backends_root_path = tmp_path / "backends"
     backends_root_path.mkdir(parents=True)
@@ -90,7 +95,11 @@ def spyder_env_manager(tmp_path, qtbot, monkeypatch):
         if option == "environments_path":
             return str(backends_root_path)
         else:
-            return default
+            try:
+                _, config_default_values = CONF_DEFAULTS[0]
+                return config_default_values[option]
+            except KeyError:
+                return None
 
     monkeypatch.setattr(SpyderEnvManagerWidget, "get_conf", get_conf)
 
@@ -112,7 +121,10 @@ def spyder_env_manager(tmp_path, qtbot, monkeypatch):
 # ---- Tests
 # ------------------------------------------------------------------------
 def test_plugin_initial_state(spyder_env_manager):
-    """Check plugin initialization and that actions and widgets have the correct state when initializing."""
+    """
+    Check plugin initialization and that actions and widgets have the
+    correct state when initializing.
+    """
     widget = spyder_env_manager.get_widget()
 
     # Check for widgets initialization
