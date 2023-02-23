@@ -44,6 +44,8 @@ CONF_DEFAULTS = [
             "conda_file_executable_path": conda_like_executable(),
             "environments_path": str(DEFAULT_BACKENDS_ROOT_PATH),
             "selected_environment": "",
+            "exclude_dependency_action": True,
+            "environment_as_custom_interpreter": False,
         },
     ),
 ]

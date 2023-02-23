@@ -7,9 +7,9 @@
 """
 Spyder Env Manager main widget tests.
 """
-
 # Local imports
 from spyder_env_manager.spyder.widgets.main_widget import SpyderEnvManagerWidget
+from spyder_env_manager.spyder.config import CONF_DEFAULTS, CONF_SECTION
 
 
 def test_main_widget(qtbot, tmp_path, monkeypatch):
@@ -21,12 +21,15 @@ def test_main_widget(qtbot, tmp_path, monkeypatch):
         if option == "environments_path":
             return str(backends_root_path)
         else:
-            return default
+            try:
+                _, config_default_values = CONF_DEFAULTS[0]
+                return config_default_values[option]
+            except KeyError:
+                return None
 
     monkeypatch.setattr(SpyderEnvManagerWidget, "get_conf", get_conf)
-    SpyderEnvManagerWidget.CONF_SECTION = "spyder_env_manager"
 
-    widget = SpyderEnvManagerWidget("spyder_env_manager", None)
-    qtbot.addWidget(widget)
+    SpyderEnvManagerWidget.CONF_SECTION = CONF_SECTION
+    widget = SpyderEnvManagerWidget(None)
     widget.setup()
     widget.show()
