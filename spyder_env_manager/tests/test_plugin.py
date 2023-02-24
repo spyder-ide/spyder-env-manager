@@ -82,6 +82,7 @@ def spyder_env_manager_conf(tmp_path, qtbot, monkeypatch):
         timeout=LONG_OPERATION_TIMEOUT,
     )
     plugin.get_widget().close()
+    window.close()
 
 
 @pytest.fixture
@@ -116,6 +117,7 @@ def spyder_env_manager(tmp_path, qtbot, monkeypatch):
         timeout=LONG_OPERATION_TIMEOUT,
     )
     plugin.get_widget().close()
+    window.close()
 
 
 # ---- Tests
@@ -137,6 +139,8 @@ def test_plugin_initial_state(spyder_env_manager):
         SpyderEnvManagerWidgetActions.InstallPackage,
         SpyderEnvManagerWidgetActions.DeleteEnvironment,
         SpyderEnvManagerWidgetActions.ExportEnvironment,
+        SpyderEnvManagerWidgetActions.ToggleExcludeDependency,
+        SpyderEnvManagerWidgetActions.ToggleEnvironmentAsCustomInterpreter,
     ]
     for action_id, action in widget.get_actions().items():
         if action_id in disabled_actions_ids:
