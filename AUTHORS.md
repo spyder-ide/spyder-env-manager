@@ -6,4 +6,4 @@
 
 ## Contributors
 
-None yet. Why not be the first?
+* [spyder-env-manager contributors](https://github.com/spyder-ide/spyder-env-manager/graphs/contributors)

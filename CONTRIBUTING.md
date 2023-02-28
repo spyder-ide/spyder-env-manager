@@ -124,7 +124,7 @@ pytest spyder_env_manager/tests/test_plugin.py
 ## Deploying
 
 A reminder for the maintainers on how to deploy.
-Make sure all your changes are committed (including an entry in HISTORY.rst).
+Make sure all your changes are committed (including an entry in `CHANGELOG.md`).
 Then edit `spyder_env_manager/__init__.py` and update the plugin version and run:
 
 ```bash
@@ -132,4 +132,4 @@ git push
 git push --tags
 ```
 
-Github will then deploy to PyPI if tests pass.
+For more info see `RELEASE.md`
