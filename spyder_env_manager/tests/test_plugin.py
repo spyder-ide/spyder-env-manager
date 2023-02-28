@@ -125,7 +125,7 @@ def spyder_env_manager(tmp_path, qtbot, monkeypatch):
 def test_plugin_initial_state(spyder_env_manager):
     """
     Check plugin initialization and that actions and widgets have the
-    correct state when initializing.
+    correct state when initialized.
     """
     widget = spyder_env_manager.get_widget()
 
@@ -212,7 +212,7 @@ def test_environment_import(spyder_env_manager, qtbot, caplog):
 
 
 def test_environment_package_installation(spyder_env_manager, qtbot, caplog):
-    """Test creating an environment and installing a package in it."""
+    """Test creating an environment and installing a package on it."""
     caplog.set_level(logging.DEBUG)
     widget = spyder_env_manager.get_widget()
 
