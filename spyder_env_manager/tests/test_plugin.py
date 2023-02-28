@@ -32,8 +32,7 @@ from spyder_env_manager.spyder.widgets.helper_widgets import (
 )
 
 # Constants
-LONG_OPERATION_TIMEOUT = 600000
-OPERATION_TIMEOUT = 50000
+OPERATION_TIMEOUT = 60000
 IMPORT_FILE_PATH = str(Path(__file__).parent / "data" / "import_env.yml")
 
 
@@ -79,7 +78,7 @@ def spyder_env_manager_conf(tmp_path, qtbot, monkeypatch):
     # Wait for pending operations and close
     qtbot.waitUntil(
         lambda: plugin.get_widget().actions_enabled,
-        timeout=LONG_OPERATION_TIMEOUT,
+        timeout=OPERATION_TIMEOUT,
     )
     plugin.get_widget().close()
     window.close()
@@ -114,7 +113,7 @@ def spyder_env_manager(tmp_path, qtbot, monkeypatch):
     # Wait for pending operations and close
     qtbot.waitUntil(
         lambda: plugin.get_widget().actions_enabled,
-        timeout=LONG_OPERATION_TIMEOUT,
+        timeout=OPERATION_TIMEOUT,
     )
     plugin.get_widget().close()
     window.close()
@@ -166,7 +165,7 @@ def test_environment_creation_and_deletion(spyder_env_manager, qtbot, caplog):
 
     qtbot.waitUntil(
         lambda: widget.stack_layout.currentWidget() == widget.packages_table,
-        timeout=LONG_OPERATION_TIMEOUT,
+        timeout=OPERATION_TIMEOUT,
     )
     assert widget.select_environment.currentText() == "test_env"
     qtbot.waitUntil(
@@ -181,7 +180,7 @@ def test_environment_creation_and_deletion(spyder_env_manager, qtbot, caplog):
 
     qtbot.waitUntil(
         lambda: widget.stack_layout.currentWidget() == widget.infowidget,
-        timeout=LONG_OPERATION_TIMEOUT,
+        timeout=OPERATION_TIMEOUT,
     )
     assert widget.select_environment.currentData() is None
 
@@ -202,7 +201,7 @@ def test_environment_import(spyder_env_manager, qtbot, caplog):
 
     qtbot.waitUntil(
         lambda: widget.stack_layout.currentWidget() == widget.packages_table,
-        timeout=LONG_OPERATION_TIMEOUT,
+        timeout=OPERATION_TIMEOUT,
     )
     assert widget.select_environment.currentText() == "test_env_import"
     qtbot.waitUntil(
@@ -235,7 +234,7 @@ def test_environment_package_installation(spyder_env_manager, qtbot, caplog):
 
     qtbot.waitUntil(
         lambda: widget.stack_layout.currentWidget() == widget.packages_table,
-        timeout=LONG_OPERATION_TIMEOUT,
+        timeout=OPERATION_TIMEOUT,
     )
     assert widget.select_environment.currentText() == "test_env"
     qtbot.waitUntil(
@@ -262,7 +261,7 @@ def test_environment_package_installation(spyder_env_manager, qtbot, caplog):
 
     qtbot.waitUntil(
         lambda: widget.packages_table.source_model.rowCount() == 3,
-        timeout=LONG_OPERATION_TIMEOUT,
+        timeout=OPERATION_TIMEOUT,
     )
     assert widget.packages_table.get_package_info(0)["name"] == "packaging"
     assert widget.packages_table.get_package_info(0)["version"] == "22.0"
