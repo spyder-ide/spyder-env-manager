@@ -70,7 +70,7 @@ class SpyderEnvManager(SpyderDockablePlugin):
         return _("Environments Manager")
 
     def get_description(self):
-        return _("Spyder 5+ plugin to manage Python virtual environments and packages")
+        return _("Spyder 6+ plugin to manage Python virtual environments and packages")
 
     def get_icon(self):
         return qta.icon("mdi.archive", color=ima.MAIN_FG_COLOR)

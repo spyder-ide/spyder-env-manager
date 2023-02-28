@@ -21,6 +21,7 @@ jobs:
       matrix:
         PYTHON_VERSION: ['3.8', '3.9', '3.10']
         USE_CONDA: ['True', 'False']
+    timeout-minutes: 15
     steps:
       - name: Checkout branch
         uses: actions/checkout@v2
@@ -49,6 +50,10 @@ jobs:
         run: |
             pip install -r requirements/conda.txt
             pip install -r requirements/tests.txt
+      - name: Install Spyder from master branch (Future Spyder 6)
+        shell: bash -l {0}
+        run: |
+            pip install git+https://github.com/spyder-ide/spyder.git@master
       - name: Install Package
         shell: bash -l {0}
         run: pip install --no-deps -e .

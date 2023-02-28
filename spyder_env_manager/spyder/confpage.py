@@ -29,7 +29,7 @@ class SpyderEnvManagerConfigPage(PluginConfigPage):
         conda_like_path_label.setToolTip(_("Path to the conda/micromamba executable"))
         conda_like_path_label.setWordWrap(True)
 
-        conda_like_path = QLabel(self.get_option("conda_file_executable_path"))
+        conda_like_path = QLabel(self.get_option("conda_file_executable_path", None))
         conda_like_path.setTextInteractionFlags(Qt.TextSelectableByMouse)
         conda_like_path.setWordWrap(True)
 
@@ -42,7 +42,7 @@ class SpyderEnvManagerConfigPage(PluginConfigPage):
         )
         environments_path_label.setWordWrap(True)
 
-        environments_path = QLabel(self.get_option("environments_path"))
+        environments_path = QLabel(self.get_option("environments_path", None))
         environments_path.setTextInteractionFlags(Qt.TextSelectableByMouse)
         environments_path.setWordWrap(True)
 

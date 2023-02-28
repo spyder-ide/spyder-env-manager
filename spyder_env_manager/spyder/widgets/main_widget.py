@@ -127,8 +127,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         Path to the environment Python interpreter.
     """
 
-    def __init__(self, name=None, plugin=None, parent=None):
-        super().__init__(name, plugin, parent)
+    def __init__(self, name, plugin, parent=None):
+        super().__init__(name, plugin, parent=parent)
 
         # General attributes
         self.actions_enabled = True
@@ -137,12 +137,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.manager_worker = None
 
         # Select environment widget
+        root_path = self.get_conf("environments_path")
         envs, _ = Manager.list_environments(
             backend=CondaLikeInterface.ID,
-            root_path=self.get_conf("environments_path", DEFAULT_BACKENDS_ROOT_PATH),
-            external_executable=self.get_conf(
-                "conda_file_executable_path", conda_like_executable()
-            ),
+            root_path=root_path,
+            external_executable=self.get_conf("conda_file_executable_path"),
         )
         self.select_environment = QComboBox(self)
         self.select_environment.ID = SpyderEnvManagerWidgetActions.SelectEnvironment
@@ -158,12 +157,12 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             QComboBox.AdjustToMinimumContentsLength
         )
         self.select_environment.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        selected_environment = self.get_conf("selected_environment", None)
+        selected_environment = self.get_conf("selected_environment")
         if selected_environment:
             self.select_environment.setCurrentText(selected_environment)
 
         # Usage widget
-        self.css_path = self.get_conf("css_path", CSS_PATH, "appearance")
+        self.css_path = self.get_conf("css_path", str(CSS_PATH), "appearance")
         self.infowidget = FrameWebView(self)
         if WEBENGINE:
             self.infowidget.web_widget.page().setBackgroundColor(QColor(MAIN_BG_COLOR))
@@ -359,8 +358,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def update_actions(self):
         if self.actions_enabled:
-            current_environment = self.select_environment.currentText()
-            environments_available = current_environment != "No environments available"
+            current_environment_path = self.select_environment.currentData()
+            environments_available = current_environment_path is not None
             actions_ids = [
                 SpyderEnvManagerWidgetActions.InstallPackage,
                 SpyderEnvManagerWidgetActions.DeleteEnvironment,
@@ -520,9 +519,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             environment_path = self.select_environment.currentData()
         if not environment_path:
             return
-        external_executable = self.get_conf(
-            "conda_file_executable_path", conda_like_executable()
-        )
+        external_executable = self.get_conf("conda_file_executable_path")
         backend = "conda-like"
         manager = Manager(
             backend,
@@ -761,9 +758,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             *manager_action_args,
             **manager_action_kwargs,
         )
+        self.manager_worker.moveToThread(self.env_manager_action_thread)
         self.manager_worker.sig_ready.connect(on_ready)
         self.manager_worker.sig_ready.connect(self.env_manager_action_thread.quit)
-        self.manager_worker.moveToThread(self.env_manager_action_thread)
         self.env_manager_action_thread.started.connect(self.manager_worker.start)
         self.start_spinner()
         self.env_manager_action_thread.start()
@@ -1038,7 +1035,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         contents = [
             {"conda-like"},
             {},
-            ["3.7.15", "3.8.15", "3.9.15", "3.10.8"],
+            ["3.8.16", "3.9.16", "3.10.9", "3.11.0"],
         ]
         self._message_box_editable(
             title,
