@@ -32,7 +32,7 @@ from spyder_env_manager.spyder.widgets.helper_widgets import (
 )
 
 # Constants
-OPERATION_TIMEOUT = 60000
+OPERATION_TIMEOUT = 120000
 IMPORT_FILE_PATH = str(Path(__file__).parent / "data" / "import_env.yml")
 
 
