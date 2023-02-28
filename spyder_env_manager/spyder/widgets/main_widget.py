@@ -1035,7 +1035,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         contents = [
             {"conda-like"},
             {},
-            ["3.7.12", "3.8.16", "3.9.16", "3.10.9"],
+            ["3.8.16", "3.9.16", "3.10.9", "3.11.0"],
         ]
         self._message_box_editable(
             title,
