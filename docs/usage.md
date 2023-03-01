@@ -1,7 +1,3 @@
 # Usage
 
-To use Spyder Env Manager in a project:
-
-```python
-import spyder_env_manager
-```
+To use Spyder Env Manager you will need to have `conda` installed and Spyder 6.

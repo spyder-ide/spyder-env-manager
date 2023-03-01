@@ -10,6 +10,7 @@ Welcome to Spyder Env Manager's documentation!
    usage
    contributing
    authors
+   changelog
    modules
 
 Indices and tables

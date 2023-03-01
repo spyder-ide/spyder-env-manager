@@ -30,7 +30,7 @@ import spyder_env_manager
 HERE = os.path.abspath(os.path.dirname(__file__))
 REPO = os.path.dirname(HERE)
 
-for fpath in ["README.md", "CONTRIBUTING.md", "AUTHORS.md"]:
+for fpath in ["README.md", "CONTRIBUTING.md", "AUTHORS.md", "CHANGELOG.md"]:
     try:
         os.remove(fpath)
     except Exception:

@@ -1,6 +1,6 @@
 # Spyder Env Manager
 
-Spyder 5+ plugin to manage Python virtual environments and packages
+Spyder 6+ plugin to manage Python virtual environments and packages
 
 ## Build status
 
@@ -15,7 +15,10 @@ Spyder 5+ plugin to manage Python virtual environments and packages
 
 ## Features
 
-* TODO
+* Create and delete Python environments
+* Install, Update, change installed packages inside Python environments
+* Import/Export environments (from/to `.yml` files)
+* Set the environment Python interpreter as the one used by Spyder.
 
 ## Credits
 
