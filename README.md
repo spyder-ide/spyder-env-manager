@@ -18,7 +18,7 @@ Spyder 6+ plugin to manage Python virtual environments and packages
 * Create and delete Python environments
 * Install, Update, change installed packages inside Python environments
 * Import/Export environments (from/to `.yml` files)
-* Set the environment Python interpreter as the one Spyder uses
+* Set the environment Python interpreter as the one used by Spyder.
 
 ## Credits
 

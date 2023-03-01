@@ -32,7 +32,7 @@ In order to do a release, you need to have:
 
       loghub spyder-ide/spyder-env-manager -m vX.Y.Z
 
-* Update `__version__` in `spyder/__init__.py` (set release version, remove `dev0`):
+* Update `__version__` in `spyder_env_manager/__init__.py` (set release version, remove `dev0`):
 
       git add . && git commit -m "Release X.Y.Z"
 
@@ -56,7 +56,7 @@ In order to do a release, you need to have:
 
       git tag -a vX.Y.Z -m "Release X.Y.Z"
 
-* Update `__version__` in `spyder/__init__.py` (add `dev0` and increment minor)
+* Update `__version__` in `spyder_env_manager/__init__.py` (add `dev0` and increment minor)
 
 * Create `Back to work` commit with
 
