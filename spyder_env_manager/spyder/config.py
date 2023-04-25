@@ -27,7 +27,6 @@ def conda_like_executable():
     conda_like_executable = EXTERNAL_EXECUTABLE
     if not conda_like_executable:
         conda_like_executable = find_conda()
-
     return conda_like_executable
 
 
