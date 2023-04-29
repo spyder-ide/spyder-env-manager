@@ -12,12 +12,9 @@
 from envs_manager.manager import (
     DEFAULT_BACKENDS_ROOT_PATH,
     EXTERNAL_EXECUTABLE,
-    Manager,
 )
-from envs_manager.backends.conda_like_interface import CondaLikeInterface
 
 # Spyder and local imports
-from spyder.config.base import get_spyder_umamba_path
 from spyder.utils.conda import find_conda
 
 
@@ -29,10 +26,7 @@ def conda_like_executable():
     """
     conda_like_executable = EXTERNAL_EXECUTABLE
     if not conda_like_executable:
-        conda_like_executable = get_spyder_umamba_path()
-    if not conda_like_executable:
         conda_like_executable = find_conda()
-
     return conda_like_executable
 
 
