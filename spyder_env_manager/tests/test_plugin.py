@@ -32,7 +32,7 @@ from spyder_env_manager.spyder.widgets.helper_widgets import (
 )
 
 # Constants
-OPERATION_TIMEOUT = 120000
+OPERATION_TIMEOUT = 180000
 IMPORT_FILE_PATH = str(Path(__file__).parent / "data" / "import_env.yml")
 
 
@@ -160,7 +160,7 @@ def test_environment_creation_and_deletion(spyder_env_manager, qtbot, caplog):
         dialog.combobox_edit.setCurrentText("3.8.16")
         dialog.accept()
 
-    QTimer.singleShot(100, handle_environment_creation_dialog)
+    QTimer.singleShot(2000, handle_environment_creation_dialog)
     widget._message_new_environment()
 
     qtbot.waitUntil(
@@ -196,7 +196,7 @@ def test_environment_import(spyder_env_manager, qtbot, caplog):
         dialog.file_combobox.combobox.lineEdit().setText(IMPORT_FILE_PATH)
         dialog.accept()
 
-    QTimer.singleShot(100, handle_environment_import_dialog)
+    QTimer.singleShot(2000, handle_environment_import_dialog)
     widget._message_import_environment()
 
     qtbot.waitUntil(

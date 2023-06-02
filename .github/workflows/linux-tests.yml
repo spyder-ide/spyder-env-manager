@@ -53,6 +53,7 @@ jobs:
       - name: Install Spyder from master branch (Future Spyder 6)
         shell: bash -l {0}
         run: |
+            conda install pyyaml=6.0 # Prevents error updating PyYAML via pip when installing Spyder from source on Python 3.8
             pip install git+https://github.com/spyder-ide/spyder.git@master
       - name: Install Package
         shell: bash -l {0}
