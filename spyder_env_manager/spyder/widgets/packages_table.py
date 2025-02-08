@@ -19,10 +19,9 @@ from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QAbstractItemView, QTableView
 
 # Spyder and local imports
+from spyder.api.fonts import SpyderFontType, SpyderFontsMixin
 from spyder.api.translations import get_translation
 from spyder.api.widgets.mixins import SpyderWidgetMixin
-from spyder.config.fonts import DEFAULT_SMALL_DELTA
-from spyder.config.gui import get_font
 from spyder.utils.palette import SpyderPalette
 
 
@@ -49,7 +48,7 @@ class EnvironmentPackagesMenu:
     PackageContextMenu = "package_context_menu"
 
 
-class EnvironmentPackagesModel(QAbstractTableModel):
+class EnvironmentPackagesModel(QAbstractTableModel, SpyderFontsMixin):
     def __init__(self, parent):
         super().__init__(parent)
         self.all_packages = []
@@ -84,7 +83,7 @@ class EnvironmentPackagesModel(QAbstractTableModel):
         elif role == Qt.TextAlignmentRole:
             return to_qvariant(int(Qt.AlignCenter))
         elif role == Qt.FontRole:
-            return to_qvariant(get_font(font_size_delta=DEFAULT_SMALL_DELTA))
+            return self.get_font(font_type=SpyderFontType.Interface)
         elif role == Qt.BackgroundColorRole:
             if package["requested"]:
                 return to_qvariant(QColor(SpyderPalette.COLOR_OCCURRENCE_4))

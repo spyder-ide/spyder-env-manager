@@ -40,7 +40,7 @@ from spyder.api.widgets.main_widget import (
 from spyder.config.base import get_module_source_path
 from spyder.dependencies import SPYDER_KERNELS_REQVER
 from spyder.utils.icon_manager import ima
-from spyder.utils.palette import QStylePalette
+from spyder.utils.palette import SpyderPalette
 from spyder.widgets.browser import FrameWebView
 
 from spyder_env_manager.spyder.config import (
@@ -65,7 +65,7 @@ _ = get_translation("spyder")
 # =============================================================================
 PLUGINS_PATH = get_module_source_path("spyder", "plugins")
 TEMPLATES_PATH = Path(__file__) / "spyder" / "assets" / "templates"
-MAIN_BG_COLOR = QStylePalette.COLOR_BACKGROUND_1
+MAIN_BG_COLOR = SpyderPalette.COLOR_BACKGROUND_1
 separador = osp.sep
 ENVIRONMENT_MESSAGE = Path(
     separador.join(osp.dirname(os.path.abspath(__file__)).split(separador)[:-2]),
