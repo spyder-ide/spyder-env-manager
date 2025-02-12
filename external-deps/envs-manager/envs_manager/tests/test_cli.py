@@ -27,7 +27,11 @@ BACKENDS = [
     ("venv", [""], "test_env", "pip"),
     (
         "conda-like",
-        ["Transaction finished", "Executing transaction: ...working... done"],
+        [
+            "Transaction finished",
+            "Executing transaction:",
+            "Downloading and Extracting Packages:",
+        ],
         "test_env",
         "python",
     ),

@@ -23,8 +23,9 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
 ]
 dependencies = [
+  "packaging",
   "pyyaml",
-  "requests"
+  "requests",
 ]
 dynamic = ["version"]
 
@@ -39,7 +40,8 @@ envs-manager = "envs_manager.cli:main"
 [project.optional-dependencies]
 test = [
   "pytest",
-  "pytest-cov"
+  "pytest-cov",
+  "flaky",
 ]
 pre-commit = [
   "pre-commit"

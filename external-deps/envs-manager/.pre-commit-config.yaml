@@ -4,12 +4,16 @@
 exclude: ^envs_manager/tests/env_files
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.3.0
+    rev: v4.6.0
     hooks:
-    -   id: check-yaml
-    -   id: end-of-file-fixer
-    -   id: trailing-whitespace
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+  - repo: https://github.com/hadialqattan/pycln
+    rev: v2.5.0
+    hooks:
+      - id: pycln
   - repo: https://github.com/psf/black
-    rev: 22.6.0
+    rev: 24.10.0
     hooks:
       - id: black

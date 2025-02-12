@@ -3,6 +3,10 @@ name: Windows tests
 
 on: [pull_request, push]
 
+concurrency:
+  group: windows-tests-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   tests:
     name: Test Python ${{ matrix.python-version }} Executable ${{ matrix.conda-like }}
@@ -13,13 +17,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.7', '3.10']
+        python-version: ['3.9', '3.11']
         conda-like: ['micromamba', 'conda']
     steps:
       - name: Checkout branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install Conda
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
            auto-update-conda: true
            channels: conda-forge
@@ -31,7 +35,7 @@ jobs:
         shell: bash -l {0}
         run: |
           mkdir micromamba
-          curl -Ls https://micro.mamba.pm/api/micromamba/win-64/latest | tar -xvj -C micromamba
+          curl -Ls https://micro.mamba.pm/api/micromamba/win-64/1.5.10 | tar -xvj -C micromamba
           echo "ENV_BACKEND_EXECUTABLE=${{ github.workspace }}\micromamba\Library\bin\micromamba.exe" >> $GITHUB_ENV
           echo "MAMBA_ROOT_PREFIX=${{ github.workspace }}\micromamba" >> $GITHUB_ENV
       - name: Setup executable backend with conda
@@ -46,9 +50,9 @@ jobs:
       - name: Run tests
         shell: bash -l {0}
         run: |
-          pytest --cov-report xml --cov=envs_manager -vv -x
+          pytest --cov-report xml --cov=envs_manager --color=yes -vv -x
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true

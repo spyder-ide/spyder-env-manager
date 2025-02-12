@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import subprocess
 
+from packaging.version import parse
 import yaml
 
 from envs_manager.api import EnvManagerInstance, run_command, get_package_info
@@ -38,9 +39,17 @@ class CondaLikeInterface(EnvManagerInstance):
                 result = run_command(command, capture_output=True)
                 version = result.stdout.split()
                 if len(version) <= 1:
-                    self.executable_variant = MICROMAMBA_VARIANT
+                    # We don't support Micromamba 2.0+ because it's not very reliable
+                    if parse(version[0]) < parse("2.0.0"):
+                        self.executable_variant = MICROMAMBA_VARIANT
+                    else:
+                        return False
                 else:
-                    self.executable_variant = version[0]
+                    # This is the minimal conda version we support
+                    if parse(version[1]) > parse("24.1.0"):
+                        self.executable_variant = version[0]
+                    else:
+                        return False
                 return True
             except Exception as error:
                 logger.error(error.stderr)
@@ -101,6 +110,7 @@ class CondaLikeInterface(EnvManagerInstance):
             logger.info(result.stdout)
             return (True, result)
         except subprocess.CalledProcessError as error:
+            logger.error(error.stderr)
             return (False, f"{error.returncode}: {error.stderr}")
 
     def import_environment(self, import_file_path, force=False):
@@ -112,8 +122,6 @@ class CondaLikeInterface(EnvManagerInstance):
                 self.environment_path,
                 f"--file={import_file_path}",
             ]
-            if force:
-                command += ["-y"]
         else:
             command = [
                 self.external_executable,
@@ -123,13 +131,16 @@ class CondaLikeInterface(EnvManagerInstance):
                 self.environment_path,
                 f"--file={import_file_path}",
             ]
-            if force:
-                command += ["--force"]
+
+        if force:
+            command += ["-y"]
+
         try:
             result = run_command(command, capture_output=True)
             logger.info(result.stdout)
             return (True, result)
         except subprocess.CalledProcessError as error:
+            logger.error(error.stderr)
             return (
                 False,
                 f"{error.returncode}: {error.stderr}\nNote: Importing environments only works for environment definitions created with the same operating system.",
@@ -142,8 +153,6 @@ class CondaLikeInterface(EnvManagerInstance):
         force=False,
         capture_output=False,
     ):
-        if self.executable_variant != MICROMAMBA_VARIANT:
-            packages = [f"'{package}'" for package in packages]
         command = [
             self.external_executable,
             "install",
@@ -161,6 +170,7 @@ class CondaLikeInterface(EnvManagerInstance):
                 logger.info(result.stdout)
             return (True, result)
         except subprocess.CalledProcessError as error:
+            logger.error(error.stderr)
             formatted_error = f"{error.returncode}: {error.stderr}"
             return (False, formatted_error)
 
@@ -181,6 +191,7 @@ class CondaLikeInterface(EnvManagerInstance):
         except subprocess.CalledProcessError as error:
             if "PackagesNotFoundError" in error.stderr:
                 return (True, error)
+            logger.error(error.stderr)
             formatted_error = f"{error.returncode}: {error.stderr}"
             return (False, formatted_error)
 
@@ -204,6 +215,7 @@ class CondaLikeInterface(EnvManagerInstance):
             else:
                 return (True, result)
         except subprocess.CalledProcessError as error:
+            logger.error(error.stderr)
             formatted_error = f"{error.returncode}: {error.stderr}"
             return (False, formatted_error)
 
@@ -284,6 +296,6 @@ class CondaLikeInterface(EnvManagerInstance):
 
             return (environments, result)
         except subprocess.CalledProcessError as error:
+            logger.error(error.stderr)
             formatted_error = f"{error.returncode}: {error.stderr}"
-            logger.error(formatted_error)
             return (environments, formatted_error)

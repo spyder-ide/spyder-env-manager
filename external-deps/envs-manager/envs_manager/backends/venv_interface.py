@@ -36,7 +36,7 @@ class VEnvInterface(EnvManagerInstance):
 
     def validate(self):
         try:
-            import venv
+            import venv  # noqa
 
             return True
         except ImportError:

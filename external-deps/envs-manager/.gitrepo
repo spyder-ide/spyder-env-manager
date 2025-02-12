@@ -4,9 +4,9 @@
 ; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
 ;
 [subrepo]
-	remote = https://github.com/spyder-ide/envs-manager.git
-	branch = main
-	commit = 2f8b69a8f623d7382b73099f26ffcab6d77e8989
-	parent = 0efda5504726e55211b0fb2749616813fd24bc6e
+	remote = https://github.com/ccordoba12/envs-manager.git
+	branch = fix-conda-interface
+	commit = 7647dd6540a66d7da39987ed46d97895c14b12fc
+	parent = 8bea0757e1266f73446e5bfa594d9057eb70770e
 	method = merge
 	cmdver = 0.4.9

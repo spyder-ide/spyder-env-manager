@@ -1,4 +1,4 @@
-name: 
+name:
 channels:
 - https://conda.anaconda.org/conda-forge
 dependencies:
@@ -21,4 +21,3 @@ dependencies:
 - vs2015_runtime==14.29.30139=h890b9b1_7
 - wheel==0.37.1=pyhd8ed1ab_0
 - xz==5.2.6=h8d14728_0
-
