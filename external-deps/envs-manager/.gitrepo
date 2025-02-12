@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/spyder-ide/envs-manager.git
+	branch = main
+	commit = 2f8b69a8f623d7382b73099f26ffcab6d77e8989
+	parent = 0efda5504726e55211b0fb2749616813fd24bc6e
+	method = merge
+	cmdver = 0.4.9

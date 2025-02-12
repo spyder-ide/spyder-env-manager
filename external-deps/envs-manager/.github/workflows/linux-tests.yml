@@ -1,0 +1,53 @@
+# Run the project's test suite
+name: Linux tests
+
+on: [pull_request, push]
+
+jobs:
+  tests:
+    name: Test Python ${{ matrix.python-version }} Executable ${{ matrix.conda-like }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PYTHON_VERSION: ${{ matrix.python-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.7', '3.10']
+        conda-like: ['micromamba', 'conda']
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v2
+      - name: Install Conda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+           auto-update-conda: true
+           channels: conda-forge
+           python-version: ${{ matrix.python-version }}
+           environment-file: requirements/environment.yml
+           auto-activate-base: false
+      - name: Install Micromamba and setup as executable backend
+        if: ${{matrix.conda-like == 'micromamba'}}
+        shell: bash -l {0}
+        run: |
+          curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
+          echo "ENV_BACKEND_EXECUTABLE=${{ github.workspace }}/bin/micromamba" >> $GITHUB_ENV
+      - name: Setup executable backend with conda
+        if: ${{matrix.conda-like == 'conda'}}
+        shell: bash -l {0}
+        run: |
+          echo "ENV_BACKEND_EXECUTABLE=$CONDA/condabin/conda" >> $GITHUB_ENV
+      - name: Install envs-manager
+        shell: bash -l {0}
+        run: |
+          pip install -e .
+      - name: Run tests
+        shell: bash -l {0}
+        run: |
+          pytest --cov-report xml --cov=envs_manager -vv -x
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          verbose: true

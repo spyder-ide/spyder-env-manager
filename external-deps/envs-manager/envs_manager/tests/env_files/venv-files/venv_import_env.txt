@@ -1,0 +1,4 @@
+packaging==21.3
+pip==22.2.2
+pyparsing==3.0.9
+setuptools==58.1.0
