@@ -41,7 +41,6 @@ jobs:
            channels: conda-forge
            channel-priority: strict
            auto-activate-base: false
-           miniforge-version: latest
            python-version: ${{ matrix.PYTHON_VERSION }}
       - name: Install package and test dependencies with conda
         if: ${{ startsWith(matrix.USE_CONDA, 'True') }}
@@ -79,7 +78,7 @@ jobs:
         shell: bash -el {0}
         run: xvfb-run --auto-servernum pytest --ignore=./external-deps --color=yes --cov-report xml --cov=spyder_env_manager -x -vv
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           fail_ci_if_error: true
           verbose: true
