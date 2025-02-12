@@ -16,12 +16,13 @@ import qtawesome as qta
 from qtpy.QtCore import Signal
 
 # Spyder imports
-from spyder.api.plugins import Plugins, SpyderDockablePlugin
-from spyder.api.translations import get_translation
+from spyder.api.fonts import SpyderFontType
 from spyder.api.plugin_registration.decorators import (
     on_plugin_available,
     on_plugin_teardown,
 )
+from spyder.api.plugins import Plugins, SpyderDockablePlugin
+from spyder.api.translations import get_translation
 from spyder.utils.icon_manager import ima
 
 # Local imports
@@ -69,10 +70,12 @@ class SpyderEnvManager(SpyderDockablePlugin):
     def get_name():
         return _("Environments Manager")
 
-    def get_description(self):
+    @staticmethod
+    def get_description():
         return _("Spyder 6+ plugin to manage Python virtual environments and packages")
 
-    def get_icon(self):
+    @staticmethod
+    def get_icon():
         return qta.icon("mdi.archive", color=ima.MAIN_FG_COLOR)
 
     def on_initialize(self):
@@ -118,7 +121,7 @@ class SpyderEnvManager(SpyderDockablePlugin):
 
     def update_font(self):
         """Update font from Preferences"""
-        rich_font = self.get_font(rich_text=True)
+        rich_font = self.get_font(font_type=SpyderFontType.Interface)
         self.get_widget().update_font(rich_font)
 
     # --- Public API

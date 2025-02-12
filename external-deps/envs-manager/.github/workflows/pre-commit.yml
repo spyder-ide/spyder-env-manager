@@ -1,20 +1,14 @@
 # Run the project's Pre-Commit hooks
 name: Pre-commit
 
-on:
-  push:
-    branches:
-    - main
-  pull_request:
-    branches:
-    - main
+on: [pull_request, push]
 
 jobs:
-  pre-commit:
+  black:
     name: Validations with Pre-Commit
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout env-manager repository
+    - name: Checkout envs-manager repository
       uses: actions/checkout@v4
     - name: Set up Python
       uses: actions/setup-python@v5

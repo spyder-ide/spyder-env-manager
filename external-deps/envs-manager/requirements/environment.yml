@@ -1,0 +1,18 @@
+channels:
+  - conda-forge
+dependencies:
+  # Build dependencies
+  - hatch
+
+  # Installation dependencies
+  - pyyaml
+  - requests
+  - packaging
+
+  # For autoformat with Black
+  - pre-commit
+
+  # For testing
+  - pytest
+  - pytest-cov
+  - flaky

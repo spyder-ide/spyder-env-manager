@@ -8,6 +8,10 @@ on:
     branches:
     - main
 
+concurrency:
+  group: linux-tests-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linux:
     name: Linux - Py${{ matrix.PYTHON_VERSION }} - USE_CONDA=${{ matrix.USE_CONDA}}
@@ -19,55 +23,63 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        PYTHON_VERSION: ['3.8', '3.9', '3.10']
+        PYTHON_VERSION: ['3.9', '3.11']
         USE_CONDA: ['True', 'False']
     timeout-minutes: 15
     steps:
       - name: Checkout branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install System Packages
         run: |
           sudo apt-get update --fix-missing
           sudo apt-get install -qq pyqt5-dev-tools libxcb-xinerama0 xterm --fix-missing
       - name: Install Conda
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
            activate-environment: test
            auto-update-conda: true
            channels: conda-forge
            channel-priority: strict
            auto-activate-base: false
+           miniforge-version: latest
            python-version: ${{ matrix.PYTHON_VERSION }}
       - name: Install package and test dependencies with conda
         if: ${{ startsWith(matrix.USE_CONDA, 'True') }}
-        shell: bash -l {0}
+        shell: bash -el {0}
         run: |
             conda install --file requirements/conda.txt -y -q
             conda install --file requirements/tests.txt -y -q
       - name: Install package and test dependencies with pip
         if: ${{ startsWith(matrix.USE_CONDA, 'False') }}
-        shell: bash -l {0}
+        shell: bash -el {0}
         run: |
             pip install -r requirements/conda.txt
             pip install -r requirements/tests.txt
-      - name: Install Spyder from master branch (Future Spyder 6)
-        shell: bash -l {0}
+      - name: Install Spyder from master branch (Future Spyder 6.1)
+        shell: bash -el {0}
         run: |
             conda install pyyaml=6.0 # Prevents error updating PyYAML via pip when installing Spyder from source on Python 3.8
-            pip install git+https://github.com/spyder-ide/spyder.git@master
+            pip install --no-deps git+https://github.com/spyder-ide/spyder.git@master
+            pip install --no-deps git+https://github.com/spyder-ide/spyder-kernels.git@master
+      - name: Install envs-manager from its subrepo
+        shell: bash -el {0}
+        run: |
+            cd external-deps/envs-manager
+            pip install -e .
+            cd ../..
       - name: Install Package
-        shell: bash -l {0}
+        shell: bash -el {0}
         run: pip install --no-deps -e .
       - name: Show environment information
-        shell: bash -l {0}
+        shell: bash -el {0}
         run: |
           conda info
           conda list
       - name: Run tests
-        shell: bash -l {0}
-        run: xvfb-run --auto-servernum pytest --cov-report xml --cov=spyder_env_manager -x -vv
+        shell: bash -el {0}
+        run: xvfb-run --auto-servernum pytest --ignore=./external-deps --color=yes --cov-report xml --cov=spyder_env_manager -x -vv
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           fail_ci_if_error: true
           verbose: true

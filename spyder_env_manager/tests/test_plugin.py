@@ -157,7 +157,7 @@ def test_environment_creation_and_deletion(spyder_env_manager, qtbot, caplog):
     def handle_environment_creation_dialog():
         dialog = widget.findChild(CustomParametersDialog)
         dialog.lineedit_string.setText("test_env")
-        dialog.combobox_edit.setCurrentText("3.8.16")
+        dialog.combobox_edit.setCurrentText("3.10.9")
         dialog.accept()
 
     QTimer.singleShot(2000, handle_environment_creation_dialog)
