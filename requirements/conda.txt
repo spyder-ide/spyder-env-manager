@@ -2,5 +2,4 @@ envs-manager>=0.1.3
 qtawesome
 qtpy
 setuptools
-# Uncomment when Spyder 6 is available
-# spyder>=6
+spyder>=6
