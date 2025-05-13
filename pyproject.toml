@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=61.2.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spyder-env-manager"
+description = "Spyder 6.1+ plugin to manage Python virtual environments and packages"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+keywords = []
+authors = [
+  { name = "Spyder Development Team and spyder-env-manager contributors", email = "spyder.python@gmail.com" },
+]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Intended Audience :: Education",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "Topic :: Scientific/Engineering",
+]
+dependencies = [
+  # Update to envs-manager 0.2.0 when released
+  "envs-manager>=0.1.3",
+  "qtpy",
+  "qtawesome",
+  # Update to Spyder 6.1.0 when released
+  "spyder>=6.1.0a1",
+]
+dynamic = ["version"]
+
+[project.urls]
+Documentation = "https://github.com/spyder-ide/spyder-env-manager#readme"
+Issues = "https://github.com/spyder-ide/spyder-env-manager/issues"
+Source = "https://github.com/spyder-ide/spyder-env-manager"
+
+[project.entry-points.'spyder.plugins']
+spyder_env_manager = "spyder_env_manager.spyder.plugin:SpyderEnvManager"
+
+[project.optional-dependencies]
+pre-commit = ["pre-commit"]
+test = [
+  "check-manifest",
+  "codecov",
+  "pytest",
+  "pytest-cov",
+  "pytest-qt",
+  "recommonmark",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "spyder_env_manager.__version__"}
+
+[tool.black]
+py39 = true
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.github
+  | \.hg
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
