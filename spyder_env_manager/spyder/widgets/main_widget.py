@@ -18,7 +18,7 @@ from string import Template
 
 # Third party imports
 from envs_manager.backends.conda_like_interface import CondaLikeInterface
-from envs_manager.manager import DEFAULT_BACKENDS_ROOT_PATH, Manager
+from envs_manager.manager import Manager
 import qtawesome as qta
 from qtpy.QtCore import QThread, QUrl, Signal
 from qtpy.QtGui import QColor
@@ -43,9 +43,6 @@ from spyder.utils.icon_manager import ima
 from spyder.utils.palette import SpyderPalette
 from spyder.widgets.browser import FrameWebView
 
-from spyder_env_manager.spyder.config import (
-    conda_like_executable,
-)
 from spyder_env_manager.spyder.workers import EnvironmentManagerWorker
 from spyder_env_manager.spyder.widgets.helper_widgets import (
     CustomParametersDialog,
@@ -520,7 +517,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         if not environment_path:
             return
         external_executable = self.get_conf("conda_file_executable_path")
-        backend = "conda-like"
+        backend = CondaLikeInterface.ID
         manager = Manager(
             backend,
             env_directory=environment_path,
@@ -790,7 +787,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         """
         root_path = Path(self.get_conf("environments_path"))
         external_executable = self.get_conf("conda_file_executable_path")
-        backend = "conda-like"
+        backend = CondaLikeInterface.ID
         package_name = package_info["name"]
         if action == EnvironmentPackagesActions.UpdatePackage:
             env_name = self.select_environment.currentText()
@@ -871,7 +868,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         """
         root_path = Path(self.get_conf("environments_path"))
         external_executable = self.get_conf("conda_file_executable_path")
-        backend = "conda-like"
+        backend = CondaLikeInterface.ID
         if dialog and action == SpyderEnvManagerWidgetActions.NewEnvironment:
             backend = dialog.combobox.currentText()
             env_name = dialog.lineedit_string.text()
@@ -985,7 +982,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             CustomParametersDialogWidgets.ComboBox,
             CustomParametersDialogWidgets.LineEditFile,
         ]
-        contents = [{"conda-like"}, {}]
+        contents = [{CondaLikeInterface.ID}, {}]
         self._message_box_editable(
             title,
             messages,
@@ -1015,7 +1012,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             CustomParametersDialogWidgets.LineEditString,
             CustomParametersDialogWidgets.ComboBoxFile,
         ]
-        contents = [{"conda-like"}, {}, {}]
+        contents = [{CondaLikeInterface.ID}, {}, {}]
         self._message_box_editable(
             title,
             messages,
@@ -1033,7 +1030,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             CustomParametersDialogWidgets.ComboBoxEdit,
         ]
         contents = [
-            {"conda-like"},
+            {CondaLikeInterface.ID},
             {},
             ["3.8.16", "3.9.16", "3.10.9", "3.11.0"],
         ]
