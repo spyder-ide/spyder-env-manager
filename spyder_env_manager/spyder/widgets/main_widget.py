@@ -19,6 +19,7 @@ from string import Template
 # Third party imports
 from envs_manager.backends.conda_like_interface import CondaLikeInterface
 from envs_manager.manager import Manager
+from packaging.version import parse
 import qtawesome as qta
 from qtpy.QtCore import QThread, QUrl, Signal
 from qtpy.QtGui import QColor
@@ -32,6 +33,7 @@ from qtpy.QtWidgets import (
 )
 
 # Spyder and local imports
+from spyder import __version__ as spyder_version
 from spyder.api.translations import get_translation
 from spyder.api.widgets.main_widget import (
     PluginMainWidget,
@@ -589,6 +591,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 manager.install,
                 self._after_package_changed,
                 packages,
+                channels=(
+                    self._prerelease_channels()
+                    if parse(spyder_version).is_prerelease
+                    else None
+                ),
                 force=True,
                 capture_output=True,
             )
@@ -888,6 +895,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 manager.create_environment,
                 self._add_new_environment_entry,
                 packages=packages,
+                channels=(
+                    self._prerelease_channels()
+                    if parse(spyder_version).is_prerelease
+                    else None
+                ),
                 force=True,
             )
         elif dialog and action == SpyderEnvManagerWidgetActions.ImportEnvironment:
@@ -1170,3 +1182,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         box.setDefaultButton(QMessageBox.Ok)
         box.setText(message)
         box.exec_()
+
+    def _prerelease_channels(self):
+        """Extra channels to make this plugin work with Spyder prereleases."""
+        return [
+            "conda-forge",
+            "conda-forge/label/spyder_kernels_dev",
+            "conda-forge/label/spyder_kernels_rc",
+        ]
