@@ -1,5 +1,0 @@
-envs-manager>=0.1.3
-qtawesome
-qtpy
-setuptools
-spyder>=6
