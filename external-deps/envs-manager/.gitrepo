@@ -4,9 +4,9 @@
 ; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
 ;
 [subrepo]
-	remote = https://github.com/ccordoba12/envs-manager.git
-	branch = fix-channels
-	commit = 633d1dd8c2b3aef531fa966cf69466d46a96ede9
-	parent = af3f9c2f37cc79dfb91f483de6fc177ed698f4a6
+	remote = https://github.com/spyder-ide/envs-manager.git
+	branch = main
+	commit = b5df9bcea2e1c6089234494903d10ac1b839e3c5
+	parent = 11e8944d19f5cdea74d1cc9731fbc2a6443ce58e
 	method = merge
 	cmdver = 0.4.9
