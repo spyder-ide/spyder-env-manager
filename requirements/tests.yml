@@ -1,0 +1,9 @@
+channels:
+  - conda-forge
+dependencies:
+  - check-manifest
+  - codecov
+  - pytest
+  - pytest-cov
+  - pytest-qt
+  - recommonmark

@@ -18,7 +18,8 @@ from string import Template
 
 # Third party imports
 from envs_manager.backends.conda_like_interface import CondaLikeInterface
-from envs_manager.manager import DEFAULT_BACKENDS_ROOT_PATH, Manager
+from envs_manager.manager import Manager
+from packaging.version import parse
 import qtawesome as qta
 from qtpy.QtCore import QThread, QUrl, Signal
 from qtpy.QtGui import QColor
@@ -32,6 +33,7 @@ from qtpy.QtWidgets import (
 )
 
 # Spyder and local imports
+from spyder import __version__ as spyder_version
 from spyder.api.translations import get_translation
 from spyder.api.widgets.main_widget import (
     PluginMainWidget,
@@ -43,9 +45,6 @@ from spyder.utils.icon_manager import ima
 from spyder.utils.palette import SpyderPalette
 from spyder.widgets.browser import FrameWebView
 
-from spyder_env_manager.spyder.config import (
-    conda_like_executable,
-)
 from spyder_env_manager.spyder.workers import EnvironmentManagerWorker
 from spyder_env_manager.spyder.widgets.helper_widgets import (
     CustomParametersDialog,
@@ -520,7 +519,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         if not environment_path:
             return
         external_executable = self.get_conf("conda_file_executable_path")
-        backend = "conda-like"
+        backend = CondaLikeInterface.ID
         manager = Manager(
             backend,
             env_directory=environment_path,
@@ -592,6 +591,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 manager.install,
                 self._after_package_changed,
                 packages,
+                channels=(
+                    self._prerelease_channels()
+                    if parse(spyder_version).is_prerelease
+                    else None
+                ),
                 force=True,
                 capture_output=True,
             )
@@ -790,7 +794,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         """
         root_path = Path(self.get_conf("environments_path"))
         external_executable = self.get_conf("conda_file_executable_path")
-        backend = "conda-like"
+        backend = CondaLikeInterface.ID
         package_name = package_info["name"]
         if action == EnvironmentPackagesActions.UpdatePackage:
             env_name = self.select_environment.currentText()
@@ -871,7 +875,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         """
         root_path = Path(self.get_conf("environments_path"))
         external_executable = self.get_conf("conda_file_executable_path")
-        backend = "conda-like"
+        backend = CondaLikeInterface.ID
         if dialog and action == SpyderEnvManagerWidgetActions.NewEnvironment:
             backend = dialog.combobox.currentText()
             env_name = dialog.lineedit_string.text()
@@ -891,6 +895,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 manager.create_environment,
                 self._add_new_environment_entry,
                 packages=packages,
+                channels=(
+                    self._prerelease_channels()
+                    if parse(spyder_version).is_prerelease
+                    else None
+                ),
                 force=True,
             )
         elif dialog and action == SpyderEnvManagerWidgetActions.ImportEnvironment:
@@ -985,7 +994,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             CustomParametersDialogWidgets.ComboBox,
             CustomParametersDialogWidgets.LineEditFile,
         ]
-        contents = [{"conda-like"}, {}]
+        contents = [{CondaLikeInterface.ID}, {}]
         self._message_box_editable(
             title,
             messages,
@@ -1015,7 +1024,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             CustomParametersDialogWidgets.LineEditString,
             CustomParametersDialogWidgets.ComboBoxFile,
         ]
-        contents = [{"conda-like"}, {}, {}]
+        contents = [{CondaLikeInterface.ID}, {}, {}]
         self._message_box_editable(
             title,
             messages,
@@ -1033,7 +1042,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             CustomParametersDialogWidgets.ComboBoxEdit,
         ]
         contents = [
-            {"conda-like"},
+            {CondaLikeInterface.ID},
             {},
             ["3.8.16", "3.9.16", "3.10.9", "3.11.0"],
         ]
@@ -1173,3 +1182,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         box.setDefaultButton(QMessageBox.Ok)
         box.setText(message)
         box.exec_()
+
+    def _prerelease_channels(self):
+        """Extra channels to make this plugin work with Spyder prereleases."""
+        return [
+            "conda-forge",
+            "conda-forge/label/spyder_kernels_dev",
+            "conda-forge/label/spyder_kernels_rc",
+        ]

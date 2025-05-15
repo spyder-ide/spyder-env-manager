@@ -25,8 +25,18 @@ setup(
         "envs-manager>=0.1.3",
         "qtpy",
         "qtawesome",
-        "spyder>=6",
+        "spyder>=6.1.0a1",
     ],
+    extras_require={
+        "test": [
+            "check-manifest",
+            "codecov",
+            "pytest",
+            "pytest-cov",
+            "pytest-qt",
+            "recommonmark",
+        ],
+    },
     packages=find_packages(),
     entry_points={
         "spyder.plugins": [

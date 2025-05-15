@@ -60,7 +60,8 @@ class CondaLikeInterface(EnvManagerInstance):
         if packages:
             command += packages
         if channels:
-            command += ["-c"] + channels
+            for channel in channels:
+                command += ["-c"] + [channel]
         if force:
             command += ["-y"]
         try:
@@ -162,8 +163,8 @@ class CondaLikeInterface(EnvManagerInstance):
         if force:
             command += ["-y"]
         if channels:
-            channels = ["-c"] + channels
-            command += channels
+            for channel in channels:
+                command += ["-c"] + [channel]
         try:
             result = run_command(command, capture_output=capture_output)
             if capture_output:
