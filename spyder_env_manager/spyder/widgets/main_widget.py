@@ -759,13 +759,20 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.env_manager_action_thread.terminate()
             self.env_manager_action_thread.wait()
 
-        self.manager_worker = EnvironmentManagerWorker(self, request)
-        self.manager_worker.moveToThread(self.env_manager_action_thread)
-        self.manager_worker.sig_ready.connect(on_ready)
-        self.manager_worker.sig_ready.connect(self.env_manager_action_thread.quit)
-        self.env_manager_action_thread.started.connect(self.manager_worker.start)
-        self.start_spinner()
-        self.env_manager_action_thread.start()
+        manager = Manager(**request["manager_options"])
+        manager_action = request["action"]
+        manager_action_options = request.get("action_options")
+        result = manager.run_action(manager_action, manager_action_options)
+        print(result)
+        foo
+
+        # self.manager_worker = EnvironmentManagerWorker(self, request)
+        # self.manager_worker.moveToThread(self.env_manager_action_thread)
+        # self.manager_worker.sig_ready.connect(on_ready)
+        # self.manager_worker.sig_ready.connect(self.env_manager_action_thread.quit)
+        # self.env_manager_action_thread.started.connect(self.manager_worker.start)
+        # self.start_spinner()
+        # self.env_manager_action_thread.start()
 
     def _run_action_for_package(self, package_info, dialog=None, action=None):
         """
