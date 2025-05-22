@@ -952,9 +952,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 )
             )
 
-            print(request)
-            return
-
             self._run_env_manager_action(request, self._after_package_changed)
         elif action == SpyderEnvManagerWidgetActions.DeleteEnvironment:
             env_name = self.select_environment.currentText()

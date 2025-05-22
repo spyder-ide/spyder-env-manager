@@ -258,7 +258,6 @@ def test_environment_package_installation(spyder_env_manager, qtbot, caplog):
     widget._run_action_for_env(
         dialog=install_dialog, action=SpyderEnvManagerWidgetActions.InstallPackage
     )
-    foo
 
     # qtbot.waitUntil(
     #     lambda: widget.packages_table.source_model.rowCount() == 3,
