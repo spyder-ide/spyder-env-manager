@@ -81,7 +81,6 @@ class EnvironmentManagerWorker(QObject):
 
         self.error = ""
         print(error_msg)
-        foo
         try:
             self.sig_ready.emit(self.manager, status, output or error_msg)
         except RuntimeError:

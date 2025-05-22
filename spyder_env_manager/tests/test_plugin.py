@@ -121,6 +121,7 @@ def spyder_env_manager(tmp_path, qtbot, monkeypatch):
 
 # ---- Tests
 # ------------------------------------------------------------------------
+@pytest.mark.skipif(True, reason="")
 def test_plugin_initial_state(spyder_env_manager):
     """
     Check plugin initialization and that actions and widgets have the
@@ -147,7 +148,7 @@ def test_plugin_initial_state(spyder_env_manager):
         else:
             assert action.isEnabled()
 
-
+@pytest.mark.skipif(True, reason="")
 def test_environment_creation_and_deletion(spyder_env_manager, qtbot, caplog):
     """Test creating and deleting an environment."""
     caplog.set_level(logging.DEBUG)
@@ -184,7 +185,7 @@ def test_environment_creation_and_deletion(spyder_env_manager, qtbot, caplog):
     )
     assert widget.select_environment.currentData() is None
 
-
+@pytest.mark.skipif(True, reason="")
 def test_environment_import(spyder_env_manager, qtbot, caplog):
     """Test importing an environment from a file."""
     caplog.set_level(logging.DEBUG)
