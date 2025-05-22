@@ -1197,6 +1197,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         None.
 
         """
+        print(message)
+        return
+
         box = QMessageBox(self)
         box.setWindowTitle("Error message")
         box.setIcon(QMessageBox.Critical)
