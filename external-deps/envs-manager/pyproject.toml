@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "envs-manager"
 description = 'A manager for Python environments and packages managers'
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 license = { text = "MIT" }
 keywords = []
 authors = [
@@ -16,10 +16,11 @@ authors = [
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.7",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: Implementation :: CPython",
 ]
 dependencies = [
