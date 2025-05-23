@@ -248,15 +248,15 @@ def test_environment_package_installation(spyder_env_manager, qtbot, caplog):
     # Install package in environment
     install_dialog = Mock()
     install_dialog.lineedit_string = lineedit_string_mock = Mock()
-    lineedit_string_mock.text = Mock(return_value="packaging")
+    lineedit_string_mock.text = Mock(return_value="django")
     install_dialog.combobox = combobox_mock = Mock()
     combobox_mock.currentText = Mock(return_value="==")
     install_dialog.lineedit_version = lineedit_version_mock = Mock()
-    lineedit_version_mock.text = Mock(return_value="22.0")
+    lineedit_version_mock.text = Mock(return_value="5.1")
 
-    assert install_dialog.lineedit_string.text() == "packaging"
+    assert install_dialog.lineedit_string.text() == "django"
     assert install_dialog.combobox.currentText() == "=="
-    assert install_dialog.lineedit_version.text() == "22.0"
+    assert install_dialog.lineedit_version.text() == "5.1"
 
     qtbot.wait(1000)
 
