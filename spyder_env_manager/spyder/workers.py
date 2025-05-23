@@ -69,9 +69,9 @@ class EnvironmentManagerWorker(QObject):
         status = False
         output = error_msg = None
         try:
+            #foo
             result = self.run_manager_action()
             print(result)
-            #foo
             status = result["status"]
             output = result["output"]
         except Exception as e:

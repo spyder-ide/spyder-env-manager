@@ -378,20 +378,22 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.stop_spinner()
 
     def start_spinner(self):
-        self.actions_enabled = False
-        for action_id, action in self.get_actions().items():
-            if action_id not in PluginMainWidgetActions.__dict__.values():
-                action.setEnabled(False)
-        self.select_environment.setDisabled(True)
-        self.packages_table.setDisabled(True)
-        super().start_spinner()
+        # self.actions_enabled = False
+        # for action_id, action in self.get_actions().items():
+        #     if action_id not in PluginMainWidgetActions.__dict__.values():
+        #         action.setEnabled(False)
+        # self.select_environment.setDisabled(True)
+        # self.packages_table.setDisabled(True)
+        # super().start_spinner()
+        pass
 
     def stop_spinner(self):
-        self.actions_enabled = True
-        self.update_actions()
-        self.select_environment.setDisabled(False)
-        self.packages_table.setDisabled(False)
-        super().stop_spinner()
+        # self.actions_enabled = True
+        # self.update_actions()
+        # self.select_environment.setDisabled(False)
+        # self.packages_table.setDisabled(False)
+        # super().stop_spinner()
+        pass
 
     def on_close(self):
         env_name = self.select_environment.currentText()
@@ -562,6 +564,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         None.
 
         """
+        print(action_result, result_message)
         if action_result:
             if not self.envs_available:
                 self.select_environment.clear()
@@ -570,6 +573,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.set_conf("selected_environment", manager.env_name)
             self.envs_available = True
         else:
+            return
             self._message_error_box(result_message)
         self.stop_spinner()
 
@@ -1205,9 +1209,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         None.
 
         """
-        #print(message)
-        #return
-
         box = QMessageBox(self)
         box.setWindowTitle("Error message")
         box.setIcon(QMessageBox.Critical)
