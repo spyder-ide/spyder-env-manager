@@ -243,6 +243,8 @@ def test_environment_package_installation(spyder_env_manager, qtbot, caplog):
         timeout=OPERATION_TIMEOUT,
     )
 
+    qtbot.wait(1000)
+
     # Install package in environment
     install_dialog = Mock()
     install_dialog.lineedit_string = lineedit_string_mock = Mock()
@@ -256,13 +258,15 @@ def test_environment_package_installation(spyder_env_manager, qtbot, caplog):
     assert install_dialog.combobox.currentText() == "=="
     assert install_dialog.lineedit_version.text() == "22.0"
 
+    qtbot.wait(1000)
+
     widget._run_action_for_env(
         dialog=install_dialog, action=SpyderEnvManagerWidgetActions.InstallPackage
     )
 
-    # qtbot.waitUntil(
-    #     lambda: widget.packages_table.source_model.rowCount() == 3,
-    #     timeout=OPERATION_TIMEOUT,
-    # )
+    qtbot.waitUntil(
+        lambda: widget.packages_table.source_model.rowCount() == 3,
+        timeout=OPERATION_TIMEOUT,
+    )
     # assert widget.packages_table.get_package_info(0)["name"] == "packaging"
     # assert widget.packages_table.get_package_info(0)["version"] == "22.0"

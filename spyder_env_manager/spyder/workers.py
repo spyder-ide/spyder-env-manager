@@ -70,6 +70,8 @@ class EnvironmentManagerWorker(QObject):
         output = error_msg = None
         try:
             result = self.run_manager_action()
+            print(result)
+            #foo
             status = result["status"]
             output = result["output"]
         except Exception as e:
@@ -79,7 +81,7 @@ class EnvironmentManagerWorker(QObject):
             ).format(exception_string=str(e))
             logger.exception(error_msg)
 
-        self.error = ""
+        self.error = error_msg
         print(error_msg)
         try:
             self.sig_ready.emit(self.manager, status, output or error_msg)

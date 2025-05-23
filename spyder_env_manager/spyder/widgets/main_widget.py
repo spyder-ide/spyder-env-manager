@@ -759,7 +759,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.env_manager_action_thread.terminate()
             self.env_manager_action_thread.wait()
 
-        if request["action"] != ManagerActions.InstallPackages:
+        if True: #request["action"] != ManagerActions.InstallPackages:
             self.manager_worker = EnvironmentManagerWorker(self, request)
             self.manager_worker.moveToThread(self.env_manager_action_thread)
             self.manager_worker.sig_ready.connect(on_ready)
@@ -1205,8 +1205,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         None.
 
         """
-        print(message)
-        return
+        #print(message)
+        #return
 
         box = QMessageBox(self)
         box.setWindowTitle("Error message")
