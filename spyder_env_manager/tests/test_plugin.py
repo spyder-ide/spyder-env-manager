@@ -80,7 +80,7 @@ def spyder_env_manager_conf(tmp_path, qtbot, monkeypatch):
         lambda: plugin.get_widget().actions_enabled,
         timeout=OPERATION_TIMEOUT,
     )
-    plugin.get_widget().close()
+    #plugin.get_widget().close()
     window.close()
 
 
@@ -263,11 +263,11 @@ def test_environment_package_installation(spyder_env_manager, qtbot, caplog):
     widget._run_action_for_env(
         dialog=install_dialog, action=SpyderEnvManagerWidgetActions.InstallPackage
     )
-    #assert False
 
     qtbot.waitUntil(
         lambda: widget.packages_table.source_model.rowCount() == 3,
         timeout=OPERATION_TIMEOUT,
     )
-    # assert widget.packages_table.get_package_info(0)["name"] == "packaging"
-    # assert widget.packages_table.get_package_info(0)["version"] == "22.0"
+    assert False
+    assert widget.packages_table.get_package_info(0)["name"] == "django"
+    assert widget.packages_table.get_package_info(0)["version"] == "5.1"
