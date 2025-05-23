@@ -223,11 +223,11 @@ def test_environment_package_installation(spyder_env_manager, qtbot, caplog):
     create_dialog.lineedit_string = lineedit_string_mock = Mock()
     lineedit_string_mock.text = Mock(return_value="test_env")
     create_dialog.combobox_edit = combobox_edit_mock = Mock()
-    combobox_edit_mock.currentText = Mock(return_value="3.9.16")
+    combobox_edit_mock.currentText = Mock(return_value="3.10.9")
 
     assert create_dialog.combobox.currentText() == "conda-like"
     assert create_dialog.lineedit_string.text() == "test_env"
-    assert create_dialog.combobox_edit.currentText() == "3.9.16"
+    assert create_dialog.combobox_edit.currentText() == "3.10.9"
 
     widget._run_action_for_env(
         dialog=create_dialog, action=SpyderEnvManagerWidgetActions.NewEnvironment
