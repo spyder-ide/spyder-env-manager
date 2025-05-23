@@ -564,7 +564,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         None.
 
         """
-        print(action_result, result_message)
+        #print(action_result, result_message)
         if action_result:
             if not self.envs_available:
                 self.select_environment.clear()
@@ -679,9 +679,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         None.
 
         """
+        print(action_result, result_message)
         if action_result:
             self.current_environment_changed()
         else:
+            return
             self._message_error_box(result_message)
             self.stop_spinner()
 
