@@ -138,7 +138,8 @@ def wait_until(condition, interval=0.1, timeout=1, **kwargs):
 
 
 def package_installed(manager_instance, installed_packages):
-    list_result, package_list = manager_instance.list()
+    list_result = manager_instance.list()
+    package_list = list_result["output"]
     assert list_result
     for package in installed_packages:
         packages_names = [package["name"] for package in package_list["packages"]]
@@ -146,7 +147,8 @@ def package_installed(manager_instance, installed_packages):
 
 
 def packages_uninstalled(manager_instance, installed_packages):
-    list_result, package_list = manager_instance.list()
+    list_result = manager_instance.list()
+    package_list = list_result["output"]
     assert list_result
     for package in installed_packages:
         packages_names = [package["name"] for package in package_list["packages"]]
@@ -154,8 +156,9 @@ def packages_uninstalled(manager_instance, installed_packages):
 
 
 def check_packages(manager_instance, package, version):
-    list_result, packages_list = manager_instance.list()
+    list_result = manager_instance.list()
     assert list_result
+    packages_list = list_result["output"]
     packages_info = [
         (package["name"], package["version"]) for package in packages_list["packages"]
     ]
@@ -204,10 +207,10 @@ def manager_instance(request, tmp_path):
 def test_manager_backends_python_executable(manager_instance, capsys):
     # Create an environment with Python in it
     with capsys.disabled():
-        create_result, _ = manager_instance.create_environment(
+        create_result = manager_instance.create_environment(
             packages=["python==3.10"], force=True
         )
-    assert create_result
+    assert create_result["status"]
 
     # Get Python Zen with the Python executable from the environment
     python_executable = manager_instance.backend_instance.python_executable_path
@@ -235,19 +238,22 @@ def test_manager_backends(
 ):
     # Create an environment with Python in it
     with capsys.disabled():
-        create_result, _ = manager_instance.create_environment(
+        create_result = manager_instance.create_environment(
             packages=["python==3.10"], force=True
         )
-    assert create_result
+    assert create_result["status"]
 
     # List packages and check correct list result dimensions
-    list_result, initial_list = manager_instance.list()
-    assert list_result
+    list_result = manager_instance.list()
+    assert list_result["status"]
+
+    initial_list = list_result["output"]
     package_info = None
     for package in initial_list["packages"]:
         if package["name"] == initial_package:
             package_info = package
     assert package_info
+
     (
         list_info_number,
         package_number,
@@ -261,10 +267,10 @@ def test_manager_backends(
 
     # Install a new package in the created environment
     with capsys.disabled():
-        install_result, _ = manager_instance.install(
+        install_result = manager_instance.install(
             packages=installed_packages, force=True
         )
-    assert install_result
+    assert install_result["status"]
 
     # Check package was installed
     wait_until(
@@ -275,17 +281,15 @@ def test_manager_backends(
 
     # Update installed package
     with capsys.disabled():
-        update_result, _ = manager_instance.update(
-            packages=updated_packages, force=True
-        )
-    assert update_result
+        update_result = manager_instance.update(packages=updated_packages, force=True)
+    assert update_result["status"]
 
     # Uninstall the new package
     with capsys.disabled():
-        uninstall_result, _ = manager_instance.uninstall(
+        uninstall_result = manager_instance.uninstall(
             packages=installed_packages, force=True
         )
-    assert uninstall_result
+    assert uninstall_result["status"]
 
     # Check package was uninstalled
     wait_until(
@@ -301,45 +305,41 @@ def test_manager_backends(
     ) = messages
     # Try to install unexisting package
     with capsys.disabled():
-        install_error_result, install_error_message = manager_instance.install(
+        install_error_result = manager_instance.install(
             packages=errored_packages, force=True
         )
-    assert not install_error_result
+    assert not install_error_result["status"]
     assert any(
         [
-            install_expected_error in install_error_message
+            install_expected_error in install_error_result["output"]
             for install_expected_error in install_error_messages
         ]
     )
 
     # Try to update unexisting package
     with capsys.disabled():
-        update_error_result, update_error_message = manager_instance.update(
+        update_error_result = manager_instance.update(
             packages=errored_packages, force=True, capture_output=True
         )
-    print(update_error_message)
-    assert not update_error_result
+    print(update_error_result["output"])
+    assert not update_error_result["status"]
     assert any(
         [
-            update_expected_error in update_error_message
+            update_expected_error in update_error_result["output"]
             for update_expected_error in update_warning_messages
         ]
     )
 
     # Try to uninstall unexisting package
     with capsys.disabled():
-        (
-            uninstall_warning_result,
-            uninstall_warning_message,
-        ) = manager_instance.uninstall(
+        uninstall_warning_result = manager_instance.uninstall(
             packages=errored_packages, force=True, capture_output=True
         )
-    print(uninstall_warning_message)
-    assert uninstall_warning_result
+    print(uninstall_warning_result["output"])
+    assert uninstall_warning_result["status"]
     assert any(
         [
-            uninstall_expected_error in uninstall_warning_message.stdout
-            or uninstall_expected_error in uninstall_warning_message.stderr
+            uninstall_expected_error in uninstall_warning_result["output"]
             for uninstall_expected_error in uninstall_warning_messages
         ]
     )
@@ -365,11 +365,11 @@ def test_manager_backends_import_export(
 
     # Import environment definition
     with capsys.disabled():
-        import_result, import_message = manager_instance.import_environment(
+        import_result = manager_instance.import_environment(
             initial_import_path, force=True
         )
-    print(import_message)
-    assert import_result
+    print(import_result["output"])
+    assert import_result["status"]
     wait_until(
         check_packages,
         manager_instance=manager_instance,
@@ -382,11 +382,11 @@ def test_manager_backends_import_export(
     if manager_instance.backend_instance.ID == "conda-like":
         channels = ["conda-forge"]
     with capsys.disabled():
-        install_result, install_message = manager_instance.install(
+        install_result = manager_instance.install(
             ["packaging==21.0"], channels=channels, force=True, capture_output=True
         )
-    print(install_message)
-    assert install_result
+    print(install_result["output"])
+    assert install_result["status"]
 
     # Wait until package is installed
     wait_until(
@@ -405,11 +405,9 @@ def test_manager_backends_import_export(
         export_path_file = export_path_dir / "exported_file.yml"
 
     with capsys.disabled():
-        export_result, export_message = manager_instance.export_environment(
-            str(export_path_file)
-        )
-    print(export_message)
-    assert export_result
+        export_result = manager_instance.export_environment(str(export_path_file))
+    print(export_result["output"])
+    assert export_result["status"]
     assert export_path_file.exists()
 
     with open(expected_export_path) as expected_export_path_file:
