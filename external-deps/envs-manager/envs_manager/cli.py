@@ -168,6 +168,7 @@ def main(args=None):
     logger.debug(f"Using BACKENDS_ROOT_PATH: {DEFAULT_BACKENDS_ROOT_PATH}")
     logger.debug(f"Using ENV_BACKEND: {options.backend}")
     logger.debug(f"Using ENV_BACKEND_EXECUTABLE: {EXTERNAL_EXECUTABLE}")
+
     if options.env_name:
         manager = Manager(
             backend=options.backend,
@@ -197,10 +198,12 @@ def main(args=None):
             manager.update(packages=options.packages)
         elif options.command == "list":
             manager.list()
+
     if options.command == "list-environments":
         if options.backend:
-            Manager.list_environments(
-                backend=options.backend, external_executable=EXTERNAL_EXECUTABLE
-            )
+            backend = options.backend
         else:
-            Manager.list_environments(external_executable=EXTERNAL_EXECUTABLE)
+            backend = DEFAULT_BACKEND
+
+        manager = Manager(backend=backend, external_executable=EXTERNAL_EXECUTABLE)
+        manager.list_environments()

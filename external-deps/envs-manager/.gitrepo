@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/ccordoba12/envs-manager.git
 	branch = refactor-for-remote-development
-	commit = 5eb8f614fdcb4e8041dd992ad64fb2fd369b788c
-	parent = 60c5e833b1021e51231491da75676a4022ba5ca5
+	commit = 3d41281abda92dc910b417ab323cf36a933359f0
+	parent = 95741c7703a89ab08a7297db7cdc86eddfe8d081
 	method = merge
 	cmdver = 0.4.9

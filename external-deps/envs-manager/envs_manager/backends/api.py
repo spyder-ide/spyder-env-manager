@@ -94,8 +94,14 @@ class BackendActionResult(TypedDict):
 class BackendInstance:
     ID = ""
 
-    def __init__(self, environment_path, external_executable=None):
+    def __init__(
+        self,
+        environment_path: str,
+        envs_directory: str,
+        external_executable: str | None = None,
+    ):
         self.environment_path = environment_path
+        self.envs_directory = envs_directory
         self.external_executable = external_executable
         self.executable_variant = None
         assert self.validate(), f"{self.ID} backend unavailable!"
@@ -156,8 +162,5 @@ class BackendInstance:
     def list_packages(self) -> BackendActionResult:
         raise NotImplementedError
 
-    @classmethod
-    def list_environments(
-        cls, root_path: str, external_executable: str | None = None
-    ) -> BackendActionResult:
+    def list_environments(self) -> BackendActionResult:
         raise NotImplementedError

@@ -87,19 +87,26 @@ class Manager:
     ):
         self.backend_class = self.BACKENDS[backend]
         self.env_name = env_name
-        self.root_path = root_path
+        self.root_path = DEFAULT_BACKENDS_ROOT_PATH if root_path is None else root_path
+        external_executable = (
+            str(external_executable) if external_executable is not None else None
+        )
+
+        # This is where the environments for the given backend will be saved
+        backend_envs_directory = Path(self.root_path) / backend / "envs"
 
         if env_directory:
             self.env_directory = Path(env_directory)
         elif root_path and env_name:
-            self.env_directory = Path(root_path) / backend / "envs" / env_name
+            self.env_directory = backend_envs_directory / env_name
         else:
-            raise Exception(
-                "'env_directory' or 'root_path' and 'env_name' should be provided"
-            )
+            # This can happen when we want to get the list of environments
+            self.env_directory = ""
 
         self.backend_instance: BackendInstance = self.backend_class(
-            str(self.env_directory), external_executable=str(external_executable)
+            str(self.env_directory),
+            str(backend_envs_directory),
+            external_executable=external_executable,
         )
 
         self._manager_options = ManagerOptions(
@@ -107,7 +114,7 @@ class Manager:
             root_path=str(root_path),
             env_name=env_name,
             env_directory=str(self.env_directory),
-            external_executable=str(external_executable),
+            external_executable=external_executable,
         )
 
     def run_action(self, action: ManagerActions, action_options: dict | None = None):
@@ -201,27 +208,16 @@ class Manager:
         backend_result = self.backend_instance.list_packages()
         return self._backend_to_manager_result(backend_result)
 
-    @classmethod
-    def list_environments(
-        cls,
-        backend: str = DEFAULT_BACKEND,
-        root_path: str = str(DEFAULT_BACKENDS_ROOT_PATH),
-        external_executable: str | None = None,
-    ) -> ManagerActionResult:
-        backend_result = cls.BACKENDS[backend].list_environments(
-            root_path, external_executable=external_executable
-        )
-        return cls._backend_to_manager_result(cls, backend_result, manager_options={})
+    def list_environments(self) -> ManagerActionResult:
+        backend_result = self.backend_instance.list_environments()
+        return self._backend_to_manager_result(backend_result)
 
     def _backend_to_manager_result(
         self,
         backend_result: BackendActionResult,
-        manager_options: ManagerOptions | None = None,
     ) -> ManagerActionResult:
         return ManagerActionResult(
             status=backend_result["status"],
             output=backend_result["output"],
-            manager_options=(
-                self._manager_options if manager_options is None else manager_options
-            ),
+            manager_options=self._manager_options,
         )

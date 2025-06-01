@@ -199,13 +199,12 @@ class VEnvInterface(BackendInstance):
         logger.info(result.stdout)
         return BackendActionResult(status=True, output=formatted_list)
 
-    @classmethod
-    def list_environments(cls, root_path, external_executable=None):
-        envs_directory = Path(root_path) / cls.ID / "envs"
+    def list_environments(self):
         environments = {}
         first_environment = False
+        envs_directory = Path(self.envs_directory)
 
-        logger.info(f"# {cls.ID} environments")
+        logger.info(f"# {self.ID} environments")
         envs_directory.mkdir(parents=True, exist_ok=True)
         for env_dir in envs_directory.iterdir():
             if env_dir.is_dir():
@@ -215,5 +214,6 @@ class VEnvInterface(BackendInstance):
                 logger.info(f"{env_dir.name} - {str(env_dir)}")
 
         if not first_environment:
-            logger.info(f"No environments found for {cls.ID} in {root_path}")
+            logger.info(f"No environments found for {self.ID} in {self.envs_directory}")
+
         return BackendActionResult(status=True, output=environments)
