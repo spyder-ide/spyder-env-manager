@@ -51,15 +51,13 @@ class SpyderEnvManager(SpyderDockablePlugin):
     CONF_FILE = True
 
     # --- Signals
-    sig_set_spyder_custom_interpreter = Signal(str, str)
+    sig_set_spyder_custom_interpreter = Signal(str)
     """
-    Signal to inform that the user wants to set an environment Python interpreter
-    as the Spyder custom one.
+    Signal to inform that the user wants to set the Python interpreter of an
+    environment as the Spyder custom interpreter.
 
     Parameters
     ----------
-    environment_name: str
-        Environment name.
     environment_python_path: str
         Path to the environment Python interpreter.
     """
@@ -93,9 +91,7 @@ class SpyderEnvManager(SpyderDockablePlugin):
     def on_maininterpreter_available(self):
         main_interpreter = self.get_plugin(Plugins.MainInterpreter)
         self.sig_set_spyder_custom_interpreter.connect(
-            lambda env_name, env_python_path: main_interpreter.set_custom_interpreter(
-                env_python_path
-            )
+            main_interpreter.set_custom_interpreter
         )
 
     @on_plugin_teardown(plugin=Plugins.Preferences)

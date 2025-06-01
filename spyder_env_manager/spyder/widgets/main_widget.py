@@ -114,15 +114,13 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     NO_ENVIRONMENTS_AVAILABLE = _("No environments available")
 
     # --- Signals
-    sig_set_spyder_custom_interpreter = Signal(str, str)
+    sig_set_spyder_custom_interpreter = Signal(str)
     """
-    Signal to inform that the user wants to set an environment Python interpreter
-    as the Spyder custom one.
+    Signal to inform that the user wants to set the Python interpreter of an
+    environment as the Spyder custom interpreter.
 
     Parameters
     ----------
-    environment_name: str
-        Environment name.
     environment_python_path: str
         Path to the environment Python interpreter.
     """
@@ -497,20 +495,19 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 package_info=package_info,
             )
 
-    def _environment_as_custom_interpreter(self, environment_path=None):
+    def _environment_as_custom_interpreter(self, environment_path: str | None = None):
         """
-        Request given environment or current environment Python interpreter to be
-        set as Spyder Python interpreter.
+        Request a given environment or the Python interpreter of the current one to be
+        set as Spyder's Python interpreter.
 
         Parameters
         ----------
         environment_path : str
             Path to the environment directory.
 
-        Returns
-        -------
-        None.
-
+        Notes
+        -----
+        * This can be done only for local environments.
         """
         if not self.get_conf(
             SpyderEnvManagerWidgetActions.ToggleEnvironmentAsCustomInterpreter
@@ -527,8 +524,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             env_directory=environment_path,
             external_executable=external_executable,
         )
+
         self.sig_set_spyder_custom_interpreter.emit(
-            manager.env_name, manager.backend_instance.python_executable_path
+            manager.backend_instance.python_executable_path
         )
 
     def _add_new_environment_entry(
