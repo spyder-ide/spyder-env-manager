@@ -137,17 +137,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.manager_worker = None
 
         # Select environment widget
-        envs = self._list_environments()
         self.select_environment = QComboBox(self)
         self.select_environment.ID = SpyderEnvManagerWidgetActions.SelectEnvironment
-
-        if not envs:
-            self.envs_available = False
-            self.select_environment.addItem(self.NO_ENVIRONMENTS_AVAILABLE, None)
-        else:
-            for env_name, env_directory in envs.items():
-                self.select_environment.addItem(env_name, env_directory)
-            self.envs_available = True
 
         self.select_environment.setToolTip("Select an environment")
         self.select_environment.setSizeAdjustPolicy(
@@ -187,6 +178,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.select_environment.currentIndexChanged.connect(
             self.current_environment_changed
         )
+
+        # Request the list of environments to populate the widget
+        self._list_environments()
 
     # ---- PluginMainWidget API
     # ------------------------------------------------------------------------
@@ -401,16 +395,18 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     # ------------------------------------------------------------------------
     def _list_environments(self):
         root_path = self.get_conf("environments_path")
-        manager_result = Manager.list_environments(
-            backend=CondaLikeInterface.ID,
-            root_path=root_path,
-            external_executable=self.get_conf("conda_file_executable_path"),
+        external_executable = self.get_conf("conda_file_executable_path")
+
+        request = ManagerRequest(
+            manager_options=ManagerOptions(
+                backend=CondaLikeInterface.ID,
+                root_path=root_path,
+                external_executable=external_executable,
+            ),
+            action=ManagerActions.ListEnvironments,
         )
 
-        if manager_result["status"]:
-            return manager_result["output"]
-        else:
-            return {}
+        self._run_env_manager_action(request, self._after_list_environments)
 
     def _create_info_environment_page(self, title, message):
         """
@@ -566,6 +562,22 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         else:
             self._message_error_box(result_message)
         self.stop_spinner()
+
+    def _after_list_environments(
+        self, action_result: bool, result_message: str, manager_options: ManagerOptions
+    ):
+        if action_result:
+            envs = result_message
+        else:
+            envs = {}
+
+        if not envs:
+            self.envs_available = False
+            self.select_environment.addItem(self.NO_ENVIRONMENTS_AVAILABLE, None)
+        else:
+            for env_name, env_directory in envs.items():
+                self.select_environment.addItem(env_name, env_directory)
+            self.envs_available = True
 
     def _after_import_environment(
         self, action_result: bool, result_message: str, manager_options: ManagerOptions
