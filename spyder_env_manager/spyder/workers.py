@@ -14,8 +14,10 @@ from envs_manager.api import Manager, ManagerActionResult
 from qtpy.QtCore import QObject, Signal
 
 # Spyder and local imports
-from spyder_env_manager.spyder.api import ManagerRequest
+from spyder.api.config.mixins import SpyderConfigurationObserver
 from spyder.api.translations import get_translation
+from spyder_env_manager.spyder.api import ManagerRequest
+from spyder_env_manager.spyder.config import CONF_SECTION
 
 # Localization
 _ = get_translation("spyder")
@@ -24,11 +26,13 @@ _ = get_translation("spyder")
 logger = logging.getLogger(__name__)
 
 
-class EnvironmentManagerWorker(QObject):
+class EnvironmentManagerWorker(QObject, SpyderConfigurationObserver):
     """
-    Worker to run environment manager actions over environments
-    without blocking the Spyder user interface.
+    Worker to run environment manager actions without blocking the Spyder user
+    interface.
     """
+
+    CONF_SECTION = CONF_SECTION
 
     sig_ready = Signal(bool, object, dict)
     """
@@ -47,7 +51,14 @@ class EnvironmentManagerWorker(QObject):
     def __init__(self, parent, request: ManagerRequest):
         QObject.__init__(self)
         self._parent = parent
-        self.manager = Manager(**request["manager_options"])
+
+        manager_options = request["manager_options"]
+        manager_options["root_path"] = self.get_conf("environments_path")
+        manager_options["external_executable"] = self.get_conf(
+            "conda_file_executable_path"
+        )
+        self.manager = Manager(**manager_options)
+
         self.manager_action = request["action"]
         self.manager_action_options = request.get("action_options")
         self.error = None

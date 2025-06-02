@@ -11,6 +11,7 @@ Spyder env manager Main Plugin Widget.
 """
 
 # Standard library imports
+from __future__ import annotations
 from collections.abc import Callable
 import os
 import os.path as osp
@@ -392,14 +393,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     # ---- Private API
     # ------------------------------------------------------------------------
     def _list_environments(self):
-        root_path = self.get_conf("environments_path")
-        external_executable = self.get_conf("conda_file_executable_path")
-
         request = ManagerRequest(
             manager_options=ManagerOptions(
                 backend=CondaLikeInterface.ID,
-                root_path=root_path,
-                external_executable=external_executable,
             ),
             action=ManagerActions.ListEnvironments,
         )
@@ -517,6 +513,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             environment_path = self.select_environment.currentData()
         if not environment_path:
             return
+
         external_executable = self.get_conf("conda_file_executable_path")
         backend = CondaLikeInterface.ID
         manager = Manager(
@@ -779,8 +776,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         None.
 
         """
-        root_path = Path(self.get_conf("environments_path"))
-        external_executable = self.get_conf("conda_file_executable_path")
         backend = CondaLikeInterface.ID
         package_name = package_info["name"]
         if action == EnvironmentPackagesActions.UpdatePackage:
@@ -788,9 +783,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             request = ManagerRequest(
                 manager_options=ManagerOptions(
                     backend=backend,
-                    root_path=root_path,
                     env_name=env_name,
-                    external_executable=external_executable,
                 ),
                 action=ManagerActions.UpdatePackages,
                 action_options=dict(
@@ -805,9 +798,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             request = ManagerRequest(
                 manager_options=ManagerOptions(
                     backend=backend,
-                    root_path=root_path,
                     env_name=env_name,
-                    external_executable=external_executable,
                 ),
                 action=ManagerActions.UninstallPackages,
                 action_options=dict(
@@ -828,9 +819,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             request = ManagerRequest(
                 manager_options=ManagerOptions(
                     backend=backend,
-                    root_path=root_path,
                     env_name=env_name,
-                    external_executable=external_executable,
                 ),
                 action=ManagerActions.InstallPackages,
                 action_options=dict(
@@ -865,8 +854,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         None.
 
         """
-        root_path = Path(self.get_conf("environments_path"))
-        external_executable = self.get_conf("conda_file_executable_path")
         backend = CondaLikeInterface.ID
         if dialog and action == SpyderEnvManagerWidgetActions.NewEnvironment:
             backend = dialog.combobox.currentText()
@@ -880,9 +867,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             request = ManagerRequest(
                 manager_options=ManagerOptions(
                     backend=backend,
-                    root_path=root_path,
                     env_name=env_name,
-                    external_executable=external_executable,
                 ),
                 action=ManagerActions.CreateEnvironment,
                 action_options=dict(
@@ -905,9 +890,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             request = ManagerRequest(
                 manager_options=ManagerOptions(
                     backend=backend,
-                    root_path=root_path,
                     env_name=env_name,
-                    external_executable=external_executable,
                 ),
                 action=ManagerActions.ImportEnvironment,
                 action_options=dict(
@@ -929,9 +912,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             request = ManagerRequest(
                 manager_options=ManagerOptions(
                     backend=backend,
-                    root_path=root_path,
                     env_name=env_name,
-                    external_executable=external_executable,
                 ),
                 action=ManagerActions.InstallPackages,
                 action_options=dict(
@@ -948,9 +929,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             request = ManagerRequest(
                 manager_options=ManagerOptions(
                     backend=backend,
-                    root_path=root_path,
                     env_name=env_name,
-                    external_executable=external_executable,
                 ),
                 action=ManagerActions.DeleteEnvironment,
                 action_options=dict(
@@ -966,7 +945,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                     manager_options=ManagerOptions(
                         backend=backend,
                         env_directory=env_directory,
-                        external_executable=external_executable,
                     ),
                     action=ManagerActions.ListPackages,
                 )
@@ -982,9 +960,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             request = ManagerRequest(
                 manager_options=ManagerOptions(
                     backend=backend,
-                    root_path=root_path,
                     env_name=env_name,
-                    external_executable=external_executable,
                 ),
                 action=ManagerActions.ExportEnvironment,
                 action_options=dict(
