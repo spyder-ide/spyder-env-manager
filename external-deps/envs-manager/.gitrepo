@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/spyder-ide/envs-manager.git
 	branch = main
-	commit = b5df9bcea2e1c6089234494903d10ac1b839e3c5
-	parent = 11e8944d19f5cdea74d1cc9731fbc2a6443ce58e
+	commit = 60650824c46057a79f43e0e1496f95e1ddf21937
+	parent = 3fe11d5177f99f476c1ab02380b6992544924632
 	method = merge
 	cmdver = 0.4.9

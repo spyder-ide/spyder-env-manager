@@ -27,6 +27,7 @@ from spyder_env_manager.spyder.widgets.main_widget import (
     SpyderEnvManagerWidget,
     SpyderEnvManagerWidgetActions,
 )
+from spyder_env_manager.spyder.workers import EnvironmentManagerWorker
 from spyder_env_manager.spyder.widgets.helper_widgets import (
     CustomParametersDialog,
 )
@@ -67,6 +68,7 @@ def spyder_env_manager_conf(tmp_path, qtbot, monkeypatch):
                 return None
 
     monkeypatch.setattr(SpyderEnvManagerWidget, "get_conf", get_conf)
+    monkeypatch.setattr(EnvironmentManagerWorker, "get_conf", get_conf)
 
     # Setup plugin
     plugin = SpyderEnvManager(parent=window, configuration=CONF)
@@ -102,6 +104,7 @@ def spyder_env_manager(tmp_path, qtbot, monkeypatch):
                 return None
 
     monkeypatch.setattr(SpyderEnvManagerWidget, "get_conf", get_conf)
+    monkeypatch.setattr(EnvironmentManagerWorker, "get_conf", get_conf)
 
     # Setup plugin
     plugin = SpyderEnvManager(parent=window, configuration=Mock())

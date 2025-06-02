@@ -8,13 +8,18 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from envs_manager.api import EnvManagerInstance, run_command, get_package_info
+from envs_manager.backends.api import (
+    BackendActionResult,
+    BackendInstance,
+    get_package_info,
+    run_command,
+)
 
 
 logger = logging.getLogger("envs-manager")
 
 
-class VEnvInterface(EnvManagerInstance):
+class VEnvInterface(BackendInstance):
     ID = "venv"
 
     def _run_command(self, command, capture_output=True):
@@ -62,12 +67,16 @@ class VEnvInterface(EnvManagerInstance):
                     packages.remove(possible_python)
                 if len(packages) > 0:
                     return self.install_packages(packages=packages)
-                return (True, None)
+                return BackendActionResult(status=True, output=None)
         except Exception as error:
-            return (False, str(error))
+            return BackendActionResult(status=False, output=str(error))
 
     def delete_environment(self, force=False):
-        shutil.rmtree(self.environment_path)
+        try:
+            shutil.rmtree(self.environment_path)
+            return BackendActionResult(status=True, output=None)
+        except Exception as error:
+            return BackendActionResult(status=False, output=str(error))
 
     def activate_environment(self):
         raise NotImplementedError()
@@ -90,9 +99,11 @@ class VEnvInterface(EnvManagerInstance):
                 with open(export_file_path, "w") as exported_file:
                     exported_file.write(result.stdout)
             logger.info(result.stdout)
-            return (True, result)
+            return BackendActionResult(status=True, output=result.stdout)
         except subprocess.CalledProcessError as error:
-            return (False, f"{error.returncode}: {error.stderr}")
+            return BackendActionResult(status=False, output=error.stderr)
+        except Exception as error:
+            return BackendActionResult(status=False, output=str(error))
 
     def import_environment(self, import_file_path, force=False):
         self.create_environment()
@@ -107,9 +118,11 @@ class VEnvInterface(EnvManagerInstance):
             ]
             result = self._run_command(command)
             logger.info(result.stdout)
-            return (True, result)
+            return BackendActionResult(status=True, output=result.stdout)
         except subprocess.CalledProcessError as error:
-            return (False, f"{error.returncode}: {error.stderr}")
+            return BackendActionResult(status=False, output=error.stderr)
+        except Exception as error:
+            return BackendActionResult(status=False, output=str(error))
 
     def install_packages(
         self,
@@ -122,10 +135,14 @@ class VEnvInterface(EnvManagerInstance):
             command = [self.python_executable_path, "-m", "pip", "install"] + packages
             result = self._run_command(command, capture_output=capture_output)
             if capture_output:
-                logger.info(result.stdout)
-            return (True, result)
+                logger.info(result.stdout or result.stderr)
+            return BackendActionResult(
+                status=True, output=result.stdout or result.stderr
+            )
         except subprocess.CalledProcessError as error:
-            return (False, f"{error.returncode}: {error.stderr}")
+            return BackendActionResult(status=False, output=error.stderr)
+        except Exception as error:
+            return BackendActionResult(status=False, output=str(error))
 
     def uninstall_packages(self, packages, force=False, capture_output=False):
         try:
@@ -135,10 +152,14 @@ class VEnvInterface(EnvManagerInstance):
             command += packages
             result = self._run_command(command, capture_output=capture_output)
             if capture_output:
-                logger.info(result.stdout)
-            return (True, result)
+                logger.info(result.stdout or result.stderr)
+            return BackendActionResult(
+                status=True, output=result.stdout or result.stderr
+            )
         except subprocess.CalledProcessError as error:
-            return (False, f"{error.returncode}: {error.stderr}")
+            return BackendActionResult(status=False, output=error.stderr)
+        except Exception as error:
+            return BackendActionResult(status=False, output=str(error))
 
     def update_packages(self, packages, force=False, capture_output=False):
         try:
@@ -147,9 +168,11 @@ class VEnvInterface(EnvManagerInstance):
             result = self._run_command(command, capture_output=capture_output)
             if capture_output:
                 logger.info(result.stdout)
-            return (True, result)
+            return BackendActionResult(status=True, output=result.stdout)
         except subprocess.CalledProcessError as error:
-            return (False, f"{error.returncode}: {error.stderr}")
+            return BackendActionResult(status=False, output=error.stderr)
+        except Exception as error:
+            return BackendActionResult(status=False, output=str(error))
 
     def list_packages(self):
         command = [self.python_executable_path, "-m", "pip", "list"]
@@ -174,15 +197,14 @@ class VEnvInterface(EnvManagerInstance):
             formatted_packages.append(formatted_package)
 
         logger.info(result.stdout)
-        return (True, formatted_list)
+        return BackendActionResult(status=True, output=formatted_list)
 
-    @classmethod
-    def list_environments(cls, root_path, external_executable=None):
-        envs_directory = Path(root_path) / cls.ID / "envs"
+    def list_environments(self):
         environments = {}
         first_environment = False
+        envs_directory = Path(self.envs_directory)
 
-        logger.info(f"# {cls.ID} environments")
+        logger.info(f"# {self.ID} environments")
         envs_directory.mkdir(parents=True, exist_ok=True)
         for env_dir in envs_directory.iterdir():
             if env_dir.is_dir():
@@ -192,5 +214,6 @@ class VEnvInterface(EnvManagerInstance):
                 logger.info(f"{env_dir.name} - {str(env_dir)}")
 
         if not first_environment:
-            logger.info(f"No environments found for {cls.ID} in {root_path}")
-        return environments
+            logger.info(f"No environments found for {self.ID} in {self.envs_directory}")
+
+        return BackendActionResult(status=True, output=environments)
