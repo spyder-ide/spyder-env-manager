@@ -25,13 +25,13 @@ class SpyderEnvManagerConfigPage(PluginConfigPage):
     # ------------------------------------------------------------------------
     def setup_page(self):
         paths_group = QGroupBox(_("Paths"))
-        conda_like_path_label = QLabel(_("Conda-like executable:"))
-        conda_like_path_label.setToolTip(_("Path to the conda/micromamba executable"))
-        conda_like_path_label.setWordWrap(True)
+        pixi_path_label = QLabel(_("Pixi executable:"))
+        pixi_path_label.setToolTip(_("Path to the Pixi executable"))
+        pixi_path_label.setWordWrap(True)
 
-        conda_like_path = QLabel(self.get_option("conda_file_executable_path", None))
-        conda_like_path.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        conda_like_path.setWordWrap(True)
+        pixi_path = QLabel(self.get_option("pixi_file_executable_path", None))
+        pixi_path.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        pixi_path.setWordWrap(True)
 
         environments_path_label = QLabel(_("Root directory for environments location:"))
         environments_path_label.setToolTip(
@@ -47,8 +47,8 @@ class SpyderEnvManagerConfigPage(PluginConfigPage):
         environments_path.setWordWrap(True)
 
         paths_layout = QVBoxLayout()
-        paths_layout.addWidget(conda_like_path_label)
-        paths_layout.addWidget(conda_like_path)
+        paths_layout.addWidget(pixi_path_label)
+        paths_layout.addWidget(pixi_path)
         paths_layout.addWidget(environments_path_label)
         paths_layout.addWidget(environments_path)
         paths_group.setLayout(paths_layout)

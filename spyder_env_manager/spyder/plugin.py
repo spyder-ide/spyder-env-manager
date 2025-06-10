@@ -105,11 +105,11 @@ class SpyderEnvManager(SpyderDockablePlugin):
         self.sig_set_spyder_custom_interpreter.disconnect()
 
     def check_compatibility(self):
-        message = _("")
-        conda_like_executable_path = self.get_conf("conda_file_executable_path")
-        valid = conda_like_executable_path and Path(conda_like_executable_path).exists()
+        message = ""
+        pixi_executable_path = self.get_conf("pixi_file_executable_path")
+        valid = pixi_executable_path and Path(pixi_executable_path).exists()
         if not valid:
-            message = _("Unable to find conda-like executable!")
+            message = _("Unable to find the Pixi executable!")
         return valid, message
 
     def on_close(self, cancellable=True):
