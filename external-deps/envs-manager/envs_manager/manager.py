@@ -10,6 +10,7 @@ from typing import TypedDict
 from envs_manager.backends.api import BackendActionResult, BackendInstance
 from envs_manager.backends.venv_interface import VEnvInterface
 from envs_manager.backends.conda_like_interface import CondaLikeInterface
+from envs_manager.backends.pixi_interface import PixiInterface
 
 
 DEFAULT_BACKENDS_ROOT_PATH = Path(
@@ -69,12 +70,13 @@ class ManagerActionResult(BackendActionResult):
 
 class Manager:
     """
-    Class to handle different Python environment and packages managers implementations.
+    Class to handle different Python environment and package manager implementations.
     """
 
     BACKENDS = {
         VEnvInterface.ID: VEnvInterface,
         CondaLikeInterface.ID: CondaLikeInterface,
+        PixiInterface.ID: PixiInterface,
     }
 
     def __init__(

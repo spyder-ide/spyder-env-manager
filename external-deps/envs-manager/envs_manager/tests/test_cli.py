@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import os
+from pathlib import Path
 import subprocess
 
 import pytest
@@ -24,7 +25,15 @@ SUBCOMMANDS = [
 ]
 
 BACKENDS = [
-    ("venv", [""], "test_env", "pip"),
+    (
+        "pixi",
+        [
+            "pixi.toml",
+            "Added python",
+        ],
+        "test_env",
+        "python",
+    ),
     (
         "conda-like",
         [
@@ -35,6 +44,7 @@ BACKENDS = [
         "test_env",
         "python",
     ),
+    ("venv", [""], "test_env", "pip"),
 ]
 
 
@@ -59,12 +69,19 @@ def test_cli(tmp_path, backend):
     backends_root_path.mkdir(parents=True)
     os.environ["BACKENDS_ROOT_PATH"] = str(backends_root_path)
 
+    env = os.environ.copy()
+    if backend_value == "pixi":
+        env["ENV_BACKEND_EXECUTABLE"] = str(
+            Path(env.get("HOME")) / ".pixi" / "bin" / "pixi"
+        )
+
     # Check environment creation
     create_output = subprocess.check_output(
         " ".join(
-            ["envs-manager", f"-b={backend_value}", f"-en={list_env_result}", "create"]
+            ["envs-manager", f"-b={backend_value}", f"-e={list_env_result}", "create"]
         ),
         shell=True,
+        env=env,
     )
     assert any(
         [
@@ -84,6 +101,7 @@ def test_cli(tmp_path, backend):
             ]
         ),
         shell=True,
+        env=env,
     )
     assert f"Using ENV_BACKEND: {backend_value}" not in str(list_env_output)
     assert list_env_result in str(list_env_output)
@@ -94,12 +112,13 @@ def test_cli(tmp_path, backend):
             [
                 "envs-manager",
                 f"-b={backend_value}",
-                f"-en={list_env_result}",
+                f"-e={list_env_result}",
                 "-ll=10",
                 "list",
             ]
         ),
         shell=True,
+        env=env,
     )
     assert f"Using ENV_BACKEND: {backend_value}" in str(list_env_packages)
     assert package_list_env_result in str(list_env_packages)

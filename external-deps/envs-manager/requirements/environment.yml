@@ -8,6 +8,7 @@ dependencies:
   - pyyaml
   - requests
   - packaging
+  - py-rattler
 
   # For autoformat with Black
   - pre-commit

@@ -1,6 +1,0 @@
-name:
-channels:
-- https://conda.anaconda.org/conda-forge
-dependencies:
-- packaging=21.3
-- python=3.10.5

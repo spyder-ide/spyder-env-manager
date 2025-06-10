@@ -55,7 +55,7 @@ class EnvironmentManagerWorker(QObject, SpyderConfigurationObserver):
         manager_options = request["manager_options"]
         manager_options["root_path"] = self.get_conf("environments_path")
         manager_options["external_executable"] = self.get_conf(
-            "conda_file_executable_path"
+            "pixi_file_executable_path"
         )
         self.manager = Manager(**manager_options)
 

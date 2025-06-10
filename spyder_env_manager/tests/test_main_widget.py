@@ -8,8 +8,9 @@
 Spyder Env Manager main widget tests.
 """
 # Local imports
-from spyder_env_manager.spyder.widgets.main_widget import SpyderEnvManagerWidget
 from spyder_env_manager.spyder.config import CONF_DEFAULTS, CONF_SECTION
+from spyder_env_manager.spyder.widgets.main_widget import SpyderEnvManagerWidget
+from spyder_env_manager.spyder.workers import EnvironmentManagerWorker
 
 
 def test_main_widget(qtbot, tmp_path, monkeypatch):
@@ -28,6 +29,7 @@ def test_main_widget(qtbot, tmp_path, monkeypatch):
                 return None
 
     monkeypatch.setattr(SpyderEnvManagerWidget, "get_conf", get_conf)
+    monkeypatch.setattr(EnvironmentManagerWorker, "get_conf", get_conf)
 
     SpyderEnvManagerWidget.CONF_SECTION = CONF_SECTION
     widget = SpyderEnvManagerWidget(None, None)

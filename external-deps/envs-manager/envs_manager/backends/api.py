@@ -12,7 +12,7 @@ PYPI_API_PACKAGE_INFO_URL = "https://pypi.org/pypi/{package_name}/json"
 ANACONDA_API_PACKAGE_INFO = "https://api.anaconda.org/package/{channel}/{package_name}"
 
 
-def run_command(command, capture_output=True, run_env=None):
+def run_command(command, capture_output=True, run_env=None, cwd=None):
     """
     Run commands using `subprocess.run`
 
@@ -21,7 +21,8 @@ def run_command(command, capture_output=True, run_env=None):
     command : list[str]
         List of string arguments that conform the command to be executed.
     capture_output : bool, optional
-        If the output (stdout and stderr) of the command should be stored. The default is True.
+        If the output (stdout and stderr) of the command should be stored. The default
+        is True.
     run_env : dict, optional
         Process environment to use when running the command. The default is None.
 
@@ -38,10 +39,11 @@ def run_command(command, capture_output=True, run_env=None):
             check=True,
             text=True,
             env=run_env,
+            cwd=cwd,
         )
     else:
         result = subprocess.run(
-            command, stderr=subprocess.PIPE, check=True, text=True, env=run_env
+            command, stderr=subprocess.PIPE, check=True, text=True, env=run_env, cwd=cwd
         )
     return result
 

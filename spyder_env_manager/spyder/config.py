@@ -15,19 +15,19 @@ from envs_manager.manager import (
 )
 
 # Spyder and local imports
-from spyder.utils.conda import find_conda
+from spyder.utils.conda import find_pixi
 
 
-def conda_like_executable():
+def pixi_executable():
     """
-    Get default value for conda-like executable.
+    Get default value for pixi executable.
 
-    Executable path for conda/micromamba binary/executable file.
+    This is the path for Pixi executable file.
     """
-    conda_like_executable = EXTERNAL_EXECUTABLE
-    if not conda_like_executable:
-        conda_like_executable = find_conda()
-    return conda_like_executable
+    pixi_executable = EXTERNAL_EXECUTABLE
+    if not pixi_executable:
+        pixi_executable = find_pixi()
+    return pixi_executable
 
 
 CONF_SECTION = "spyder_env_manager"
@@ -35,7 +35,7 @@ CONF_DEFAULTS = [
     (
         CONF_SECTION,
         {
-            "conda_file_executable_path": conda_like_executable(),
+            "pixi_file_executable_path": pixi_executable(),
             "environments_path": str(DEFAULT_BACKENDS_ROOT_PATH),
             "selected_environment": "",
             "exclude_dependency_action": True,

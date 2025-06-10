@@ -20,7 +20,7 @@ from string import Template
 
 # Third party imports
 from envs_manager.api import ManagerActions, ManagerOptions
-from envs_manager.backends.conda_like_interface import CondaLikeInterface
+from envs_manager.backends.pixi_interface import PixiInterface
 from envs_manager.manager import Manager
 from packaging.version import parse
 import qtawesome as qta
@@ -179,6 +179,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         )
 
         # Request the list of environments to populate the widget
+        self._envs_listed = False
         self._list_environments()
 
     # ---- PluginMainWidget API
@@ -395,7 +396,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def _list_environments(self):
         request = ManagerRequest(
             manager_options=ManagerOptions(
-                backend=CondaLikeInterface.ID,
+                backend=PixiInterface.ID,
             ),
             action=ManagerActions.ListEnvironments,
         )
@@ -514,8 +515,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         if not environment_path:
             return
 
-        external_executable = self.get_conf("conda_file_executable_path")
-        backend = CondaLikeInterface.ID
+        external_executable = self.get_conf("pixi_file_executable_path")
+        backend = PixiInterface.ID
         manager = Manager(
             backend,
             env_directory=environment_path,
@@ -561,6 +562,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def _after_list_environments(
         self, action_result: bool, result_message: str, manager_options: ManagerOptions
     ):
+        # This function must be called only once, at startup. So, we use this variable
+        # to prevent running it more times, which happens in our tests for some reason.
+        if self._envs_listed:
+            return
+
         if action_result:
             envs = result_message
         else:
@@ -573,6 +579,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             for env_name, env_directory in envs.items():
                 self.select_environment.addItem(env_name, env_directory)
             self.envs_available = True
+
+        self._envs_listed = True
 
     def _after_import_environment(
         self, action_result: bool, result_message: str, manager_options: ManagerOptions
@@ -776,7 +784,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         None.
 
         """
-        backend = CondaLikeInterface.ID
+        backend = PixiInterface.ID
         package_name = package_info["name"]
         if action == EnvironmentPackagesActions.UpdatePackage:
             env_name = self.select_environment.currentText()
@@ -854,7 +862,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         None.
 
         """
-        backend = CondaLikeInterface.ID
+        backend = PixiInterface.ID
         if dialog and action == SpyderEnvManagerWidgetActions.NewEnvironment:
             backend = dialog.combobox.currentText()
             env_name = dialog.lineedit_string.text()
@@ -980,7 +988,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             CustomParametersDialogWidgets.ComboBox,
             CustomParametersDialogWidgets.LineEditFile,
         ]
-        contents = [{CondaLikeInterface.ID}, {}]
+        contents = [{PixiInterface.ID}, {}]
         self._message_box_editable(
             title,
             messages,
@@ -1010,7 +1018,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             CustomParametersDialogWidgets.LineEditString,
             CustomParametersDialogWidgets.ComboBoxFile,
         ]
-        contents = [{CondaLikeInterface.ID}, {}, {}]
+        contents = [{PixiInterface.ID}, {}, {}]
         self._message_box_editable(
             title,
             messages,
@@ -1028,7 +1036,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             CustomParametersDialogWidgets.ComboBoxEdit,
         ]
         contents = [
-            {CondaLikeInterface.ID},
+            {PixiInterface.ID},
             {},
             ["3.8.16", "3.9.16", "3.10.9", "3.11.0"],
         ]
