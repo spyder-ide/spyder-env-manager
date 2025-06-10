@@ -9,7 +9,7 @@ concurrency:
 
 jobs:
   tests:
-    name: Test Python ${{ matrix.python-version }} Executable ${{ matrix.conda-like }}
+    name: Test Python ${{ matrix.python-version }}
     runs-on: macos-latest
     timeout-minutes: 25
     env:
@@ -18,11 +18,10 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ['3.9', '3.11']
-        conda-like: ['micromamba', 'conda']
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
-      - name: Install Conda
+      - name: Create test environment
         uses: conda-incubator/setup-miniconda@v3
         with:
            auto-update-conda: true
@@ -31,16 +30,15 @@ jobs:
            environment-file: requirements/environment.yml
            auto-activate-base: false
       - name: Install Micromamba and setup as executable backend
-        if: ${{matrix.conda-like == 'micromamba'}}
         shell: bash -l {0}
         run: |
           curl -Ls https://micro.mamba.pm/api/micromamba/osx-64/1.5.10 | tar -xvj bin/micromamba
           echo "ENV_BACKEND_EXECUTABLE=${{ github.workspace }}/bin/micromamba" >> $GITHUB_ENV
-      - name: Setup executable backend with conda
-        if: ${{matrix.conda-like == 'conda'}}
+      - name: Install Pixi
         shell: bash -l {0}
         run: |
-          echo "ENV_BACKEND_EXECUTABLE=$CONDA/condabin/conda" >> $GITHUB_ENV
+          # This script installs Pixi in ~/.pixi/bin
+          curl -fsSL https://pixi.sh/install.sh | sh
       - name: Install envs-manager
         shell: bash -l {0}
         run: |

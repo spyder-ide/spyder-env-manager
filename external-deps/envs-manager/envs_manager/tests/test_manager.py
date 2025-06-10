@@ -7,9 +7,11 @@ from pathlib import Path
 import time
 import subprocess
 import sys
+import zipfile
 
 from flaky import flaky
 import pytest
+from rattler import LockFile, Platform
 
 from envs_manager.backends.conda_like_interface import CondaLikeInterface
 from envs_manager.manager import Manager
@@ -18,12 +20,65 @@ from envs_manager.manager import Manager
 TESTS_DIR = Path(__file__).parent.absolute()
 ENV_FILES = TESTS_DIR / "env_files"
 ENV_FILES_CONDA_LIKE = ENV_FILES / "conda-like-files"
+ENV_FILES_PIXI = ENV_FILES / "pixi-files"
 ENV_FILES_VENV = ENV_FILES / "venv-files"
+PIXI_EXECUTABLE = Path(os.environ.get("HOME")) / ".pixi" / "bin" / "pixi"
+
 MANAGER_BACKENDS_SETUP = [
-    ("venv", None, None),
+    ("pixi", PIXI_EXECUTABLE, None),
     ("conda-like", os.environ.get("ENV_BACKEND_EXECUTABLE"), None),
+    ("venv", None, None),
 ]
+
 BACKENDS = [
+    (
+        ("pixi", PIXI_EXECUTABLE, None),
+        "python",
+        ["packaging=21.0"],
+        ["packaging"],
+        ["foo"],
+        (
+            [
+                "Cannot solve the request because of: No candidates were found for foo *."
+            ],
+            ["could not find a package named 'foo'"],
+            ["Dependency `foo` doesn't exist", "Removed foo"],
+        ),
+        # Key returned by list call, Number of packages returned, Number of properties returned per package, Package description
+        [
+            2,
+            1,
+            6,
+            (
+                "Python is a widely used high-level, general-purpose, interpreted, "
+                "dynamic programming language"
+            ),
+        ],
+    ),
+    (
+        ("pixi", PIXI_EXECUTABLE, "test_env"),
+        "python",
+        ["packaging=21.0"],
+        ["packaging"],
+        ["foo"],
+        (
+            [
+                "Cannot solve the request because of: No candidates were found for foo *."
+            ],
+            ["could not find a package named 'foo'"],
+            ["Dependency `foo` doesn't exist", "Removed foo"],
+        ),
+        # Key returned by list call, Number of packages returned, Number of properties returned per package, Package description
+        [
+            2,
+            1,
+            6,
+            (
+                "Python is a widely used high-level, general-purpose, interpreted, "
+                "dynamic programming language"
+            ),
+        ],
+    ),
     (
         ("venv", None, None),
         "pip",
@@ -93,12 +148,25 @@ BACKENDS = [
 
 if os.name == "nt":
     BASE_IMPORT_EXPORT_FILENAME = "win"
+    PIXI_PLATFORM = Platform("win-64")
 elif sys.platform.startswith("linux"):
     BASE_IMPORT_EXPORT_FILENAME = "linux"
+    PIXI_PLATFORM = Platform("linux-64")
 else:
     BASE_IMPORT_EXPORT_FILENAME = "macos"
+    PIXI_PLATFORM = Platform("osx-arm64")
 
 IMPORT_EXPORT_BACKENDS = [
+    (
+        ("pixi", PIXI_EXECUTABLE, None),
+        str(ENV_FILES_PIXI / "pixi_import_env.zip"),
+        str(ENV_FILES_PIXI / "pixi_export_env.zip"),
+    ),
+    (
+        ("pixi", PIXI_EXECUTABLE, "test_env"),
+        str(ENV_FILES_PIXI / "pixi_import_env.zip"),
+        str(ENV_FILES_PIXI / "pixi_export_env.zip"),
+    ),
     (
         ("venv", None, None),
         str(ENV_FILES_VENV / "venv_import_env.txt"),
@@ -173,10 +241,6 @@ def manager_instance(request, tmp_path):
         root_path = None
         envs_directory = tmp_path / "envs"
         env_directory = envs_directory / f"test_{backend}"
-        if backend == "conda-like":
-            envs_directory.mkdir(parents=True)
-        else:
-            env_directory.mkdir(parents=True)
     else:
         # Pass root_path and env_name letting manager create env directory path
         root_path = tmp_path
@@ -210,6 +274,7 @@ def test_manager_backends_python_executable(manager_instance, capsys):
         create_result = manager_instance.create_environment(
             packages=["python==3.10"], force=True
         )
+    print(create_result["output"])
     assert create_result["status"]
 
     # Get Python Zen with the Python executable from the environment
@@ -303,6 +368,7 @@ def test_manager_backends(
         update_warning_messages,
         uninstall_warning_messages,
     ) = messages
+
     # Try to install unexisting package
     with capsys.disabled():
         install_error_result = manager_instance.install(
@@ -399,7 +465,9 @@ def test_manager_backends_import_export(
     # Export environment and check if is the expected one
     export_path_dir = tmp_path / "exported"
     export_path_dir.mkdir()
-    if manager_instance.backend_instance.ID == "venv":
+    if manager_instance.backend_instance.ID == "pixi":
+        export_path_file = export_path_dir / "exported_file.zip"
+    elif manager_instance.backend_instance.ID == "venv":
         export_path_file = export_path_dir / "exported_file.txt"
     else:
         export_path_file = export_path_dir / "exported_file.yml"
@@ -410,24 +478,48 @@ def test_manager_backends_import_export(
     assert export_result["status"]
     assert export_path_file.exists()
 
-    with open(expected_export_path) as expected_export_path_file:
-        expected_export = set()
-        for expected_line in expected_export_path_file.readlines():
-            if (
-                "=" in expected_line
-                and "ca-certificates" not in expected_line
-                and "openssl" not in expected_line
-            ):
-                expected_export.add(expected_line.strip())
+    if manager_instance.backend_instance.ID == "pixi":
+        with zipfile.ZipFile(expected_export_path, "r") as zf:
+            zf.extractall(path=str(tmp_path))
 
-    with open(export_path_file) as generated_export_path_file:
-        generated_export = set()
-        for generated_line in generated_export_path_file.readlines():
-            if (
-                "=" in generated_line
-                and "ca-certificates" not in generated_line
-                and "openssl" not in generated_line
-            ):
-                generated_export.add(generated_line.strip())
+        lock_file = LockFile.from_path(str(tmp_path / "pixi.lock"))
+        packages = lock_file.default_environment().packages(PIXI_PLATFORM)
+
+        expected_export = []
+        for package in packages:
+            expected_export.append(package.name)
+        expected_export.sort()
+    else:
+        with open(expected_export_path) as expected_export_path_file:
+            expected_export = set()
+            for expected_line in expected_export_path_file.readlines():
+                if (
+                    "=" in expected_line
+                    and "ca-certificates" not in expected_line
+                    and "openssl" not in expected_line
+                ):
+                    expected_export.add(expected_line.strip())
+
+    if manager_instance.backend_instance.ID == "pixi":
+        with zipfile.ZipFile(export_path_file, "r") as zf:
+            zf.extractall(path=str(export_path_dir))
+
+        lock_file = LockFile.from_path(str(export_path_dir / "pixi.lock"))
+        packages = lock_file.default_environment().packages(PIXI_PLATFORM)
+
+        generated_export = []
+        for package in packages:
+            generated_export.append(package.name)
+        generated_export.sort()
+    else:
+        with open(export_path_file) as generated_export_path_file:
+            generated_export = set()
+            for generated_line in generated_export_path_file.readlines():
+                if (
+                    "=" in generated_line
+                    and "ca-certificates" not in generated_line
+                    and "openssl" not in generated_line
+                ):
+                    generated_export.add(generated_line.strip())
 
     assert generated_export == expected_export

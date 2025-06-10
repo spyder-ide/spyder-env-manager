@@ -4,9 +4,9 @@
 ; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
 ;
 [subrepo]
-	remote = https://github.com/spyder-ide/envs-manager.git
-	branch = main
-	commit = 60650824c46057a79f43e0e1496f95e1ddf21937
-	parent = 3fe11d5177f99f476c1ab02380b6992544924632
+	remote = https://github.com/ccordoba12/envs-manager.git
+	branch = add-pixi-backend
+	commit = 07f38064e1cacb33e5fb89db7fe6f7d03c81d54c
+	parent = 13c0b29e7a1746ad15e83f7784dbbc1a04616e43
 	method = merge
 	cmdver = 0.4.9

@@ -25,6 +25,7 @@ classifiers = [
 ]
 dependencies = [
   "packaging",
+  "py-rattler",
   "pyyaml",
   "requests",
 ]
