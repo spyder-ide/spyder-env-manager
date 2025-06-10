@@ -34,7 +34,16 @@ from spyder_env_manager.spyder.widgets.helper_widgets import (
 
 # Constants
 OPERATION_TIMEOUT = 180000
-IMPORT_FILE_PATH = str(Path(__file__).parent / "data" / "import_env.yml")
+IMPORT_FILE_PATH = str(
+    Path(__file__).parents[2]
+    / "external-deps"
+    / "envs-manager"
+    / "envs_manager"
+    / "tests"
+    / "env_files"
+    / "pixi-files"
+    / "pixi_export_env.zip"
+)
 
 
 # ---- Fixtures
@@ -175,6 +184,7 @@ def test_environment_creation_and_deletion(spyder_env_manager, qtbot, caplog):
         lambda: widget.packages_table.source_model.rowCount() == 2,
         timeout=OPERATION_TIMEOUT,
     )
+    assert widget.select_environment.count() == 1
 
     # Delete environment
     widget._run_action_for_env(
@@ -221,13 +231,13 @@ def test_environment_package_installation(spyder_env_manager, qtbot, caplog):
     # Create environment
     create_dialog = Mock()
     create_dialog.combobox = combobox_mock = Mock()
-    combobox_mock.currentText = Mock(return_value="conda-like")
+    combobox_mock.currentText = Mock(return_value="pixi")
     create_dialog.lineedit_string = lineedit_string_mock = Mock()
     lineedit_string_mock.text = Mock(return_value="test_env")
     create_dialog.combobox_edit = combobox_edit_mock = Mock()
     combobox_edit_mock.currentText = Mock(return_value="3.9.16")
 
-    assert create_dialog.combobox.currentText() == "conda-like"
+    assert create_dialog.combobox.currentText() == "pixi"
     assert create_dialog.lineedit_string.text() == "test_env"
     assert create_dialog.combobox_edit.currentText() == "3.9.16"
 

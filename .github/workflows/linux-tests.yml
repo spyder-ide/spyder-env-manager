@@ -39,6 +39,13 @@ jobs:
            environment-name: test
            create-args: python=${{ matrix.PYTHON_VERSION }}
            micromamba-version: '1.5.10-0'
+      - name: Install Pixi
+        shell: bash -l {0}
+        run: |
+          # This script installs Pixi in ~/.pixi/bin
+          curl -fsSL https://pixi.sh/install.sh | sh
+          # This is necessary for envs-manager to detect Pixi
+          echo "ENV_BACKEND_EXECUTABLE=$HOME/.pixi/bin/pixi" >> $GITHUB_ENV
       - name: Install package and test dependencies with conda
         if: ${{ startsWith(matrix.USE_CONDA, 'True') }}
         shell: bash -el {0}

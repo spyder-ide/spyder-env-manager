@@ -179,6 +179,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         )
 
         # Request the list of environments to populate the widget
+        self._envs_listed = False
         self._list_environments()
 
     # ---- PluginMainWidget API
@@ -561,6 +562,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def _after_list_environments(
         self, action_result: bool, result_message: str, manager_options: ManagerOptions
     ):
+        # This function must be called only once, at startup. So, we use this variable
+        # to prevent running it more times, which happens in our tests for some reason.
+        if self._envs_listed:
+            return
+
         if action_result:
             envs = result_message
         else:
@@ -573,6 +579,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             for env_name, env_directory in envs.items():
                 self.select_environment.addItem(env_name, env_directory)
             self.envs_available = True
+
+        self._envs_listed = True
 
     def _after_import_environment(
         self, action_result: bool, result_message: str, manager_options: ManagerOptions
