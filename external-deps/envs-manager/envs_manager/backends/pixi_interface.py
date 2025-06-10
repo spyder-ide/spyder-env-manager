@@ -251,6 +251,31 @@ class PixiInterface(BackendInstance):
         force=False,
         capture_output=False,
     ):
+        # Add channels to pixi.toml
+        if channels is not None:
+            channels_command = [
+                self.external_executable,
+                "workspace",
+                "channel",
+                "add",
+            ] + channels
+
+            try:
+                result = run_command(
+                    channels_command,
+                    capture_output=capture_output,
+                    cwd=self.environment_path,
+                )
+                logger.info((result.stdout or result.stderr).strip())
+            except subprocess.CalledProcessError as error:
+                error_text = error.stderr.strip()
+                logger.error(error_text)
+                return BackendActionResult(status=False, output=error_text)
+            except Exception as error:
+                logger.error(error, exc_info=True)
+                return BackendActionResult(status=False, output=str(error))
+
+        # Add packages
         command = [self.external_executable, "add"] + packages
 
         try:

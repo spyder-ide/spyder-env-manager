@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/ccordoba12/envs-manager.git
 	branch = add-pixi-backend
-	commit = 07f38064e1cacb33e5fb89db7fe6f7d03c81d54c
-	parent = 13c0b29e7a1746ad15e83f7784dbbc1a04616e43
+	commit = 39f3054435df97662a8c70b4b77e0fa9a64137fe
+	parent = 163d442749d8475a91f1d121b5c25cf8d28a74fc
 	method = merge
 	cmdver = 0.4.9
