@@ -6,12 +6,7 @@ import argparse
 import logging
 import sys
 
-from envs_manager.manager import (
-    DEFAULT_BACKENDS_ROOT_PATH,
-    DEFAULT_BACKEND,
-    EXTERNAL_EXECUTABLE,
-    Manager,
-)
+from envs_manager.manager import DEFAULT_BACKENDS_ROOT_PATH, DEFAULT_BACKEND, Manager
 
 
 def main(args=None):
@@ -167,14 +162,12 @@ def main(args=None):
     logger.debug(options)
     logger.debug(f"Using BACKENDS_ROOT_PATH: {DEFAULT_BACKENDS_ROOT_PATH}")
     logger.debug(f"Using ENV_BACKEND: {options.backend}")
-    logger.debug(f"Using ENV_BACKEND_EXECUTABLE: {EXTERNAL_EXECUTABLE}")
 
     if options.env_name:
         manager = Manager(
             backend=options.backend,
             env_name=options.env_name,
             root_path=DEFAULT_BACKENDS_ROOT_PATH,
-            external_executable=EXTERNAL_EXECUTABLE,
         )
         if options.command == "create":
             manager.create_environment(
@@ -205,5 +198,5 @@ def main(args=None):
         else:
             backend = DEFAULT_BACKEND
 
-        manager = Manager(backend=backend, external_executable=EXTERNAL_EXECUTABLE)
+        manager = Manager(backend=backend)
         manager.list_environments()

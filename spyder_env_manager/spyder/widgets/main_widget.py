@@ -515,12 +515,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         if not environment_path:
             return
 
-        external_executable = self.get_conf("pixi_file_executable_path")
         backend = PixiInterface.ID
         manager = Manager(
             backend,
             env_directory=environment_path,
-            external_executable=external_executable,
         )
 
         self.sig_set_spyder_custom_interpreter.emit(
@@ -610,7 +608,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                     backend=manager_options["backend"],
                     root_path=manager_options["root_path"],
                     env_name=manager_options["env_name"],
-                    external_executable=manager_options["external_executable"],
                 ),
                 action=ManagerActions.InstallPackages,
                 action_options=dict(

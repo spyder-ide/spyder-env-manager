@@ -4,9 +4,9 @@
 ; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
 ;
 [subrepo]
-	remote = https://github.com/spyder-ide/env-manager.git
+	remote = https://github.com/spyder-ide/envs-manager.git
 	branch = main
-	commit = ca869c2606e09a598bdea54523b6f27c2c1019a6
-	parent = 04f164242dda68164eab3072708eb9931b1da552
+	commit = 4a39ffb75ef86a77fb3edeb086074655f650e02b
+	parent = 0ff6c95ab1b65e285ecfcd2d413593b3e8b5fc80
 	method = merge
 	cmdver = 0.4.9

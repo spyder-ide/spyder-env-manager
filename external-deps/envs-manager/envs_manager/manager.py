@@ -20,7 +20,6 @@ DEFAULT_BACKENDS_ROOT_PATH = Path(
 )
 DEFAULT_BACKEND = os.environ.get("ENV_BACKEND", "venv")
 DEFAULT_ENVS_ROOT_PATH = DEFAULT_BACKENDS_ROOT_PATH / DEFAULT_BACKEND / "envs"
-EXTERNAL_EXECUTABLE = os.environ.get("ENV_BACKEND_EXECUTABLE", None)
 
 
 class ManagerActions:
@@ -57,9 +56,6 @@ class ManagerOptions(TypedDict):
     env_directory: str | None
     """Path to the environment's directory."""
 
-    external_executable: str | None
-    """Path to the external executable that will be used by the manager."""
-
 
 class ManagerActionResult(BackendActionResult):
     """Dictionary to report the result of a manager's action."""
@@ -85,17 +81,20 @@ class Manager:
         root_path: str | Path | None = None,
         env_name: str | None = None,
         env_directory: str | Path | None = None,
-        external_executable: str | Path | None = None,
     ):
         self.backend_class = self.BACKENDS[backend]
         self.env_name = env_name
         self.root_path = DEFAULT_BACKENDS_ROOT_PATH if root_path is None else root_path
-        external_executable = (
-            str(external_executable) if external_executable is not None else None
-        )
+
+        # This where the backend executable will be saved
+        bin_directory = Path(self.root_path) / backend / "bin"
+        if not bin_directory.exists():
+            bin_directory.mkdir(parents=True)
 
         # This is where the environments for the given backend will be saved
         backend_envs_directory = Path(self.root_path) / backend / "envs"
+        if not backend_envs_directory.exists():
+            backend_envs_directory.mkdir()
 
         if env_directory:
             self.env_directory = Path(env_directory)
@@ -108,7 +107,7 @@ class Manager:
         self.backend_instance: BackendInstance = self.backend_class(
             str(self.env_directory),
             str(backend_envs_directory),
-            external_executable=external_executable,
+            str(bin_directory),
         )
 
         self._manager_options = ManagerOptions(
@@ -116,7 +115,6 @@ class Manager:
             root_path=str(root_path),
             env_name=env_name,
             env_directory=str(self.env_directory),
-            external_executable=external_executable,
         )
 
     def run_action(self, action: ManagerActions, action_options: dict | None = None):

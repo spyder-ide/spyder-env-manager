@@ -6,10 +6,14 @@ import json
 import logging
 import os
 from pathlib import Path
+import platform
 import shutil
 import subprocess
+import sys
+import tarfile
 
 from packaging.version import parse
+import requests
 import yaml
 
 from envs_manager.backends.api import (
@@ -29,6 +33,12 @@ logger = logging.getLogger("envs-manager")
 class CondaLikeInterface(BackendInstance):
     ID = "conda-like"
 
+    def __init__(self, environment_path, envs_directory, bin_directory):
+        super().__init__(environment_path, envs_directory, bin_directory)
+
+        # This is needed for Micromamba
+        os.environ["MAMBA_ROOT_PREFIX"] = str(Path(self.envs_directory).parent)
+
     @property
     def python_executable_path(self):
         if os.name == "nt":
@@ -39,15 +49,13 @@ class CondaLikeInterface(BackendInstance):
         return str(python_executable_path)
 
     def validate(self):
-        if self.external_executable is None:
-            if os.name == "nt":
-                cmd_list = ["conda.exe", "conda.bat", "mamba.exe", "micromamba.exe"]
-            else:
-                cmd_list = ["conda", "mamba", "micromamba"]
+        self.external_executable = self.find_backend_executable(exec_name="micromamba")
 
-            for cmd in cmd_list:
-                if shutil.which(cmd):
-                    self.external_executable = shutil.which(cmd)
+        if self.external_executable is None:
+            self.install_backend_executable()
+            self.external_executable = self.find_backend_executable(
+                exec_name="micromamba"
+            )
 
         if self.external_executable:
             command = [self.external_executable, "--version"]
@@ -69,7 +77,76 @@ class CondaLikeInterface(BackendInstance):
                 return True
             except Exception as error:
                 logger.error(error.stderr)
+
         return False
+
+    def install_backend_executable(self):
+        # OS route for the Micromamba URL
+        machine = platform.machine()
+        if os.name == "nt":
+            os_route = "win-64"
+        elif sys.platform == "darwin":
+            if machine == "arm64" or machine == "aarch64":
+                os_route = "osx-arm64"
+            else:
+                os_route = "osx-64"
+        else:
+            if machine == "x86_64":
+                os_route = "linux-64"
+            elif machine == "aarch64":
+                os_route = "linux-aarch64"
+            else:
+                os_route = "linux-ppc64le"
+
+        # Download compressed Micromamba file
+        bin_directory_as_path = Path(self.bin_directory)
+        compressed_file = "micromamba.tar.bz2"
+        path_to_compressed_file = bin_directory_as_path / compressed_file
+
+        req = requests.get(f"https://micro.mamba.pm/api/micromamba/{os_route}/1.5.10")
+        with open(path_to_compressed_file, "wb") as f:
+            f.write(req.content)
+
+        # Extract micromamba from compressed file
+        with tarfile.open(path_to_compressed_file, "r:bz2") as tar:
+            tar.extractall(path=self.bin_directory)
+
+        # Move micromamba to the location we need
+        exec_extension = ".exe" if os.name == "nt" else ""
+        end_path = (
+            bin_directory_as_path / "Library" / "bin" / "micromamba.exe"
+            if os.name == "nt"
+            else bin_directory_as_path / "bin" / "micromamba"
+        )
+        shutil.move(end_path, bin_directory_as_path / f"micromamba{exec_extension}")
+
+        # On Windows we also need the VS14 runtime because micromamba is linked against
+        # it
+        if os.name == "nt":
+            path_to_compressed_vs_runtime = (
+                "vs2015_runtime-14.28.29325-h8ebdc22_9.tar.bz2"
+            )
+            req = requests.get(
+                f"https://anaconda.org/conda-forge/vs2015_runtime/14.28.29325/download/"
+                f"win-64/{path_to_compressed_vs_runtime}"
+            )
+            with open(path_to_compressed_vs_runtime, "wb") as f:
+                f.write(req.content)
+
+            with tarfile.open(path_to_compressed_vs_runtime, "r:bz2") as tar:
+                tar.extractall(path=self.bin_directory)
+
+        # Clean up
+        try:
+            os.remove(path_to_compressed_file)
+            shutil.rmtree(bin_directory_as_path / "info")
+            if os.name == "nt":
+                os.remove(path_to_compressed_vs_runtime)
+                shutil.rmtree(bin_directory_as_path / "Library")
+            else:
+                shutil.rmtree(bin_directory_as_path / "bin")
+        except Exception:
+            pass
 
     def create_environment(self, packages=None, channels=None, force=False):
         command = [self.external_executable, "create", "-p", self.environment_path]

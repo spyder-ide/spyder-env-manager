@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: MIT
 
 from __future__ import annotations
+
+from pathlib import Path
 import subprocess
 from typing import TypedDict
 
@@ -100,11 +102,12 @@ class BackendInstance:
         self,
         environment_path: str,
         envs_directory: str,
-        external_executable: str | None = None,
+        bin_directory: str,
     ):
         self.environment_path = environment_path
         self.envs_directory = envs_directory
-        self.external_executable = external_executable
+        self.bin_directory = bin_directory
+        self.external_executable = None
         self.executable_variant = None
         assert self.validate(), f"{self.ID} backend unavailable!"
 
@@ -114,6 +117,20 @@ class BackendInstance:
 
     def validate(self) -> bool:
         pass
+
+    def find_backend_executable(self, exec_name: str):
+        """Return the backend executable in bin_directory, if available."""
+        cmd_list = [exec_name, f"{exec_name}.exe"]
+        for cmd in cmd_list:
+            path = Path(self.bin_directory) / cmd
+            if path.exists():
+                return str(path)
+
+        return
+
+    def install_backend_executable(self):
+        """Install the backend executable in bin_directory."""
+        raise NotImplementedError
 
     def create_environment(
         self,

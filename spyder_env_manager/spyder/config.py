@@ -9,25 +9,7 @@
 """Spyder Env Manager default configuration."""
 
 # Third-party imports
-from envs_manager.manager import (
-    DEFAULT_BACKENDS_ROOT_PATH,
-    EXTERNAL_EXECUTABLE,
-)
-
-# Spyder and local imports
-from spyder.utils.conda import find_pixi
-
-
-def pixi_executable():
-    """
-    Get default value for pixi executable.
-
-    This is the path for Pixi executable file.
-    """
-    pixi_executable = EXTERNAL_EXECUTABLE
-    if not pixi_executable:
-        pixi_executable = find_pixi()
-    return pixi_executable
+from envs_manager.manager import DEFAULT_BACKENDS_ROOT_PATH
 
 
 CONF_SECTION = "spyder_env_manager"
@@ -35,7 +17,6 @@ CONF_DEFAULTS = [
     (
         CONF_SECTION,
         {
-            "pixi_file_executable_path": pixi_executable(),
             "environments_path": str(DEFAULT_BACKENDS_ROOT_PATH),
             "selected_environment": "",
             "exclude_dependency_action": True,

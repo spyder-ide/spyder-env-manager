@@ -6,12 +6,12 @@ import json
 import logging
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import zipfile
 
 from packaging.version import parse
 from rattler import AboutJson
+import requests
 
 from envs_manager.backends.api import BackendInstance, BackendActionResult, run_command
 
@@ -22,8 +22,8 @@ logger = logging.getLogger("envs-manager")
 class PixiInterface(BackendInstance):
     ID = "pixi"
 
-    def __init__(self, environment_path, envs_directory, external_executable=None):
-        super().__init__(environment_path, envs_directory, external_executable)
+    def __init__(self, environment_path, envs_directory, bin_directory):
+        super().__init__(environment_path, envs_directory, bin_directory)
 
         # We use this to save the Pixi packages cache directory
         self._cache_dir = None
@@ -44,11 +44,11 @@ class PixiInterface(BackendInstance):
         return str(python_executable_path)
 
     def validate(self):
+        self.external_executable = self.find_backend_executable(exec_name="pixi")
+
         if self.external_executable is None:
-            cmd_list = ["pixi", "pixi.exe"]
-            for cmd in cmd_list:
-                if shutil.which(cmd):
-                    self.external_executable = shutil.which(cmd)
+            self.install_backend_executable()
+            self.external_executable = self.find_backend_executable(exec_name="pixi")
 
         if self.external_executable:
             command = [self.external_executable, "--version"]
@@ -63,6 +63,51 @@ class PixiInterface(BackendInstance):
                 logger.error(error, exc_info=True)
 
         return False
+
+    def install_backend_executable(self):
+        install_script = f"install{'.ps1' if os.name == 'nt' else '.sh'}"
+        path_to_install_script = Path(self.bin_directory) / install_script
+
+        # Download script to install Pixi
+        req = requests.get(f"https://pixi.sh/{install_script}")
+        with open(str(path_to_install_script), "w") as f:
+            f.write(req.text)
+
+        # Env vars to control how Pixi is installed
+        env = os.environ.copy()
+        env["PIXI_HOME"] = str(Path(self.bin_directory).parent)
+        env["PIXI_NO_PATH_UPDATE"] = "true"
+
+        # Install Pixi
+        if os.name == "nt":
+            install_command = [
+                "powershell.exe",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(path_to_install_script),
+            ]
+        else:
+            install_command = ["sh", install_script]
+
+        try:
+            run_command(
+                install_command,
+                run_env=env,
+                cwd=self.bin_directory,
+            )
+        except subprocess.CalledProcessError as error:
+            logger.error(error.stderr.strip())
+            return
+        except Exception as error:
+            logger.error(error, exc_info=True)
+            return
+
+        # Cleanup
+        try:
+            os.remove(path_to_install_script)
+        except Exception:
+            pass
 
     def create_environment(self, packages=None, channels=None, force=False):
         # We need to run `pixi init` first

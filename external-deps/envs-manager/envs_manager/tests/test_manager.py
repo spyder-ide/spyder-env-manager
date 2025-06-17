@@ -22,17 +22,16 @@ ENV_FILES = TESTS_DIR / "env_files"
 ENV_FILES_CONDA_LIKE = ENV_FILES / "conda-like-files"
 ENV_FILES_PIXI = ENV_FILES / "pixi-files"
 ENV_FILES_VENV = ENV_FILES / "venv-files"
-PIXI_EXECUTABLE = Path(os.environ.get("HOME")) / ".pixi" / "bin" / "pixi"
 
 MANAGER_BACKENDS_SETUP = [
-    ("pixi", PIXI_EXECUTABLE, None),
-    ("conda-like", os.environ.get("ENV_BACKEND_EXECUTABLE"), None),
-    ("venv", None, None),
+    ("pixi", None),
+    ("conda-like", None),
+    ("venv", None),
 ]
 
 BACKENDS = [
     (
-        ("pixi", PIXI_EXECUTABLE, None),
+        ("pixi", None),
         "python",
         ["packaging=21.0"],
         ["packaging"],
@@ -56,7 +55,7 @@ BACKENDS = [
         ],
     ),
     (
-        ("pixi", PIXI_EXECUTABLE, "test_env"),
+        ("pixi", "test_env"),
         "python",
         ["packaging=21.0"],
         ["packaging"],
@@ -80,7 +79,7 @@ BACKENDS = [
         ],
     ),
     (
-        ("venv", None, None),
+        ("venv", None),
         "pip",
         ["packaging==21.0"],
         ["packaging"],
@@ -94,7 +93,7 @@ BACKENDS = [
         [2, 1, 6, "The PyPA recommended tool for installing Python packages."],
     ),
     (
-        ("venv", None, "test_env"),
+        ("venv", "test_env"),
         "pip",
         ["packaging==21.0"],
         ["packaging"],
@@ -108,7 +107,7 @@ BACKENDS = [
         [2, 1, 6, "The PyPA recommended tool for installing Python packages."],
     ),
     (
-        ("conda-like", os.environ.get("ENV_BACKEND_EXECUTABLE"), None),
+        ("conda-like", None),
         "python",
         ["packaging=21.0"],
         ["packaging"],
@@ -126,7 +125,7 @@ BACKENDS = [
         [2, 1, 6, "General purpose programming language"],
     ),
     (
-        ("conda-like", os.environ.get("ENV_BACKEND_EXECUTABLE"), "test_env"),
+        ("conda-like", "test_env"),
         "python",
         ["packaging=21.0"],
         ["packaging"],
@@ -158,27 +157,27 @@ else:
 
 IMPORT_EXPORT_BACKENDS = [
     (
-        ("pixi", PIXI_EXECUTABLE, None),
+        ("pixi", None),
         str(ENV_FILES_PIXI / "pixi_import_env.zip"),
         str(ENV_FILES_PIXI / "pixi_export_env.zip"),
     ),
     (
-        ("pixi", PIXI_EXECUTABLE, "test_env"),
+        ("pixi", "test_env"),
         str(ENV_FILES_PIXI / "pixi_import_env.zip"),
         str(ENV_FILES_PIXI / "pixi_export_env.zip"),
     ),
     (
-        ("venv", None, None),
+        ("venv", None),
         str(ENV_FILES_VENV / "venv_import_env.txt"),
         str(ENV_FILES_VENV / "venv_export_env.txt"),
     ),
     (
-        ("venv", None, "test_env"),
+        ("venv", "test_env"),
         str(ENV_FILES_VENV / "venv_import_env.txt"),
         str(ENV_FILES_VENV / "venv_export_env.txt"),
     ),
     (
-        ("conda-like", os.environ.get("ENV_BACKEND_EXECUTABLE"), None),
+        ("conda-like", None),
         str(
             ENV_FILES_CONDA_LIKE / f"{BASE_IMPORT_EXPORT_FILENAME}_conda_import_env.yml"
         ),
@@ -187,7 +186,7 @@ IMPORT_EXPORT_BACKENDS = [
         ),
     ),
     (
-        ("conda-like", os.environ.get("ENV_BACKEND_EXECUTABLE"), "test_env"),
+        ("conda-like", "test_env"),
         str(
             ENV_FILES_CONDA_LIKE / f"{BASE_IMPORT_EXPORT_FILENAME}_conda_import_env.yml"
         ),
@@ -235,7 +234,8 @@ def check_packages(manager_instance, package, version):
 
 @pytest.fixture
 def manager_instance(request, tmp_path):
-    backend, executable, env_name = request.param
+    backend, env_name = request.param
+
     if not env_name:
         # Passing full env directory
         root_path = None
@@ -251,7 +251,6 @@ def manager_instance(request, tmp_path):
         root_path=root_path,
         env_name=env_name,
         env_directory=env_directory,
-        external_executable=executable,
     )
     yield manager_instance
 
@@ -420,12 +419,9 @@ def test_manager_backends(
 def test_manager_backends_import_export(
     manager_instance, initial_import_path, expected_export_path, tmp_path, capsys
 ):
-    # This test fails on Mac when using conda. It seems that's due to an error in conda
-    # because it passes with micromamba.
-    if (
-        sys.platform == "darwin"
-        and "conda" in os.environ.get("ENV_BACKEND_EXECUTABLE")
-        and isinstance(manager_instance.backend_instance, CondaLikeInterface)
+    # This test fails on Mac when using micromamba.
+    if sys.platform == "darwin" and isinstance(
+        manager_instance.backend_instance, CondaLikeInterface
     ):
         return
 
