@@ -8,9 +8,6 @@
 Spyder Env Manager Plugin.
 """
 
-# Standard library imports
-from pathlib import Path
-
 # Third-party imports
 import qtawesome as qta
 from qtpy.QtCore import Signal
@@ -103,14 +100,6 @@ class SpyderEnvManager(SpyderDockablePlugin):
     @on_plugin_teardown(plugin=Plugins.MainInterpreter)
     def on_maininterpreter_teardown(self):
         self.sig_set_spyder_custom_interpreter.disconnect()
-
-    def check_compatibility(self):
-        message = ""
-        pixi_executable_path = self.get_conf("pixi_file_executable_path")
-        valid = pixi_executable_path and Path(pixi_executable_path).exists()
-        if not valid:
-            message = _("Unable to find the Pixi executable!")
-        return valid, message
 
     def on_close(self, cancellable=True):
         return True
