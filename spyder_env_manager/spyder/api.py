@@ -14,6 +14,11 @@ from typing import TypedDict
 from envs_manager.api import ManagerActions, ManagerOptions
 
 
+class SpyderEnvManagerActions:
+
+    ToolsMenuAction = "tools_menu_action"
+
+
 class ManagerRequest(TypedDict):
     """
     Dictionary with the necessary parameters to request an action to the manager

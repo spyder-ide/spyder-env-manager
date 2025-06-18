@@ -7,7 +7,7 @@
 # ----------------------------------------------------------------------------
 
 """
-Spyder env manager Main Plugin Widget.
+Environment manager widget.
 """
 
 # Standard library imports
@@ -110,6 +110,8 @@ class SpyderEnvManagerWidgetMainToolBarSections:
 # =============================================================================
 class SpyderEnvManagerWidget(PluginMainWidget):
 
+    CONF_SECTION = "spyder_env_manager"  # FIXME
+
     # --- PluginMainWidget class constants
     ENABLE_SPINNER = True
     NO_ENVIRONMENTS_AVAILABLE = _("No environments available")
@@ -128,6 +130,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def __init__(self, name, plugin, parent=None):
         super().__init__(name, plugin, parent=parent)
+
+        # Set min size
+        self.setMinimumWidth(640)
+        self.setMinimumHeight(480)
 
         # General attributes
         self.actions_enabled = True
@@ -181,6 +187,12 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         # Request the list of environments to populate the widget
         self._envs_listed = False
         self._list_environments()
+
+        # We need to make these calls manually because the widget is not associated to
+        # a plugin
+        self._setup()
+        self.setup()
+        self.render_toolbars()
 
     # ---- PluginMainWidget API
     # ------------------------------------------------------------------------

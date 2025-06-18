@@ -18,33 +18,34 @@ from spyder.api.plugin_registration.decorators import (
     on_plugin_available,
     on_plugin_teardown,
 )
-from spyder.api.plugins import Plugins, SpyderDockablePlugin
+from spyder.api.plugins import Plugins, SpyderPluginV2
 from spyder.api.translations import get_translation
+from spyder.plugins.remoteclient.api import RemoteClientActions
+from spyder.plugins.mainmenu.api import ApplicationMenus, ToolsMenuSections
 from spyder.utils.icon_manager import ima
 
 # Local imports
+from spyder_env_manager.spyder.api import SpyderEnvManagerActions
 from spyder_env_manager.spyder.config import CONF_DEFAULTS, CONF_SECTION, CONF_VERSION
 from spyder_env_manager.spyder.confpage import SpyderEnvManagerConfigPage
-from spyder_env_manager.spyder.widgets.manager import SpyderEnvManagerWidget
+from spyder_env_manager.spyder.widgets.container import SpyderEnvManagerContainer
 
 _ = get_translation("spyder_env_manager.spyder")
 
 
-class SpyderEnvManager(SpyderDockablePlugin):
+class SpyderEnvManager(SpyderPluginV2):
     """
     Spyder Env Manager plugin.
     """
 
     # --- Constants
     NAME = CONF_SECTION
-    REQUIRES = [Plugins.MainInterpreter, Plugins.Preferences]
-    OPTIONAL = []
-    WIDGET_CLASS = SpyderEnvManagerWidget
+    REQUIRES = [Plugins.MainInterpreter, Plugins.Preferences, Plugins.MainMenu]
+    CONTAINER_CLASS = SpyderEnvManagerContainer
     CONF_SECTION = CONF_SECTION
     CONF_DEFAULTS = CONF_DEFAULTS
     CONF_VERSION = CONF_VERSION
     CONF_WIDGET_CLASS = SpyderEnvManagerConfigPage
-    TABIFY = [Plugins.Help]
     CONF_FILE = True
 
     # --- Signals
@@ -74,8 +75,8 @@ class SpyderEnvManager(SpyderDockablePlugin):
         return qta.icon("mdi.archive", color=ima.MAIN_FG_COLOR)
 
     def on_initialize(self):
-        main_widget = self.get_widget()
-        main_widget.sig_set_spyder_custom_interpreter.connect(
+        container = self.get_container()
+        container.envs_manager.sig_set_spyder_custom_interpreter.connect(
             self.sig_set_spyder_custom_interpreter
         )
 
@@ -101,13 +102,34 @@ class SpyderEnvManager(SpyderDockablePlugin):
     def on_maininterpreter_teardown(self):
         self.sig_set_spyder_custom_interpreter.disconnect()
 
+    @on_plugin_available(plugin=Plugins.MainMenu)
+    def on_mainmenu_available(self):
+        mainmenu = self.get_plugin(Plugins.MainMenu)
+
+        action = self.get_action(SpyderEnvManagerActions.ToolsMenuAction)
+        mainmenu.add_item_to_application_menu(
+            action,
+            menu_id=ApplicationMenus.Tools,
+            section=ToolsMenuSections.External,
+            before=RemoteClientActions.ManageConnections,
+        )
+
+    @on_plugin_teardown(plugin=Plugins.MainMenu)
+    def on_mainmenu_teardown(self):
+        mainmenu = self.get_plugin(Plugins.MainMenu)
+
+        mainmenu.remove_item_from_application_menu(
+            SpyderEnvManagerActions.ToolsMenuAction,
+            menu_id=ApplicationMenus.Tools,
+        )
+
     def on_close(self, cancellable=True):
         return True
 
     def update_font(self):
         """Update font from Preferences"""
         rich_font = self.get_font(font_type=SpyderFontType.Interface)
-        self.get_widget().update_font(rich_font)
+        self.get_container().envs_manager.update_font(rich_font)
 
     # --- Public API
     # ------------------------------------------------------------------------

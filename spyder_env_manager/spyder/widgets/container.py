@@ -1,0 +1,53 @@
+# -*- coding: utf-8 -*-
+#
+# -----------------------------------------------------------------------------
+# Copyright © 2022, Spyder Development Team and spyder-env-manager contributors
+#
+# Licensed under the terms of the MIT license
+# -----------------------------------------------------------------------------
+
+"""Spyder env manager container."""
+
+# Third-party imports
+from qtpy.QtWidgets import QDialog, QVBoxLayout
+
+# Spyder imports
+from spyder.api.translations import _
+from spyder.api.widgets.main_container import PluginMainContainer
+
+# Local imports
+from spyder_env_manager.spyder.api import SpyderEnvManagerActions
+from spyder_env_manager.spyder.widgets.manager import SpyderEnvManagerWidget
+
+
+class SpyderEnvManagerContainer(PluginMainContainer):
+
+    # ---- PluginMainContainer API
+    # -------------------------------------------------------------------------
+    def setup(self):
+        self.envs_manager = SpyderEnvManagerWidget(
+            self._plugin.get_name(), None, parent=self
+        )
+
+        # Widgets
+        self.create_action(
+            SpyderEnvManagerActions.ToolsMenuAction,
+            _("Environment manager..."),
+            icon=self._plugin.get_icon(),
+            triggered=self._show_envs_dialog,
+        )
+
+    def update_actions(self):
+        pass
+
+    # ---- Private API
+    # -------------------------------------------------------------------------
+    def _show_envs_dialog(self):
+        dialog = QDialog(self)
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.envs_manager)
+        dialog.setLayout(layout)
+
+        dialog.show()
