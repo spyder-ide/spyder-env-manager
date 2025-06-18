@@ -25,7 +25,7 @@ from spyder.utils.icon_manager import ima
 # Local imports
 from spyder_env_manager.spyder.config import CONF_DEFAULTS, CONF_SECTION, CONF_VERSION
 from spyder_env_manager.spyder.confpage import SpyderEnvManagerConfigPage
-from spyder_env_manager.spyder.widgets.main_widget import SpyderEnvManagerWidget
+from spyder_env_manager.spyder.widgets.manager import SpyderEnvManagerWidget
 
 _ = get_translation("spyder_env_manager.spyder")
 
