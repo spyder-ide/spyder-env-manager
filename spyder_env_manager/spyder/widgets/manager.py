@@ -49,6 +49,7 @@ from spyder_env_manager.spyder.widgets.helper_widgets import (
     CustomParametersDialog,
     CustomParametersDialogWidgets,
 )
+from spyder_env_manager.spyder.widgets.edit_environment import EditEnvironment
 from spyder_env_manager.spyder.widgets.new_environment import NewEnvironment
 from spyder_env_manager.spyder.widgets.packages_table import (
     EnvironmentPackagesActions,
@@ -112,6 +113,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         Path to the environment Python interpreter.
     """
 
+    sig_new_env_widget_is_shown = Signal()
+    """Signal used to inform that the new_env_widget is shown."""
+
     def __init__(self, name, plugin, parent=None):
         super().__init__(name, plugin, parent=parent)
 
@@ -140,6 +144,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         # Env widgets
         self.new_env_widget = NewEnvironment(self)
+        self.edit_env_widget = EditEnvironment(self)
 
         # Package table widget
         self.packages_table = EnvironmentPackagesTable(self)
@@ -147,6 +152,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         # Stackedwidget and layout
         self.stack_widget = QStackedWidget(self)
         self.stack_widget.addWidget(self.new_env_widget)
+        self.stack_widget.addWidget(self.edit_env_widget)
         self.stack_widget.addWidget(self.packages_table)
 
         layout = QVBoxLayout()
@@ -367,6 +373,13 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     # ------------------------------------------------------------------------
     def show_new_env_widget(self):
         self.stack_widget.setCurrentWidget(self.new_env_widget)
+        self.sig_new_env_widget_is_shown.emit()
+
+    def show_edit_env_widget(self):
+        self.stack_widget.setCurrentWidget(self.edit_env_widget)
+
+    def set_env_metadata(self, env_name, python_version):
+        self.edit_env_widget.setup(env_name, python_version)
 
     # ---- Private API
     # ------------------------------------------------------------------------
