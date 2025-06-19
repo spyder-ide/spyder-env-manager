@@ -33,7 +33,7 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
         description = QLabel(
             _(
                 "We use Pixi to manage environments and packages. You can access "
-                "them in the menu <i>Consoles > New console in environment </i>."
+                "them in the menu <i>Consoles > New console in environment</i>."
             )
         )
         description.setWordWrap(True)
@@ -51,7 +51,11 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
         self.env_name = self.create_lineedit(
             text=_("Name"),
             option=None,
-            tip=_("This must be alphanumeric and can't include spaces"),
+            tip=_(
+                "This must be alphanumeric and can't include spaces. If no name is "
+                "set, then an environment called 'default' will be created"
+            ),
+            placeholder="default",
         )
         self.env_name.textbox.setFixedWidth(300)
 
@@ -81,7 +85,10 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
         self.setLayout(layout)
 
     def get_env_name(self):
-        return self.env_name.textbox.text()
+        env_name = self.env_name.textbox.text()
+        if not env_name:
+            env_name = "default"
+        return env_name
 
     def get_python_version(self):
         return self.python_version.combobox.currentText()
