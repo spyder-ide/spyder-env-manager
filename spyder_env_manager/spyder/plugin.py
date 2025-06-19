@@ -13,7 +13,6 @@ import qtawesome as qta
 from qtpy.QtCore import Signal
 
 # Spyder imports
-from spyder.api.fonts import SpyderFontType
 from spyder.api.plugin_registration.decorators import (
     on_plugin_available,
     on_plugin_teardown,
@@ -125,11 +124,6 @@ class SpyderEnvManager(SpyderPluginV2):
 
     def on_close(self, cancellable=True):
         return True
-
-    def update_font(self):
-        """Update font from Preferences"""
-        rich_font = self.get_font(font_type=SpyderFontType.Interface)
-        self.get_container().envs_manager.update_font(rich_font)
 
     # --- Public API
     # ------------------------------------------------------------------------

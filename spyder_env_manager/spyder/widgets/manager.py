@@ -13,47 +13,43 @@ Environment manager widget.
 # Standard library imports
 from __future__ import annotations
 from collections.abc import Callable
-import os
-import os.path as osp
-from pathlib import Path
-from string import Template
 
 # Third party imports
 from envs_manager.api import ManagerActions, ManagerOptions
 from envs_manager.backends.pixi_interface import PixiInterface
 from envs_manager.manager import Manager
 from packaging.version import parse
+import qstylizer.style
 import qtawesome as qta
-from qtpy.QtCore import QThread, QUrl, Signal
-from qtpy.QtGui import QColor
-from qtpy.QtWebEngineWidgets import WEBENGINE, QWebEnginePage
+from qtpy.QtCore import QThread, Signal
 from qtpy.QtWidgets import (
     QComboBox,
     QDialog,
     QMessageBox,
     QSizePolicy,
-    QStackedLayout,
+    QStackedWidget,
+    QVBoxLayout,
 )
 
-# Spyder and local imports
+# Spyder imports
 from spyder import __version__ as spyder_version
 from spyder.api.translations import get_translation
 from spyder.api.widgets.main_widget import (
     PluginMainWidget,
     PluginMainWidgetActions,
 )
-from spyder.config.base import get_module_source_path
 from spyder.dependencies import SPYDER_KERNELS_REQVER
 from spyder.utils.icon_manager import ima
 from spyder.utils.palette import SpyderPalette
-from spyder.widgets.browser import FrameWebView
 
+# Local imports
 from spyder_env_manager.spyder.api import ManagerRequest
 from spyder_env_manager.spyder.workers import EnvironmentManagerWorker
 from spyder_env_manager.spyder.widgets.helper_widgets import (
     CustomParametersDialog,
     CustomParametersDialogWidgets,
 )
+from spyder_env_manager.spyder.widgets.new_environment import NewEnvironment
 from spyder_env_manager.spyder.widgets.packages_table import (
     EnvironmentPackagesActions,
     EnvironmentPackagesTable,
@@ -66,18 +62,6 @@ _ = get_translation("spyder")
 # =============================================================================
 # ---- Constants
 # =============================================================================
-PLUGINS_PATH = get_module_source_path("spyder", "plugins")
-TEMPLATES_PATH = Path(__file__) / "spyder" / "assets" / "templates"
-MAIN_BG_COLOR = SpyderPalette.COLOR_BACKGROUND_1
-separador = osp.sep
-ENVIRONMENT_MESSAGE = Path(
-    separador.join(osp.dirname(os.path.abspath(__file__)).split(separador)[:-2]),
-    "spyder",
-    "assets",
-    "templates",
-    "environment_info.html",
-)
-CSS_PATH = Path(PLUGINS_PATH) / "help" / "utils" / "static" / "css"
 SPYDER_KERNELS_VERSION = SPYDER_KERNELS_REQVER.split(";")[0]
 
 
@@ -154,27 +138,21 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         if selected_environment:
             self.select_environment.setCurrentText(selected_environment)
 
-        # Usage widget
-        self.css_path = self.get_conf("css_path", str(CSS_PATH), "appearance")
-        self.infowidget = FrameWebView(self)
-        if WEBENGINE:
-            self.infowidget.web_widget.page().setBackgroundColor(QColor(MAIN_BG_COLOR))
-        else:
-            self.infowidget.web_widget.setStyleSheet(
-                "background:{}".format(MAIN_BG_COLOR)
-            )
-            self.infowidget.page().setLinkDelegationPolicy(
-                QWebEnginePage.DelegateAllLinks
-            )
+        # Env widgets
+        self.new_env_widget = NewEnvironment(self)
 
         # Package table widget
         self.packages_table = EnvironmentPackagesTable(self)
 
-        # Layout
-        self.stack_layout = layout = QStackedLayout()
-        layout.addWidget(self.infowidget)
-        layout.addWidget(self.packages_table)
-        self.setLayout(self.stack_layout)
+        # Stackedwidget and layout
+        self.stack_widget = QStackedWidget(self)
+        self.stack_widget.addWidget(self.new_env_widget)
+        self.stack_widget.addWidget(self.packages_table)
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.stack_widget)
+        self.setLayout(layout)
 
         # Signals
         self.packages_table.sig_action_context_menu.connect(
@@ -193,6 +171,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self._setup()
         self.setup()
         self.render_toolbars()
+
+        self.setStyleSheet(self._stylesheet)
 
     # ---- PluginMainWidget API
     # ------------------------------------------------------------------------
@@ -247,7 +227,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             SpyderEnvManagerWidgetActions.NewEnvironment,
             text=_("New environment"),
             icon=qta.icon("mdi.plus", color=ima.MAIN_FG_COLOR, rotated=270),
-            triggered=self._message_new_environment,
+            triggered=self.show_new_env_widget,
         )
 
         delete_environment_action = self.create_action(
@@ -299,27 +279,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 section=SpyderEnvManagerWidgetMainToolBarSections.Main,
             )
 
-        self.show_intro_message()
         self.current_environment_changed()
-
-    def show_intro_message(self):
-        """Show introduction message on how to use the plugin."""
-        intro_message_eq = _(
-            "Click "
-            "<span title='New environment' style='border : 0.5px solid #c0c0c0;'>"
-            "&#xFF0B;</span> to create a new environment or to import an environment"
-            " definition from a file, click the "
-            "<span title='Options' style='border : 1px solid #c0c0c0;'>"
-            "&#9776;</span> button on the top right too."
-        )
-        self.mainMessage = self._create_info_environment_page(
-            title="Usage", message=intro_message_eq
-        )
-        self.infowidget.setHtml(self.mainMessage, QUrl.fromLocalFile(self.css_path))
-
-    def update_font(self, rich_font):
-        self._rich_font = rich_font
-        self.infowidget.set_font(rich_font)
 
     def current_environment_changed(self, index=None):
         """
@@ -344,7 +304,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._run_action_for_env(
                 dialog=None, action=SpyderEnvManagerWidgetActions.ListPackages
             )
-            self.stack_layout.setCurrentWidget(self.packages_table)
+            self.stack_widget.setCurrentWidget(self.packages_table)
             if self.get_conf(
                 SpyderEnvManagerWidgetActions.ToggleEnvironmentAsCustomInterpreter,
             ):
@@ -352,7 +312,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                     environment_path=current_environment_path
                 )
         else:
-            self.stack_layout.setCurrentWidget(self.infowidget)
+            self.stack_widget.setCurrentWidget(self.new_env_widget)
             self.stop_spinner()
 
     def update_actions(self):
@@ -403,6 +363,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.env_manager_action_thread.terminate()
             self.env_manager_action_thread.wait()
 
+    # ---- Public API
+    # ------------------------------------------------------------------------
+    def show_new_env_widget(self):
+        self.stack_widget.setCurrentWidget(self.new_env_widget)
+
     # ---- Private API
     # ------------------------------------------------------------------------
     def _list_environments(self):
@@ -414,30 +379,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         )
 
         self._run_env_manager_action(request, self._after_list_environments)
-
-    def _create_info_environment_page(self, title, message):
-        """
-        Create html page to describe the basic plugin functionality if no
-        environment exists.
-
-        Parameters
-        ----------
-        title : str
-            Title that the page should show.
-        message : str
-            Content that the page should show.
-
-        Returns
-        -------
-        page : str
-            string representation of the page.
-        """
-        with open(ENVIRONMENT_MESSAGE) as template_message:
-            environment_message_template = Template(template_message.read())
-            page = environment_message_template.substitute(
-                css_path=self.css_path, title=title, message=message
-            )
-        return page
 
     def _handle_package_table_context_menu_actions(self, action, package_info):
         """
@@ -1036,27 +977,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             action=SpyderEnvManagerWidgetActions.ImportEnvironment,
         )
 
-    def _message_new_environment(self):
-        title = _("New Python environment")
-        messages = ["Manager to use", "Environment Name", "Python version"]
-        types = [
-            CustomParametersDialogWidgets.ComboBox,
-            CustomParametersDialogWidgets.LineEditString,
-            CustomParametersDialogWidgets.ComboBoxEdit,
-        ]
-        contents = [
-            {PixiInterface.ID},
-            {},
-            ["3.8.16", "3.9.16", "3.10.9", "3.11.0"],
-        ]
-        self._message_box_editable(
-            title,
-            messages,
-            contents,
-            types,
-            action=SpyderEnvManagerWidgetActions.NewEnvironment,
-        )
-
     def _message_install_package(self):
         title = _("Install package")
         messages = ["Package", "Constraint", "Version"]
@@ -1193,3 +1113,14 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             "conda-forge/label/spyder_kernels_dev",
             "conda-forge/label/spyder_kernels_rc",
         ]
+
+    @property
+    def _stylesheet(self):
+        css = qstylizer.style.StyleSheet()
+
+        css["QStackedWidget"].setValues(
+            border=f"1px solid {SpyderPalette.COLOR_BACKGROUND_4}",
+            borderRadius=SpyderPalette.SIZE_BORDER_RADIUS,
+        )
+
+        return css.toString()

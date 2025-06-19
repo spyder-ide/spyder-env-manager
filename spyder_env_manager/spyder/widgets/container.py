@@ -8,15 +8,13 @@
 
 """Spyder env manager container."""
 
-# Third-party imports
-from qtpy.QtWidgets import QDialog, QVBoxLayout
-
 # Spyder imports
 from spyder.api.translations import _
 from spyder.api.widgets.main_container import PluginMainContainer
 
 # Local imports
 from spyder_env_manager.spyder.api import SpyderEnvManagerActions
+from spyder_env_manager.spyder.widgets.dialog import EnvManagerDialog
 from spyder_env_manager.spyder.widgets.manager import SpyderEnvManagerWidget
 
 
@@ -43,11 +41,5 @@ class SpyderEnvManagerContainer(PluginMainContainer):
     # ---- Private API
     # -------------------------------------------------------------------------
     def _show_envs_dialog(self):
-        dialog = QDialog(self)
-
-        layout = QVBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.envs_manager)
-        dialog.setLayout(layout)
-
+        dialog = EnvManagerDialog(self, self.envs_manager)
         dialog.show()
