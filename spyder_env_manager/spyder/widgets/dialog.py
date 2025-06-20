@@ -92,6 +92,9 @@ class EnvManagerDialog(QDialog):
         self._button_back.setVisible(not is_new_env_widget_visible)
 
     def _on_next_button_clicked(self):
+        if not self._envs_manager.new_env_widget.validate_page():
+            return
+
         env_name = self._envs_manager.new_env_widget.get_env_name()
         python_version = self._envs_manager.new_env_widget.get_python_version()
         self._envs_manager.set_env_metadata(env_name, python_version)
