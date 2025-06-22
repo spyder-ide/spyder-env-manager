@@ -12,17 +12,19 @@ Package table widget.
 This is the main widget used in the Spyder env Manager plugin
 """
 
+# Standard library imports
+from __future__ import annotations
+
 # Third library imports
 from qtpy.compat import to_qvariant
 from qtpy.QtCore import QAbstractTableModel, QModelIndex, Qt, Signal
 from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QAbstractItemView, QTableView
 
 # Spyder and local imports
 from spyder.api.fonts import SpyderFontType, SpyderFontsMixin
 from spyder.api.translations import get_translation
-from spyder.api.widgets.mixins import SpyderWidgetMixin
 from spyder.utils.palette import SpyderPalette
+from spyder.widgets.elementstable import Element, ElementsTable
 
 
 # Localization
@@ -31,6 +33,12 @@ _ = get_translation("spyder")
 
 # Column constants
 NAME, VERSION, DESCRIPTION = [0, 1, 2]
+
+
+class PackageInfo(Element):
+
+    requested: bool
+    """Whether the package was requested by the user or not."""
 
 
 class EnvironmentPackagesActions:
@@ -115,7 +123,7 @@ class EnvironmentPackagesModel(QAbstractTableModel, SpyderFontsMixin):
         return 3
 
 
-class EnvironmentPackagesTable(QTableView, SpyderWidgetMixin):
+class EnvironmentPackagesTable(ElementsTable):
     """Table widget to show the installed packages in an environment."""
 
     sig_action_context_menu = Signal(str, dict)
@@ -131,22 +139,12 @@ class EnvironmentPackagesTable(QTableView, SpyderWidgetMixin):
         show the context menu of this widget.
     """
 
-    def __init__(self, parent):
-        super().__init__(parent, class_parent=parent)
+    def __init__(self, parent, name_column_width=None):
+        super().__init__(parent, highlight_hovered_row=False)
+        self._name_column_width = name_column_width
+
         # Setup context menu
-        self.context_menu = self.create_menu(EnvironmentPackagesMenu.PackageContextMenu)
-
-        # Setup table model
-        self.source_model = EnvironmentPackagesModel(self)
-        self.setModel(self.source_model)
-
-        # Setup table
-        self.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.setEditTriggers(QAbstractItemView.AllEditTriggers)
-        self.verticalHeader().hide()
-        self.horizontalHeader().setStretchLastSection(True)
-        self.load_packages(False)
+        # self.context_menu = self.create_menu(EnvironmentPackagesMenu.PackageContextMenu)
 
     def get_package_info(self, index):
         """
@@ -165,7 +163,11 @@ class EnvironmentPackagesTable(QTableView, SpyderWidgetMixin):
         """
         return self.source_model.packages[index]
 
-    def load_packages(self, only_requested=False, packages=None):
+    def load_packages(
+        self,
+        packages: list[PackageInfo] | None = None,
+        only_requested: bool = False,
+    ):
         """
         Load given packages and filter them if needed.
 
@@ -174,44 +176,20 @@ class EnvironmentPackagesTable(QTableView, SpyderWidgetMixin):
         only_requested : bool, optional
             True if the packages should be filtered and only requested packages
             be kept. The default is False.
-        packages : list[dict], optional
+        packages : list[PackageInfo], optional
             List of packages to be displayed on the widget. The default is None.
-            The expected package structure is as follows:
-
-
-            ```
-            packages = [
-                {
-                    "name": "package name",
-                    "description": "package description",
-                    "version": "0.0.1",
-                    "requested": False,
-                },
-            ]
-            ```
-
-        Returns
-        -------
-        None.
-
         """
-
-        if packages:
-            self.source_model.all_packages = packages
-        if not packages and self.source_model.all_packages:
-            packages = self.source_model.all_packages
         if packages:
             if only_requested:
                 packages = list(filter(lambda package: package["requested"], packages))
-            for idx, package in enumerate(packages):
-                package["index"] = idx
-            packages_map = {package["name"]: package for package in packages}
-            self.source_model.beginResetModel()
-            self.source_model.packages = packages
-            self.source_model.packages_map = packages_map
-            self.source_model.endResetModel()
 
-            self.resizeColumnToContents(NAME)
+            if self.elements is None:
+                self.setup_elements(packages, set_layout=True)
+            else:
+                self.replace_elements(packages)
+
+            if self._name_column_width is not None:
+                self.horizontalHeader().resizeSection(0, self._name_column_width + 9)
 
     def next_row(self):
         """Move to next row from currently selected row."""

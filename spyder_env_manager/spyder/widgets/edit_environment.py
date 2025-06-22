@@ -5,6 +5,8 @@
 # Licensed under the terms of the MIT license
 # -----------------------------------------------------------------------------
 
+import functools
+
 import qstylizer.style
 from qtpy.QtCore import QSize
 from qtpy.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout
@@ -12,9 +14,15 @@ from qtpy.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout
 from spyder.api.fonts import SpyderFontType, SpyderFontsMixin
 from spyder.api.translations import _
 from spyder.utils.icon_manager import ima
+from spyder.utils.palette import SpyderPalette
 from spyder.utils.qthelpers import create_toolbutton
 from spyder.utils.stylesheet import AppStyle
 from spyder.widgets.config import SpyderConfigPage
+
+from spyder_env_manager.spyder.widgets.packages_table import (
+    EnvironmentPackagesTable,
+    PackageInfo,
+)
 
 
 class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
@@ -25,6 +33,8 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
 
     def __init__(self, parent):
         super().__init__(parent)
+
+        self._packages_to_change: list[PackageInfo] = []
 
         big_font = self.get_font(SpyderFontType.Interface)
         big_font.setPointSize(big_font.pointSize() + 1)
@@ -45,24 +55,28 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
         second_line_layout.addStretch()
         second_line_layout.addWidget(self.python_version)
 
-        package_name = self.create_lineedit(
+        self._package_name = self.create_lineedit(
             text=_("Install package"),
             option=None,
             tip=_(
-                "Write here the package name as you will pass it to Conda, e.g pandas "
+                "Write the package name as you'd pass it to Conda, e.g pandas "
                 "or matplotlib"
             ),
         )
-        package_name.textbox.setMinimumWidth(400)
+        self._package_name.textbox.setMinimumWidth(400)
 
-        package_version = self.create_lineedit(
+        self._package_version = self.create_lineedit(
             text=_("Version"),
             option=None,
             tip=_("If no version is provided, the latest one will be installed"),
             placeholder=_("Latest"),
         )
 
-        add_package_button = create_toolbutton(self, icon=ima.icon("edit_add"))
+        add_package_button = create_toolbutton(
+            self,
+            icon=ima.icon("edit_add"),
+            triggered=self._on_add_package_button_clicked,
+        )
         add_package_button.setIconSize(
             QSize(AppStyle.ConfigPageIconSize, AppStyle.ConfigPageIconSize)
         )
@@ -73,17 +87,27 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
         add_package_layout.addWidget(add_package_button)
 
         fields_layout = QHBoxLayout()
-        fields_layout.addWidget(package_name)
-        fields_layout.addWidget(package_version)
+        fields_layout.addWidget(self._package_name)
+        fields_layout.addSpacing(2 * AppStyle.MarginSize)
+        fields_layout.addWidget(self._package_version)
         fields_layout.addSpacing(2 * AppStyle.MarginSize)
         fields_layout.addLayout(add_package_layout)
+
+        packages_table_header = QLabel(_("Packages to install"))
+        packages_table_header.setObjectName("packages-table-header")
+
+        self._packages_table = EnvironmentPackagesTable(self, name_column_width=400)
+        self._packages_table.setObjectName("packages-table")
 
         layout = QVBoxLayout()
         layout.setSpacing(0)
         layout.setContentsMargins(  # FIXME!
-            5 * AppStyle.MarginSize,
+            6 * AppStyle.MarginSize + 1,
             6 * AppStyle.MarginSize,
-            2 * AppStyle.MarginSize,
+            # There are some pixels by default on the right side. Don't know where they
+            # come from and can't get rid of them. But with the ones added below we
+            # have almost the same as in the left side.
+            2 * AppStyle.MarginSize + 1,
             2 * AppStyle.MarginSize,
         )
 
@@ -92,6 +116,9 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
         layout.addLayout(second_line_layout)
         layout.addSpacing(3 * AppStyle.MarginSize)
         layout.addLayout(fields_layout)
+        layout.addSpacing(8 * AppStyle.MarginSize)
+        layout.addWidget(packages_table_header)
+        layout.addWidget(self._packages_table)
         layout.addStretch()
 
         self.setLayout(layout)
@@ -102,6 +129,40 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
         self.env_action.setText(_("Creating environment: ") + f"<b>{env_name}</b>")
         self.python_version.setText(f"<b>{python_version}</b>")
 
+    def _on_add_package_button_clicked(self):
+        name = self._package_name.textbox.text()
+        version = self._package_version.textbox.text()
+
+        remove_package_button = create_toolbutton(
+            self,
+            icon=ima.icon("edit_remove"),
+            triggered=functools.partial(self._on_remove_package_button_clicked, name),
+        )
+        remove_package_button.setIconSize(
+            QSize(AppStyle.ConfigPageIconSize, AppStyle.ConfigPageIconSize)
+        )
+
+        package_info = PackageInfo(
+            title=name,
+            additional_info=version if version else _("Latest"),
+            widget=remove_package_button,
+            requested=True,
+        )
+        self._packages_to_change.append(package_info)
+
+        self._packages_table.load_packages(
+            self._packages_to_change, only_requested=True
+        )
+
+    def _on_remove_package_button_clicked(self, package_name):
+        for package in self._packages_to_change:
+            if package["title"] == package_name:
+                package["requested"] = False
+
+        self._packages_table.load_packages(
+            self._packages_to_change, only_requested=True
+        )
+
     @property
     def _stylesheet(self):
         css = qstylizer.style.StyleSheet()
@@ -109,6 +170,42 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
         css.QToolButton.setValues(
             height="22px",
             width="22px",
+        )
+
+        # Remove indent automatically added by Qt because it breaks layout alignment
+        css.QLabel.setValues(**{"qproperty-indent": "0"})
+
+        # These margins were added to deal with the indent added by Qt above
+        self._package_name.textbox.setStyleSheet("margin-left: 0px")
+        self._package_version.textbox.setStyleSheet("margin-left: 0px")
+
+        css["QLabel#packages-table-header"].setValues(
+            # Increase padding (the default one is too small).
+            padding=f"{2 * AppStyle.MarginSize}px",
+            # Make it a bit different from a default QPushButton to not drag
+            # the same amount of attention to it.
+            backgroundColor=SpyderPalette.COLOR_BACKGROUND_3,
+            # Add top rounded borders
+            borderTopLeftRadius=SpyderPalette.SIZE_BORDER_RADIUS,
+            borderTopRightRadius=SpyderPalette.SIZE_BORDER_RADIUS,
+            # Remove bottom rounded borders
+            borderBottomLeftRadius="0px",
+            borderBottomRightRadius="0px",
+        )
+
+        css["QTableView#packages-table"].setValues(
+            # Remove these borders to make it appear attached to the top label
+            borderTop="0px",
+            borderTopLeftRadius="0px",
+            borderTopRightRadius="0px",
+            # Match border color with the top label one and avoid to change
+            # that color when the widget is given focus
+            borderLeft=f"1px solid {SpyderPalette.COLOR_BACKGROUND_3}",
+            borderRight=f"1px solid {SpyderPalette.COLOR_BACKGROUND_3}",
+            borderBottom=f"1px solid {SpyderPalette.COLOR_BACKGROUND_3}",
+            # Make row borders go from the left to the right edge of the table
+            paddingLeft="0px",
+            paddingRight="0px",
         )
 
         return css.toString()
