@@ -32,6 +32,7 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
     LOAD_FROM_CONFIG = False
 
     sig_packages_changed = Signal(bool)
+    sig_packages_loaded = Signal()
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -74,19 +75,19 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
             placeholder=_("Latest"),
         )
 
-        add_package_button = create_toolbutton(
+        self._add_package_button = create_toolbutton(
             self,
             icon=ima.icon("edit_add"),
             triggered=self._on_add_package_button_clicked,
         )
-        add_package_button.setIconSize(
+        self._add_package_button.setIconSize(
             QSize(AppStyle.ConfigPageIconSize, AppStyle.ConfigPageIconSize)
         )
 
         add_package_layout = QVBoxLayout()
         # Empty label to show the button aligned with the lineedits in the second row
         add_package_layout.addWidget(QLabel(" "))
-        add_package_layout.addWidget(add_package_button)
+        add_package_layout.addWidget(self._add_package_button)
 
         fields_layout = QHBoxLayout()
         fields_layout.addWidget(self._package_name)
@@ -155,6 +156,14 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
 
             # Load packages into the table
             self._packages_table.load_packages(packages, only_requested)
+
+            self.sig_packages_loaded.emit()
+
+    def set_enabled(self, state: bool):
+        self._package_name.textbox.setEnabled(state)
+        self._package_version.textbox.setEnabled(state)
+        self._add_package_button.setEnabled(state)
+        self._packages_table.set_enabled(state, change_text_color=not state)
 
     def _transform_packages_list_to_info(self, packages_list):
         """

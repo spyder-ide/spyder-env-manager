@@ -325,14 +325,12 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             if action_id not in PluginMainWidgetActions.__dict__.values():
                 action.setEnabled(False)
         self.select_environment.setDisabled(True)
-        self.edit_env_widget.setDisabled(True)
         super().start_spinner()
 
     def stop_spinner(self):
         self.actions_enabled = True
         self.update_actions()
         self.select_environment.setDisabled(False)
-        self.edit_env_widget.setDisabled(False)
         super().stop_spinner()
 
     def on_close(self):

@@ -42,6 +42,9 @@ class EnvManagerDialog(QDialog):
         self._envs_manager.sig_new_env_widget_is_shown.connect(
             self._on_new_env_widget_shown
         )
+        self._envs_manager.edit_env_widget.sig_packages_loaded.connect(
+            self._on_packages_loaded
+        )
 
         buttons_box, buttons_layout = self._create_buttons()
         buttons_box.rejected.connect(self.reject)
@@ -83,6 +86,8 @@ class EnvManagerDialog(QDialog):
 
     def _create_buttons(self):
         bbox = SpyderDialogButtonBox(QDialogButtonBox.Cancel)
+
+        self._button_cancel = bbox.button(QDialogButtonBox.Cancel)
 
         self._button_next = QPushButton(_("Next"))
         self._button_next.clicked.connect(self._on_next_button_clicked)
@@ -127,6 +132,16 @@ class EnvManagerDialog(QDialog):
             self._changed_packages,
         )
 
+        self._button_back.setVisible(False)
+        self._button_create.setEnabled(False)
+        self._button_cancel.setEnabled(False)
+        self._envs_manager.edit_env_widget.set_enabled(False)
+
     def _on_back_button_clicked(self):
         self._envs_manager.show_new_env_widget()
         self._set_buttons_state(is_new_env_widget_visible=True)
+
+    def _on_packages_loaded(self):
+        self._button_create.setVisible(False)
+        self._button_cancel.setEnabled(True)
+        self._envs_manager.edit_env_widget.set_enabled(True)

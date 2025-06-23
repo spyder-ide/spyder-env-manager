@@ -142,6 +142,7 @@ class EnvironmentPackagesTable(ElementsTable):
     def __init__(self, parent, name_column_width=None):
         super().__init__(parent, highlight_hovered_row=False)
         self._name_column_width = name_column_width
+        self._packages: list[PackageInfo] | None = None
 
         # Setup context menu
         # self.context_menu = self.create_menu(EnvironmentPackagesMenu.PackageContextMenu)
@@ -183,6 +184,9 @@ class EnvironmentPackagesTable(ElementsTable):
             if only_requested:
                 packages = list(filter(lambda package: package["requested"], packages))
 
+            # Save list of packages to use them later
+            self._packages = packages
+
             if self.elements is None:
                 self.setup_elements(packages, set_layout=True)
             else:
@@ -190,6 +194,15 @@ class EnvironmentPackagesTable(ElementsTable):
 
             if self._name_column_width is not None:
                 self.horizontalHeader().resizeSection(0, self._name_column_width + 9)
+
+    def set_enabled(self, state, change_text_color=False):
+        self.setEnabled(state)
+        if change_text_color:
+            for package in self._packages:
+                package["title_color"] = SpyderPalette.COLOR_DISABLED
+                package["additional_info_color"] = SpyderPalette.COLOR_DISABLED
+
+            self.load_packages(self._packages)
 
     def next_row(self):
         """Move to next row from currently selected row."""
