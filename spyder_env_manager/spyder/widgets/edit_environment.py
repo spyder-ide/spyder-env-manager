@@ -165,6 +165,11 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
         self._add_package_button.setEnabled(state)
         self._packages_table.set_enabled(state, change_text_color=not state)
 
+    def clear_content(self):
+        self._clear_lineedits()
+        if self._packages_table.elements is not None:
+            self._packages_table.clear_elements()
+
     def _transform_packages_list_to_info(self, packages_list):
         """
         Transform packages list in the envs-manager format to the one used to display
@@ -203,6 +208,7 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
             self._packages_to_change, only_requested=True
         )
 
+        self._clear_lineedits()
         self.sig_packages_changed.emit(True)
 
     def _on_remove_package_button_clicked(self, package_name):
@@ -230,6 +236,10 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
         )
 
         return button
+
+    def _clear_lineedits(self):
+        self._package_name.textbox.clear()
+        self._package_version.textbox.clear()
 
     @property
     def _stylesheet(self):

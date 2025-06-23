@@ -294,7 +294,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                     environment_path=current_environment_path
                 )
         else:
-            self.stack_widget.setCurrentWidget(self.new_env_widget)
+            self.show_new_env_widget()
             self.stop_spinner()
 
     def update_actions(self):

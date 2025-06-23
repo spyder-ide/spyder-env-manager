@@ -87,6 +87,7 @@ class EnvManagerDialog(QDialog):
 
     def _on_new_env_widget_shown(self):
         self._set_buttons_state(is_new_env_widget_visible=True)
+        self._envs_manager.edit_env_widget.clear_content()
 
     def _create_buttons(self):
         bbox = SpyderDialogButtonBox(QDialogButtonBox.Cancel)
