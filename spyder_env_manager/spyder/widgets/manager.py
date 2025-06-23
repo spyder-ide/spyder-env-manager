@@ -43,7 +43,7 @@ from spyder.utils.icon_manager import ima
 from spyder.utils.palette import SpyderPalette
 
 # Local imports
-from spyder_env_manager.spyder.api import ManagerRequest
+from spyder_env_manager.spyder.api import ManagerRequest, SpyderEnvManagerWidgetActions
 from spyder_env_manager.spyder.workers import EnvironmentManagerWorker
 from spyder_env_manager.spyder.widgets.helper_widgets import (
     CustomParametersDialog,
@@ -53,7 +53,6 @@ from spyder_env_manager.spyder.widgets.edit_environment import EditEnvironment
 from spyder_env_manager.spyder.widgets.new_environment import NewEnvironment
 from spyder_env_manager.spyder.widgets.packages_table import (
     EnvironmentPackagesActions,
-    EnvironmentPackagesTable,
 )
 
 # Localization
@@ -64,21 +63,6 @@ _ = get_translation("spyder")
 # ---- Constants
 # =============================================================================
 SPYDER_KERNELS_VERSION = SPYDER_KERNELS_REQVER.split(";")[0]
-
-
-class SpyderEnvManagerWidgetActions:
-    # Triggers
-    SelectEnvironment = "select_environment"
-    NewEnvironment = "new_environment"
-    DeleteEnvironment = "delete_environment"
-    InstallPackage = "install_package"
-    ListPackages = "list_packages"
-
-    # Options menu actions
-    ImportEnvironment = "import_environment_action"
-    ExportEnvironment = "export_environment_action"
-    ToggleExcludeDependency = "exclude_dependency_action"
-    ToggleEnvironmentAsCustomInterpreter = "environment_as_custom_interpreter"
 
 
 class SpyderEnvManagerWidgetOptionsMenuSections:
@@ -146,24 +130,16 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.new_env_widget = NewEnvironment(self)
         self.edit_env_widget = EditEnvironment(self)
 
-        # Package table widget
-        self.packages_table = EnvironmentPackagesTable(self)
-
         # Stackedwidget and layout
         self.stack_widget = QStackedWidget(self)
         self.stack_widget.addWidget(self.new_env_widget)
         self.stack_widget.addWidget(self.edit_env_widget)
-        self.stack_widget.addWidget(self.packages_table)
 
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.stack_widget)
         self.setLayout(layout)
 
-        # Signals
-        self.packages_table.sig_action_context_menu.connect(
-            self._handle_package_table_context_menu_actions
-        )
         self.select_environment.currentIndexChanged.connect(
             self.current_environment_changed
         )
@@ -310,7 +286,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._run_action_for_env(
                 dialog=None, action=SpyderEnvManagerWidgetActions.ListPackages
             )
-            self.stack_widget.setCurrentWidget(self.packages_table)
+            self.stack_widget.setCurrentWidget(self.edit_env_widget)
             if self.get_conf(
                 SpyderEnvManagerWidgetActions.ToggleEnvironmentAsCustomInterpreter,
             ):
@@ -340,7 +316,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def update_packages(self, only_requested, packages=None):
         self.exclude_non_requested_packages = only_requested
-        self.packages_table.load_packages(only_requested, packages)
+        self.edit_env_widget.load_env_packages(packages, only_requested)
         self.stop_spinner()
 
     def start_spinner(self):
@@ -349,14 +325,14 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             if action_id not in PluginMainWidgetActions.__dict__.values():
                 action.setEnabled(False)
         self.select_environment.setDisabled(True)
-        self.packages_table.setDisabled(True)
+        self.edit_env_widget.setDisabled(True)
         super().start_spinner()
 
     def stop_spinner(self):
         self.actions_enabled = True
         self.update_actions()
         self.select_environment.setDisabled(False)
-        self.packages_table.setDisabled(False)
+        self.edit_env_widget.setDisabled(False)
         super().stop_spinner()
 
     def on_close(self):
@@ -804,7 +780,14 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         else:
             self._message_error_box("Action unavailable at this moment.")
 
-    def _run_action_for_env(self, dialog=None, action=None):
+    def _run_action_for_env(
+        self,
+        action,
+        env_name=None,
+        python_version=None,
+        packages=None,
+        dialog=None,
+    ):
         """
         Setup an environment manager instance and run an environment related
         action through it.
@@ -819,21 +802,13 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         action : str, optional
             Environment action to be performed. The action should defined on the
             `SpyderEnvManagerWidgetActions` enum class. The default is None.
-
-        Returns
-        -------
-        None.
-
         """
         backend = PixiInterface.ID
-        if dialog and action == SpyderEnvManagerWidgetActions.NewEnvironment:
-            backend = dialog.combobox.currentText()
-            env_name = dialog.lineedit_string.text()
-            python_version = dialog.combobox_edit.currentText()
+        if action == SpyderEnvManagerWidgetActions.NewEnvironment:
             packages = [
                 f"python={python_version}",
                 f"spyder-kernels{SPYDER_KERNELS_VERSION}",
-            ]
+            ] + ([] if packages is None else packages)
 
             request = ManagerRequest(
                 manager_options=ManagerOptions(

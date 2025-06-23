@@ -23,6 +23,10 @@ from spyder.api.translations import _
 from spyder.api.widgets.dialogs import SpyderDialogButtonBox
 from spyder.utils.stylesheet import AppStyle, MAC
 
+# Local imports
+from spyder_env_manager.spyder.api import SpyderEnvManagerWidgetActions
+
+
 if TYPE_CHECKING:
     from spyder_env_manager.spyder.widgets.manager import SpyderEnvManagerWidget
 
@@ -36,7 +40,7 @@ class EnvManagerDialog(QDialog):
         self._envs_manager: SpyderEnvManagerWidget = envs_manager
         self._envs_manager.show_new_env_widget()
         self._envs_manager.sig_new_env_widget_is_shown.connect(
-            self._on_new_widget_shown
+            self._on_new_env_widget_shown
         )
 
         buttons_box, buttons_layout = self._create_buttons()
@@ -62,7 +66,19 @@ class EnvManagerDialog(QDialog):
 
         super().showEvent(event)
 
-    def _on_new_widget_shown(self):
+    @property
+    def _env_name(self):
+        return self._envs_manager.new_env_widget.get_env_name().strip()
+
+    @property
+    def _python_version(self):
+        return self._envs_manager.new_env_widget.get_python_version()
+
+    @property
+    def _changed_packages(self):
+        return self._envs_manager.edit_env_widget.get_changed_packages()
+
+    def _on_new_env_widget_shown(self):
         self._set_buttons_state(is_new_env_widget_visible=True)
 
     def _create_buttons(self):
@@ -79,6 +95,9 @@ class EnvManagerDialog(QDialog):
         self._button_create = QPushButton(_("Create"))
         self._button_create.clicked.connect(self._on_create_button_clicked)
         self._button_create.setEnabled(False)
+        self._envs_manager.edit_env_widget.sig_packages_changed.connect(
+            self._button_create.setEnabled
+        )
         bbox.addButton(self._button_create, QDialogButtonBox.ActionRole)
 
         layout = QHBoxLayout()
@@ -95,15 +114,18 @@ class EnvManagerDialog(QDialog):
         if not self._envs_manager.new_env_widget.validate_page():
             return
 
-        env_name = self._envs_manager.new_env_widget.get_env_name()
-        python_version = self._envs_manager.new_env_widget.get_python_version()
-        self._envs_manager.set_env_metadata(env_name, python_version)
+        self._envs_manager.set_env_metadata(self._env_name, self._python_version)
 
         self._envs_manager.show_edit_env_widget()
         self._set_buttons_state(is_new_env_widget_visible=False)
 
     def _on_create_button_clicked(self):
-        pass
+        self._envs_manager._run_action_for_env(
+            SpyderEnvManagerWidgetActions.NewEnvironment,
+            self._env_name,
+            self._python_version,
+            self._changed_packages,
+        )
 
     def _on_back_button_clicked(self):
         self._envs_manager.show_new_env_widget()

@@ -8,7 +8,7 @@
 import functools
 
 import qstylizer.style
-from qtpy.QtCore import QSize
+from qtpy.QtCore import QSize, Signal
 from qtpy.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout
 
 from spyder.api.fonts import SpyderFontType, SpyderFontsMixin
@@ -30,6 +30,8 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
     # SpyderConfigPage API
     MIN_HEIGHT = 100
     LOAD_FROM_CONFIG = False
+
+    sig_packages_changed = Signal(bool)
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -129,19 +131,57 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
         self.env_action.setText(_("Creating environment: ") + f"<b>{env_name}</b>")
         self.python_version.setText(f"<b>{python_version}</b>")
 
+    def get_changed_packages(self):
+        packages_to_change = []
+        for package in self._packages_to_change:
+            if package["requested"]:
+                name = package["title"]
+                version = package["additional_info"]
+                package_to_install = (
+                    f"{name}={version}" if version != _("Latest") else name
+                )
+                packages_to_change.append(package_to_install)
+
+        return packages_to_change
+
+    def load_env_packages(self, packages, only_requested):
+        """Load the environment packages."""
+        if packages is not None:
+            if not packages[0].get("title"):
+                packages = self._transform_packages_list_to_info(packages)
+
+            # Reset this list to avoid a Qt error.
+            self._packages_to_change = []
+
+            # Load packages into the table
+            self._packages_table.load_packages(packages, only_requested)
+
+    def _transform_packages_list_to_info(self, packages_list):
+        """
+        Transform packages list in the envs-manager format to the one used to display
+        them in packages_table.
+        """
+        packages_info = []
+        for package in packages_list:
+            info = PackageInfo(
+                title=package["name"],
+                additional_info=package["version"],
+                requested=package["requested"],
+                # description=package["description"],
+            )
+
+            if package["requested"]:
+                info["widget"] = self._create_remove_package_button(package["name"])
+
+            packages_info.append(info)
+
+        return packages_info
+
     def _on_add_package_button_clicked(self):
-        name = self._package_name.textbox.text()
-        version = self._package_version.textbox.text()
+        name = self._package_name.textbox.text().strip()
+        version = self._package_version.textbox.text().strip()
 
-        remove_package_button = create_toolbutton(
-            self,
-            icon=ima.icon("edit_remove"),
-            triggered=functools.partial(self._on_remove_package_button_clicked, name),
-        )
-        remove_package_button.setIconSize(
-            QSize(AppStyle.ConfigPageIconSize, AppStyle.ConfigPageIconSize)
-        )
-
+        remove_package_button = self._create_remove_package_button(name)
         package_info = PackageInfo(
             title=name,
             additional_info=version if version else _("Latest"),
@@ -154,6 +194,8 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
             self._packages_to_change, only_requested=True
         )
 
+        self.sig_packages_changed.emit(True)
+
     def _on_remove_package_button_clicked(self, package_name):
         for package in self._packages_to_change:
             if package["title"] == package_name:
@@ -163,13 +205,30 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
             self._packages_to_change, only_requested=True
         )
 
+        if self._packages_table.model.rowCount() == 0:
+            self.sig_packages_changed.emit(False)
+
+    def _create_remove_package_button(self, package_name):
+        button = create_toolbutton(
+            self,
+            icon=ima.icon("edit_remove"),
+            triggered=functools.partial(
+                self._on_remove_package_button_clicked, package_name
+            ),
+        )
+        button.setIconSize(
+            QSize(AppStyle.ConfigPageIconSize - 2, AppStyle.ConfigPageIconSize - 2)
+        )
+
+        return button
+
     @property
     def _stylesheet(self):
         css = qstylizer.style.StyleSheet()
 
         css.QToolButton.setValues(
-            height="22px",
-            width="22px",
+            height="20px",
+            width="20px",
         )
 
         # Remove indent automatically added by Qt because it breaks layout alignment
