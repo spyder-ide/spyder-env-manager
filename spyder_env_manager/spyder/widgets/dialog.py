@@ -10,6 +10,7 @@
 from typing import TYPE_CHECKING
 
 # Third-party imports
+from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -33,8 +34,11 @@ if TYPE_CHECKING:
 
 class EnvManagerDialog(QDialog):
 
-    def __init__(self, parent, envs_manager):
+    def __init__(self, parent, envs_manager, title: str, icon: QIcon):
         super().__init__(parent)
+
+        self.setWindowTitle(title)
+        self.setWindowIcon(icon)
 
         self._is_shown = False
         self._envs_manager: SpyderEnvManagerWidget = envs_manager

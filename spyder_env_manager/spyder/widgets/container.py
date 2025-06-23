@@ -9,7 +9,6 @@
 """Spyder env manager container."""
 
 # Spyder imports
-from spyder.api.translations import _
 from spyder.api.widgets.main_container import PluginMainContainer
 
 # Local imports
@@ -30,7 +29,7 @@ class SpyderEnvManagerContainer(PluginMainContainer):
         # Widgets
         self.create_action(
             SpyderEnvManagerActions.ToolsMenuAction,
-            _("Environment manager..."),
+            self._plugin.get_name() + "...",
             icon=self._plugin.get_icon(),
             triggered=self._show_envs_dialog,
         )
@@ -41,5 +40,10 @@ class SpyderEnvManagerContainer(PluginMainContainer):
     # ---- Private API
     # -------------------------------------------------------------------------
     def _show_envs_dialog(self):
-        dialog = EnvManagerDialog(self, self.envs_manager)
+        dialog = EnvManagerDialog(
+            self,
+            self.envs_manager,
+            title=self._plugin.get_name(),
+            icon=self._plugin.get_icon(),
+        )
         dialog.show()
