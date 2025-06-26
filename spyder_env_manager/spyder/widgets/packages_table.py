@@ -197,12 +197,16 @@ class EnvironmentPackagesTable(ElementsTable):
 
     def set_enabled(self, state, change_text_color=False):
         self.setEnabled(state)
-        if change_text_color:
+        if change_text_color and self._packages:
             for package in self._packages:
                 package["title_color"] = SpyderPalette.COLOR_DISABLED
                 package["additional_info_color"] = SpyderPalette.COLOR_DISABLED
 
             self.load_packages(self._packages)
+
+    def clear_content(self):
+        self._packages = None
+        self.clear_elements()
 
     def next_row(self):
         """Move to next row from currently selected row."""

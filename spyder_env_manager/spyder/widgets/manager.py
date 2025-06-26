@@ -50,6 +50,7 @@ from spyder_env_manager.spyder.widgets.helper_widgets import (
     CustomParametersDialogWidgets,
 )
 from spyder_env_manager.spyder.widgets.edit_environment import EditEnvironment
+from spyder_env_manager.spyder.widgets.list_environments import ListEnvironments
 from spyder_env_manager.spyder.widgets.new_environment import NewEnvironment
 from spyder_env_manager.spyder.widgets.packages_table import (
     EnvironmentPackagesActions,
@@ -72,6 +73,18 @@ class SpyderEnvManagerWidgetOptionsMenuSections:
 
 class SpyderEnvManagerWidgetMainToolBarSections:
     Main = "main_section"
+
+
+class AvailableManagerWidgets:
+    NewEnvWidget = "new_env"
+    ListEnvsWidget = "list_envs"
+    EditEnvWidget = "edit_env"
+
+
+class EditEnvActions:
+    CreateEnv = "create_env"
+    EditEnv = "edit_env"
+    NoAction = "no_action"
 
 
 # =============================================================================
@@ -97,11 +110,23 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         Path to the environment Python interpreter.
     """
 
-    sig_new_env_widget_is_shown = Signal()
-    """Signal used to inform that the new_env_widget is shown."""
+    sig_widget_is_shown = Signal(str, str)
+    """
+    Signal used to inform that one of the available stacked widgets is shown.
+
+    Parameters
+    ----------
+    widget: AvailableManagerWidgets
+        Widget that's shown at the moment.
+    edit_action: EditEnvActions
+        Action that edit_env_widget will perform.
+    """
 
     def __init__(self, name, plugin, parent=None):
         super().__init__(name, plugin, parent=parent)
+
+        # Since this is not part of dockable plugin, we don't need these margins
+        self._margin_left = self._margin_right = self._margin_bottom = 0
 
         # Set min size
         self.setMinimumWidth(640)
@@ -129,20 +154,23 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         # Env widgets
         self.new_env_widget = NewEnvironment(self)
         self.edit_env_widget = EditEnvironment(self)
+        self.list_envs_widget = ListEnvironments(self)
+
+        # Signals
+        self.list_envs_widget.sig_edit_env_requested.connect(
+            self.current_environment_changed
+        )
 
         # Stackedwidget and layout
         self.stack_widget = QStackedWidget(self)
         self.stack_widget.addWidget(self.new_env_widget)
         self.stack_widget.addWidget(self.edit_env_widget)
+        self.stack_widget.addWidget(self.list_envs_widget)
 
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.stack_widget)
         self.setLayout(layout)
-
-        self.select_environment.currentIndexChanged.connect(
-            self.current_environment_changed
-        )
 
         # Request the list of environments to populate the widget
         self._envs_listed = False
@@ -263,7 +291,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         self.current_environment_changed()
 
-    def current_environment_changed(self, index=None):
+    def current_environment_changed(
+        self, environment_name: str | None = None, environment_path: str | None = None
+    ):
         """
         Handle changing environment or changes inside the current environment.
 
@@ -275,23 +305,20 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         index : int, optional
             Index of the current environment selected. The default is None.
         """
-        if index:
-            current_environment_path = self.select_environment.itemData(index)
-        else:
-            current_environment_path = self.select_environment.currentData()
-
-        environments_available = current_environment_path is not None
+        environments_available = environment_path is not None
         if environments_available:
             self.start_spinner()
             self._run_action_for_env(
-                dialog=None, action=SpyderEnvManagerWidgetActions.ListPackages
+                action=SpyderEnvManagerWidgetActions.ListPackages,
+                env_name=environment_name,
+                env_directory=environment_path,
             )
-            self.stack_widget.setCurrentWidget(self.edit_env_widget)
+            self.show_edit_env_widget(action=EditEnvActions.EditEnv)
             if self.get_conf(
                 SpyderEnvManagerWidgetActions.ToggleEnvironmentAsCustomInterpreter,
             ):
                 self._environment_as_custom_interpreter(
-                    environment_path=current_environment_path
+                    environment_path=environment_path
                 )
         else:
             self.show_new_env_widget()
@@ -314,9 +341,13 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 else:
                     action.setEnabled(True)
 
-    def update_packages(self, only_requested, packages=None):
+    def update_packages(
+        self, only_requested, packages=None, env_name=None, env_directory=None
+    ):
         self.exclude_non_requested_packages = only_requested
-        self.edit_env_widget.load_env_packages(packages, only_requested)
+        self.edit_env_widget.load_env_packages(
+            packages, env_name, env_directory, only_requested
+        )
         self.stop_spinner()
 
     def start_spinner(self):
@@ -347,13 +378,19 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     # ------------------------------------------------------------------------
     def show_new_env_widget(self):
         self.stack_widget.setCurrentWidget(self.new_env_widget)
-        self.sig_new_env_widget_is_shown.emit()
+        self.sig_widget_is_shown.emit(
+            AvailableManagerWidgets.NewEnvWidget, EditEnvActions.NoAction
+        )
 
-    def show_edit_env_widget(self):
+    def show_edit_env_widget(self, action: EditEnvActions):
         self.stack_widget.setCurrentWidget(self.edit_env_widget)
+        self.sig_widget_is_shown.emit(AvailableManagerWidgets.EditEnvWidget, action)
 
-    def set_env_metadata(self, env_name, python_version):
-        self.edit_env_widget.setup(env_name, python_version)
+    def show_list_envs_widget(self):
+        self.stack_widget.setCurrentWidget(self.list_envs_widget)
+        self.sig_widget_is_shown.emit(
+            AvailableManagerWidgets.ListEnvsWidget, EditEnvActions.NoAction
+        )
 
     # ---- Private API
     # ------------------------------------------------------------------------
@@ -487,10 +524,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             env_name = manager_options["env_name"]
             env_directory = manager_options["env_directory"]
 
-            if not self.envs_available:
-                self.select_environment.clear()
-            self.select_environment.addItem(env_name, env_directory)
-            self.select_environment.setCurrentText(env_name)
+            self.current_environment_changed(env_name, env_directory)
+            self.list_envs_widget.add_environment(env_name, env_directory)
             self.set_conf("selected_environment", env_name)
             self.envs_available = True
         else:
@@ -512,10 +547,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         if not envs:
             self.envs_available = False
-            self.select_environment.addItem(self.NO_ENVIRONMENTS_AVAILABLE, None)
+            self.show_new_env_widget()
         else:
-            for env_name, env_directory in envs.items():
-                self.select_environment.addItem(env_name, env_directory)
+            self.list_envs_widget.setup_environments(envs)
+            self.show_list_envs_widget()
             self.envs_available = True
 
         self._envs_listed = True
@@ -664,7 +699,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         """
         if action_result:
             self.update_packages(
-                self.exclude_non_requested_packages, result_message["packages"]
+                self.exclude_non_requested_packages,
+                result_message["packages"],
+                manager_options["env_name"],
+                manager_options["env_directory"],
             )
         else:
             self._message_error_box(result_message)
@@ -781,9 +819,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     def _run_action_for_env(
         self,
         action,
-        env_name=None,
-        python_version=None,
-        packages=None,
+        env_name: str | None = None,
+        env_directory: str | None = None,
+        python_version: str | None = None,
+        packages: list[str] | None = None,
         dialog=None,
     ):
         """
@@ -883,11 +922,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
             self._run_env_manager_action(request, self._after_delete_environment)
         elif action == SpyderEnvManagerWidgetActions.ListPackages:
-            env_directory = self.select_environment.currentData()
             if env_directory:
                 request = ManagerRequest(
                     manager_options=ManagerOptions(
                         backend=backend,
+                        env_name=env_name,
                         env_directory=env_directory,
                     ),
                     action=ManagerActions.ListPackages,
@@ -1105,8 +1144,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         css = qstylizer.style.StyleSheet()
 
         css["QStackedWidget"].setValues(
-            border=f"1px solid {SpyderPalette.COLOR_BACKGROUND_4}",
-            borderRadius=SpyderPalette.SIZE_BORDER_RADIUS,
+            borderTop=f"1px solid {SpyderPalette.COLOR_BACKGROUND_4}",
+            borderRadius="0px",
         )
 
         return css.toString()

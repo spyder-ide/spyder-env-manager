@@ -105,13 +105,14 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
         layout = QVBoxLayout()
         layout.setSpacing(0)
         layout.setContentsMargins(  # FIXME!
-            6 * AppStyle.MarginSize + 1,
-            6 * AppStyle.MarginSize,
             # There are some pixels by default on the right side. Don't know where they
             # come from and can't get rid of them. But with the ones added below we
             # have almost the same as in the left side.
-            2 * AppStyle.MarginSize + 1,
-            2 * AppStyle.MarginSize,
+            7 * AppStyle.MarginSize,
+            6 * AppStyle.MarginSize,
+            0,
+            # The bottom margin is set by the dialog
+            0,
         )
 
         layout.addLayout(first_line_layout)
@@ -128,8 +129,17 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
 
         self.setStyleSheet(self._stylesheet)
 
-    def setup(self, env_name: str, python_version: str):
-        self.env_action.setText(_("Creating environment: ") + f"<b>{env_name}</b>")
+    # ---- Public API
+    # ---------------------------------------------------------------------------------
+    def setup(
+        self, env_name: str, python_version: str, env_directory: str | None = None
+    ):
+        if env_directory is not None:
+            action = _("Editing environment: ")
+        else:
+            action = _("Creating environment: ")
+
+        self.env_action.setText(action + f"<b>{env_name}</b>")
         self.python_version.setText(f"<b>{python_version}</b>")
 
     def get_changed_packages(self):
@@ -145,19 +155,32 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
 
         return packages_to_change
 
-    def load_env_packages(self, packages, only_requested):
+    def load_env_packages(
+        self,
+        packages: list[str],
+        env_name: str | None = None,
+        env_directory: str | None = None,
+        only_requested: bool = True,
+    ):
         """Load the environment packages."""
-        if packages is not None:
-            if not packages[0].get("title"):
-                packages = self._transform_packages_list_to_info(packages)
+        if not packages[0].get("title"):
+            packages = self._transform_packages_list_to_info(packages)
 
-            # Reset this list to avoid a Qt error.
-            self._packages_to_change = []
+        if env_name:
+            for package in packages:
+                if package["title"] == "python":
+                    python_version = package["additional_info"]
+                    break
 
-            # Load packages into the table
-            self._packages_table.load_packages(packages, only_requested)
+            self.setup(env_name, python_version, env_directory)
 
-            self.sig_packages_loaded.emit()
+        # Reset this list to avoid a Qt error.
+        self._packages_to_change = []
+
+        # Load packages into the table
+        self._packages_table.load_packages(packages, only_requested)
+
+        self.sig_packages_loaded.emit()
 
     def set_enabled(self, state: bool):
         self._package_name.textbox.setEnabled(state)
@@ -167,9 +190,12 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
 
     def clear_content(self):
         self._clear_lineedits()
+        self._packages_to_change = []
         if self._packages_table.elements is not None:
-            self._packages_table.clear_elements()
+            self._packages_table.clear_content()
 
+    # ---- Private API
+    # ---------------------------------------------------------------------------------
     def _transform_packages_list_to_info(self, packages_list):
         """
         Transform packages list in the envs-manager format to the one used to display

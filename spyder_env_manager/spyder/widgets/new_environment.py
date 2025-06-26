@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import qstylizer.style
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout
 
@@ -89,7 +90,16 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
         validation_layout.setAlignment(Qt.AlignHCenter)
 
         layout = QVBoxLayout()
-        layout.addSpacing(12 * AppStyle.MarginSize)
+        layout.setContentsMargins(
+            # There are some pixels by default on the right side. Don't know where they
+            # come from and can't get rid of them. But with the ones added below we
+            # have almost the same as in the left side.
+            6 * AppStyle.MarginSize,
+            15 * AppStyle.MarginSize,
+            0,
+            # The bottom margin is set by the dialog
+            0,
+        )
         layout.addLayout(header_layout)
         layout.addSpacing(5 * AppStyle.MarginSize)
         layout.addLayout(fields_layout)
@@ -97,6 +107,8 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
         layout.addLayout(validation_layout)
         layout.addStretch()
         self.setLayout(layout)
+
+        self.setStyleSheet(self._stylesheet)
 
     def get_env_name(self):
         env_name = self.env_name.textbox.text()
@@ -130,3 +142,15 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
     def _reset_validaton_state(self):
         self.env_name.status_action.setVisible(False)
         self.validation_label.setVisible(False)
+
+    @property
+    def _stylesheet(self):
+        css = qstylizer.style.StyleSheet()
+
+        # Remove indent automatically added by Qt because it breaks layout alignment
+        css.QLabel.setValues(**{"qproperty-indent": "0"})
+
+        # This margin was added to deal with the indent added by Qt above
+        self.env_name.textbox.setStyleSheet("margin-left: 0px")
+
+        return css.toString()
