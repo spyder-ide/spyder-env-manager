@@ -42,7 +42,7 @@ class EnvironmentsTable(ElementsTable, SpyderWidgetMixin):
 
     # ---- Public API
     # -------------------------------------------------------------------------
-    def setup_envs(self, envs: dict[str, str]):
+    def setup_envs(self, envs: dict[str, str], enabled: bool = True):
         elements = []
         for env_name, env_directory in envs.items():
 
@@ -99,12 +99,19 @@ class EnvironmentsTable(ElementsTable, SpyderWidgetMixin):
                 icon=ima.icon("python"),
                 widget=widget,
             )
+
+            if not enabled:
+                element["title_color"] = SpyderPalette.COLOR_DISABLED
+                element["description_color"] = SpyderPalette.COLOR_DISABLED
+
             elements.append(element)
 
         if self.elements is None:
             self.setup_elements(elements)
         else:
             self.replace_elements(elements)
+
+        self.setEnabled(enabled)
 
 
 class ListEnvironments(QWidget, SpyderFontsMixin):
@@ -116,8 +123,9 @@ class ListEnvironments(QWidget, SpyderFontsMixin):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        # To hold a reference to the available envs
-        self._envs = {}
+        # To hold a reference to the available envs. The mapping is
+        # env_name -> env_directory
+        self._envs: dict[str, str] = {}
 
         title_font = self.get_font(SpyderFontType.Interface)
         title_font.setPointSize(title_font.pointSize() + 2)
@@ -129,10 +137,10 @@ class ListEnvironments(QWidget, SpyderFontsMixin):
         self._table = EnvironmentsTable(self)
         self._table.setObjectName("envs-table")
 
-        finder = FinderWidget(
+        self._finder = FinderWidget(
             self, find_on_change=True, show_close_button=False, set_min_width=False
         )
-        finder.sig_find_text.connect(self._do_find)
+        self._finder.sig_find_text.connect(self._do_find)
 
         layout = QVBoxLayout()
         layout.setContentsMargins(
@@ -145,7 +153,7 @@ class ListEnvironments(QWidget, SpyderFontsMixin):
         layout.addWidget(title)
         layout.addSpacing(AppStyle.MarginSize)
         layout.addWidget(self._table)
-        layout.addWidget(finder)
+        layout.addWidget(self._finder)
         self.setLayout(layout)
 
         self.setStyleSheet(self._stylesheet)
@@ -162,6 +170,14 @@ class ListEnvironments(QWidget, SpyderFontsMixin):
     def add_environment(self, env_name: str, env_directory: str):
         self._envs[env_name] = env_directory
         self._table.setup_envs(self._envs)
+
+    def delete_environment(self, env_name: str):
+        self._envs.pop(env_name)
+        self._table.setup_envs(self._envs)
+
+    def set_enabled(self, state: bool):
+        self._finder.setEnabled(state)
+        self._table.setup_envs(self._envs, enabled=state)
 
     # ---- Private API
     # -------------------------------------------------------------------------

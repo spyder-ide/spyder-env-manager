@@ -20,7 +20,6 @@ from envs_manager.backends.pixi_interface import PixiInterface
 from envs_manager.manager import Manager
 from packaging.version import parse
 import qstylizer.style
-import qtawesome as qta
 from qtpy.QtCore import QThread, Signal
 from qtpy.QtWidgets import (
     QComboBox,
@@ -160,6 +159,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.list_envs_widget.sig_edit_env_requested.connect(
             self.current_environment_changed
         )
+        self.list_envs_widget.sig_delete_env_requested.connect(
+            self._message_delete_environment
+        )
 
         # Stackedwidget and layout
         self.stack_widget = QStackedWidget(self)
@@ -236,23 +238,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         new_environment_action = self.create_action(
             SpyderEnvManagerWidgetActions.NewEnvironment,
             text=_("New environment"),
-            icon=qta.icon("mdi.plus", color=ima.MAIN_FG_COLOR, rotated=270),
+            icon=ima.icon("edit_add"),
             triggered=self.show_new_env_widget,
-        )
-
-        delete_environment_action = self.create_action(
-            SpyderEnvManagerWidgetActions.DeleteEnvironment,
-            text=_("Delete environment"),
-            icon=self.create_icon("editclear"),
-            triggered=self._message_delete_environment,
-        )
-
-        install_package_action = self.create_action(
-            SpyderEnvManagerWidgetActions.InstallPackage,
-            text=_("Install package"),
-            icon=qta.icon("mdi.view-grid-plus-outline", color=ima.MAIN_FG_COLOR),
-            # mdi.toy-brick-plus-outline
-            triggered=self._message_install_package,
         )
 
         # Options menu
@@ -280,8 +267,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         for item in [
             self.select_environment,
             new_environment_action,
-            install_package_action,
-            delete_environment_action,
         ]:
             self.add_item_to_toolbar(
                 item,
@@ -671,11 +656,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             Options used to create the manager.
         """
         if action_result:
-            env_name = self.select_environment.currentIndex()
-            self.select_environment.removeItem(env_name)
-            if self.select_environment.count() == 0:
+            self.list_envs_widget.delete_environment(manager_options["env_name"])
+            self.list_envs_widget.set_enabled(True)
+            if not self.list_envs_widget.get_environments():
                 self.envs_available = False
-                self.select_environment.addItem(self.NO_ENVIRONMENTS_AVAILABLE, None)
+                self.show_new_env_widget()
         else:
             self._message_error_box(result_message)
         self.stop_spinner()
@@ -907,7 +892,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
             self._run_env_manager_action(request, self._after_package_changed)
         elif action == SpyderEnvManagerWidgetActions.DeleteEnvironment:
-            env_name = self.select_environment.currentText()
+            self.list_envs_widget.set_enabled(False)
 
             request = ManagerRequest(
                 manager_options=ManagerOptions(
@@ -972,13 +957,14 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             action=SpyderEnvManagerWidgetActions.ExportEnvironment,
         )
 
-    def _message_delete_environment(self):
+    def _message_delete_environment(self, env_name: str):
         title = _("Delete environment")
         messages = _("Are you sure you want to delete the current environment?")
         self._message_box(
             title,
             messages,
             action=SpyderEnvManagerWidgetActions.DeleteEnvironment,
+            env_name=env_name,
         )
 
     def _message_import_environment(self):
@@ -1000,23 +986,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             contents,
             types,
             action=SpyderEnvManagerWidgetActions.ImportEnvironment,
-        )
-
-    def _message_install_package(self):
-        title = _("Install package")
-        messages = ["Package", "Constraint", "Version"]
-        types = [
-            CustomParametersDialogWidgets.LineEditString,
-            CustomParametersDialogWidgets.ComboBox,
-            CustomParametersDialogWidgets.LineEditVersion,
-        ]
-        contents = [{}, ["==", "<=", ">=", "<", ">", "latest"], {}]
-        self._message_box_editable(
-            title,
-            messages,
-            contents,
-            types,
-            action=SpyderEnvManagerWidgetActions.InstallPackage,
         )
 
     def _message_box_editable(
@@ -1070,7 +1039,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             else:
                 self._run_action_for_env(dialog=box, action=action)
 
-    def _message_box(self, title, message, action=None, package_info=None):
+    def _message_box(
+        self, title, message, action=None, env_name=None, package_info=None
+    ):
         """
         Launch a `QMessageBox` instance to get user approval before running the given
         action over an environment.
@@ -1090,11 +1061,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         package_info : dict, optional
             Package information in case the action affects a specific package inside
             the environment. The default is None.
-
-        Returns
-        -------
-        None.
-
         """
         box = QMessageBox(self)
         box.setWindowTitle(title)
@@ -1107,7 +1073,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             if package_info:
                 self._run_action_for_package(package_info, action=action)
             else:
-                self._run_action_for_env(dialog=box, action=action)
+                self._run_action_for_env(action=action, env_name=env_name)
 
     def _message_error_box(self, message):
         """
