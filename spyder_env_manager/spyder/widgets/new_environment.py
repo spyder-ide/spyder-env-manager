@@ -33,6 +33,7 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
         title = QLabel(_("Create new environment"))
         title.setWordWrap(True)
         title.setFont(title_font)
+        title.setAlignment(Qt.AlignCenter)
 
         description = QLabel(
             _(
@@ -43,13 +44,9 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
         description.setWordWrap(True)
         description.setFixedWidth(max_width_for_content)
 
-        header_v_layout = QVBoxLayout()
-        header_v_layout.addWidget(title)
-        header_v_layout.addWidget(description)
-
-        header_layout = QHBoxLayout()
-        header_layout.addLayout(header_v_layout)
-        header_layout.setAlignment(Qt.AlignHCenter)
+        description_layout = QHBoxLayout()
+        description_layout.addWidget(description)
+        description_layout.setAlignment(Qt.AlignHCenter)
 
         self.env_name = self.create_lineedit(
             text=_("Name"),
@@ -95,12 +92,14 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
             # come from and can't get rid of them. But with the ones added below we
             # have almost the same as in the left side.
             6 * AppStyle.MarginSize,
-            15 * AppStyle.MarginSize,
+            5 * AppStyle.MarginSize,
             0,
             # The bottom margin is set by the dialog
             0,
         )
-        layout.addLayout(header_layout)
+        layout.addWidget(title)
+        layout.addSpacing(12 * AppStyle.MarginSize)
+        layout.addLayout(description_layout)
         layout.addSpacing(5 * AppStyle.MarginSize)
         layout.addLayout(fields_layout)
         layout.addSpacing(9 * AppStyle.MarginSize)

@@ -8,7 +8,7 @@
 import functools
 
 import qstylizer.style
-from qtpy.QtCore import QSize, Signal
+from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout
 
 from spyder.api.fonts import SpyderFontType, SpyderFontsMixin
@@ -39,22 +39,32 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
 
         self._packages_to_change: list[PackageInfo] = []
 
+        title_font = self.get_font(SpyderFontType.Interface)
+        title_font.setPointSize(title_font.pointSize() + 2)
+
+        self.title = QLabel("")
+        self.title.setFont(title_font)
+        self.title.setAlignment(Qt.AlignCenter)
+
         big_font = self.get_font(SpyderFontType.Interface)
         big_font.setPointSize(big_font.pointSize() + 1)
 
-        self.env_action = QLabel("")
-        self.env_action.setFont(big_font)
+        self.env_name = QLabel("")
+        self.env_name.setFont(big_font)
+
+        self.env_directory = QLabel("")
 
         python_version_label = QLabel(_("Python version"))
         self.python_version = QLabel("")
         self.python_version.setFont(big_font)
 
         first_line_layout = QHBoxLayout()
-        first_line_layout.addWidget(self.env_action)
+        first_line_layout.addWidget(self.env_name)
         first_line_layout.addStretch()
         first_line_layout.addWidget(python_version_label)
 
         second_line_layout = QHBoxLayout()
+        second_line_layout.addWidget(self.env_directory)
         second_line_layout.addStretch()
         second_line_layout.addWidget(self.python_version)
 
@@ -109,22 +119,23 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
             # come from and can't get rid of them. But with the ones added below we
             # have almost the same as in the left side.
             7 * AppStyle.MarginSize,
-            6 * AppStyle.MarginSize,
+            5 * AppStyle.MarginSize,
             0,
             # The bottom margin is set by the dialog
             0,
         )
 
+        layout.addWidget(self.title)
+        layout.addSpacing(3 * AppStyle.MarginSize)
         layout.addLayout(first_line_layout)
         layout.addSpacing(-AppStyle.MarginSize)
         layout.addLayout(second_line_layout)
-        layout.addSpacing(3 * AppStyle.MarginSize)
+        layout.addSpacing(4 * AppStyle.MarginSize)
         layout.addLayout(fields_layout)
-        layout.addSpacing(8 * AppStyle.MarginSize)
+        layout.addSpacing(6 * AppStyle.MarginSize)
         layout.addWidget(packages_table_header)
         layout.addWidget(self._packages_table)
         layout.addStretch()
-
         self.setLayout(layout)
 
         self.setStyleSheet(self._stylesheet)
@@ -134,13 +145,17 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
     def setup(
         self, env_name: str, python_version: str, env_directory: str | None = None
     ):
-        if env_directory is not None:
-            action = _("Editing environment: ")
-        else:
-            action = _("Creating environment: ")
-
-        self.env_action.setText(action + f"<b>{env_name}</b>")
+        self.env_name.setText(f"<b>{env_name}</b>")
         self.python_version.setText(f"<b>{python_version}</b>")
+
+        if env_directory is not None:
+            action = _("Editing environment")
+            self.env_directory.setText(env_directory)
+        else:
+            action = _("Creating environment")
+            self.env_directory.setText("")
+
+        self.title.setText(action)
 
     def get_changed_packages(self):
         packages_to_change = []
