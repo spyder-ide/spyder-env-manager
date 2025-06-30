@@ -5,7 +5,7 @@
 from __future__ import annotations
 import os
 from pathlib import Path
-from typing import TypedDict
+from typing import TypedDict, Literal
 
 from envs_manager.backends.api import BackendActionResult, BackendInstance
 from envs_manager.backends.venv_interface import VEnvInterface
@@ -22,20 +22,20 @@ DEFAULT_BACKEND = os.environ.get("ENV_BACKEND", "venv")
 DEFAULT_ENVS_ROOT_PATH = DEFAULT_BACKENDS_ROOT_PATH / DEFAULT_BACKEND / "envs"
 
 
-class ManagerActions:
-    """Enum with the possible actions that can be performed by the manager."""
-
-    CreateEnvironment = "create_environment"
-    DeleteEnvironment = "delete_environment"
-    ActivateEnvironment = "activate"
-    DeactivateEnvironment = "deactivate"
-    ExportEnvironment = "export_environment"
-    ImportEnvironment = "import_environment"
-    InstallPackages = "install"
-    UninstallPackages = "uninstall"
-    UpdatePackages = "update"
-    ListPackages = "list"
-    ListEnvironments = "list_environments"
+ManagerActions = Literal[
+    "create_environment",
+    "delete_environment",
+    "activate",
+    "deactivate",
+    "export_environment",
+    "import_environment",
+    "install",
+    "uninstall",
+    "update",
+    "list",
+    "list_environments",
+]
+"""Enum with the possible actions that can be performed by the manager."""
 
 
 class ManagerOptions(TypedDict):

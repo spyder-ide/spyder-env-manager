@@ -28,6 +28,7 @@ dependencies = [
   "py-rattler",
   "pyyaml",
   "requests",
+  "jupyter-server"
 ]
 dynamic = ["version"]
 
@@ -52,8 +53,12 @@ pre-commit = [
 [tool.hatch.version]
 path = "envs_manager/__about__.py"
 
+
 [tool.hatch.build.targets.sdist]
 [tool.hatch.build.targets.wheel]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"jupyter-config" = "etc/jupyter/jupyter_server_config.d"
 
 [tool.hatch.envs.default]
 dependencies = [
