@@ -37,6 +37,7 @@ from qtpy.QtWidgets import (
 
 # Spyder and local imports
 from spyder import __version__ as spyder_version
+from spyder.api.asyncdispatcher import AsyncDispatcher
 from spyder.api.translations import get_translation
 from spyder.api.widgets.main_widget import (
     PluginMainWidget,
@@ -49,7 +50,7 @@ from spyder.utils.palette import SpyderPalette
 from spyder.widgets.browser import FrameWebView
 
 from spyder_env_manager.spyder.api import ManagerRequest
-from spyder_env_manager.spyder.workers import EnvironmentManagerWorker
+from spyder_env_manager.spyder.workers import EnvironmentManagerWorker, RemoteEnvironmentManagerAPI
 from spyder_env_manager.spyder.widgets.helper_widgets import (
     CustomParametersDialog,
     CustomParametersDialogWidgets,
@@ -730,7 +731,15 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._message_error_box(result_message)
         self.stop_spinner()
 
-    def _run_env_manager_action(self, request: ManagerRequest, on_ready: Callable):
+    def _run_env_manager_action(
+        self, request: ManagerRequest, on_ready: Callable, remote_id: str | None = None
+    ):
+        if remote_id:
+            self._run_remote_env_manager_action(remote_id, request, on_ready)
+        else:
+            self._run_local_env_manager_action(request, on_ready)
+
+    def _run_local_env_manager_action(self, request: ManagerRequest, on_ready: Callable):
         """
         Run Python environment manager in a worker and connect the result to a given
         callback.
@@ -757,6 +766,66 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.env_manager_action_thread.started.connect(self.manager_worker.start)
         self.start_spinner()
         self.env_manager_action_thread.start()
+
+    def _run_remote_env_manager_action(
+        self, remote_id: str, request: ManagerRequest, on_ready: Callable
+    ):
+        """
+        Run a remote environment manager action in a worker and connect the result to a
+        given callback.
+
+        Parameters
+        ----------
+        remote_id : str
+            The ID of the remote server where the environment manager is running.
+        request: ManagerRequest
+            Dictionary with the necessary parameters to request an action to the
+            manager backend.
+        on_ready : SpyderEnvManagerWidget callable
+            Method to run when the action finishes.
+        """
+
+        @AsyncDispatcher.QtSlot
+        def on_ready_callback(future):
+            """
+            Callback to handle the result of the remote environment manager action.
+
+            Parameters
+            ----------
+            future : Future
+                The future object containing the result of the action.
+            """
+            on_ready(
+                *future.result()  # Unpack the result tuple
+            )
+
+        self.start_spinner()
+        self.__run_remote_env_manager_action(remote_id, request).connect(on_ready_callback)
+
+    @AsyncDispatcher(loop="spyder_env_manager")
+    async def __run_remote_env_manager_action(
+        self, remote_id: str, request: ManagerRequest,
+    ):
+        async with self._get_remote_env_manager_api(remote_id) as api:
+            return await api.run_action(request)
+
+    def _get_remote_env_manager_api(self, remote_id: str) -> RemoteEnvironmentManagerAPI:
+        """
+        Get the remote environment manager API for a given remote ID.
+
+        Parameters
+        ----------
+        remote_id : str
+            The ID of the remote environment manager.
+
+        Returns
+        -------
+        RemoteEnvironmentManagerAPI
+            The remote environment manager API instance.
+        """
+        return self._plugin._remote_client.get_api(
+            remote_id, RemoteEnvironmentManagerAPI.__qualname__
+        )()  # remote_client.get_api return a partial with RemoteEnvironmentManagerAPI
 
     def _run_action_for_package(self, package_info, dialog=None, action=None):
         """
