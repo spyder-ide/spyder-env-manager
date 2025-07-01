@@ -145,6 +145,7 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
     def setup(
         self, env_name: str, python_version: str, env_directory: str | None = None
     ):
+        self._env_name = env_name
         self.env_name.setText(f"<b>{env_name}</b>")
         self.python_version.setText(f"<b>{python_version}</b>")
 
@@ -208,6 +209,9 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
         self._packages_to_change = []
         if self._packages_table.elements is not None:
             self._packages_table.clear_content()
+
+    def get_env_name(self):
+        return self._env_name
 
     # ---- Private API
     # ---------------------------------------------------------------------------------

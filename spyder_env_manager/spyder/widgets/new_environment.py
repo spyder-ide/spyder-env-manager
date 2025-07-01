@@ -24,23 +24,32 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
     MIN_HEIGHT = 100
     LOAD_FROM_CONFIG = False
 
-    def __init__(self, parent, max_width_for_content=510):
+    def __init__(self, parent, max_width_for_content=510, import_env=False):
         super().__init__(parent)
+        self._import_env = import_env
 
         title_font = self.get_font(SpyderFontType.Interface)
         title_font.setPointSize(title_font.pointSize() + 2)
 
-        title = QLabel(_("Create new environment"))
+        title = QLabel(
+            _("Import environment") if self._import_env else _("Create new environment")
+        )
         title.setWordWrap(True)
         title.setFont(title_font)
         title.setAlignment(Qt.AlignCenter)
 
-        description = QLabel(
-            _(
+        if self._import_env:
+            description_text = _(
+                "Enter a zip file with the environment specification below to import "
+                "it. After doing it, you'll be able to access it in the menu "
+                "<i>Consoles > New console in environment</i>."
+            )
+        else:
+            description_text = _(
                 "We use Pixi to manage environments and packages. You can access "
                 "them in the menu <i>Consoles > New console in environment</i>."
             )
-        )
+        description = QLabel(description_text)
         description.setWordWrap(True)
         description.setFixedWidth(max_width_for_content)
 
@@ -59,23 +68,39 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
             validate_callback=self._validate_name,
             validate_reason=_("The name you selected is not valid"),
         )
-        self.env_name.textbox.setFixedWidth(max_width_for_content - 200)
 
-        python_versions = ["3.12", "3.11", "3.10", "3.9", "3.13"]
-        python_choices = tuple([2 * (v,) for v in python_versions])
-        self.python_version = self.create_combobox(
-            text=_("Python version"),
-            choices=python_choices,
-            option=None,
-            tip=_("This can't be modified after creation"),
-            alignment=Qt.Vertical,
-        )
-        self.python_version.combobox.setFixedWidth(200)
+        if self._import_env:
+            self.env_name.textbox.setFixedWidth(max_width_for_content - 260)
+        else:
+            self.env_name.textbox.setFixedWidth(max_width_for_content - 200)
+
+        if self._import_env:
+            self.zip_file = self.create_browsefile(
+                text=_("File"),
+                option=None,
+                tip=_("Zip file that contains pixi.toml and pixi.lock"),
+                filters=_("Zip files") + " (*.zip)",
+                alignment=Qt.Vertical,
+            )
+            self.zip_file.textbox.setFixedWidth(200)
+        else:
+            python_versions = ["3.12", "3.11", "3.10", "3.9", "3.13"]
+            python_choices = tuple([2 * (v,) for v in python_versions])
+            self.python_version = self.create_combobox(
+                text=_("Python version"),
+                choices=python_choices,
+                option=None,
+                tip=_("This can't be modified after creation"),
+                alignment=Qt.Vertical,
+            )
+            self.python_version.combobox.setFixedWidth(200)
 
         fields_layout = QHBoxLayout()
         fields_layout.addStretch()
         fields_layout.addWidget(self.env_name)
-        fields_layout.addWidget(self.python_version)
+        fields_layout.addWidget(
+            self.zip_file if self._import_env else self.python_version
+        )
         fields_layout.addStretch()
 
         self.validation_label = MessageLabel(self)
@@ -118,8 +143,22 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
     def get_python_version(self):
         return self.python_version.combobox.currentText()
 
-    def _validate_name(self, name: str):
-        return "" or (name.isalnum() and " " not in name)
+    def get_zip_file(self):
+        return self.zip_file.textbox.text()
+
+    def clear_contents(self):
+        self.env_name.textbox.clear()
+        if self._import_env:
+            self.zip_file.textbox.clear()
+        else:
+            self.python_version.combobox.setCurrentIndex(0)
+
+    def set_enabled(self, state: bool):
+        self.env_name.textbox.setEnabled(state)
+        if self._import_env:
+            self.zip_file.textbox.setEnabled(state)
+        else:
+            self.python_version.combobox.setEnabled(state)
 
     def validate_page(self):
         """Validate if the env name introduced by users is valid."""
@@ -137,6 +176,9 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
             self.validation_label.setVisible(True)
 
         return validation
+
+    def _validate_name(self, name: str):
+        return "" or (name.isalnum() and " " not in name)
 
     def _reset_validaton_state(self):
         self.env_name.status_action.setVisible(False)

@@ -48,8 +48,8 @@ class EnvManagerDialog(QDialog):
             self._on_packages_loaded
         )
 
-        buttons_box, buttons_layout = self._create_buttons()
-        buttons_box.rejected.connect(self.reject)
+        self._buttons_box, buttons_layout = self._create_buttons()
+        self._buttons_box.rejected.connect(self.reject)
 
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -64,13 +64,9 @@ class EnvManagerDialog(QDialog):
     def showEvent(self, event):
         if not self._is_shown:
             if self._environments:
-                self._set_buttons_state(
-                    visible_widget=AvailableManagerWidgets.ListEnvsWidget
-                )
+                self._envs_manager.show_list_envs_widget()
             else:
-                self._set_buttons_state(
-                    visible_widget=AvailableManagerWidgets.NewEnvWidget
-                )
+                self._envs_manager.show_new_env_widget()
 
             self._is_shown = True
 
@@ -78,7 +74,12 @@ class EnvManagerDialog(QDialog):
 
     @property
     def _env_name(self):
-        return self._envs_manager.new_env_widget.get_env_name().strip()
+        if self._envs_manager.new_env_widget.isVisible():
+            return self._envs_manager.new_env_widget.get_env_name().strip()
+        elif self._envs_manager.import_env_widget.isVisible():
+            return self._envs_manager.import_env_widget.get_env_name().strip()
+        else:
+            return self._envs_manager.edit_env_widget.get_env_name()
 
     @property
     def _python_version(self):
@@ -92,13 +93,20 @@ class EnvManagerDialog(QDialog):
     def _environments(self):
         return self._envs_manager.list_envs_widget.get_environments()
 
+    @property
+    def _import_file(self):
+        return self._envs_manager.import_env_widget.get_zip_file()
+
     def _on_widget_shown(self, widget: AvailableManagerWidgets, action: EditEnvActions):
         self._set_buttons_state(visible_widget=widget, edit_action=action)
         if widget in [
             AvailableManagerWidgets.NewEnvWidget,
             AvailableManagerWidgets.ListEnvsWidget,
+            AvailableManagerWidgets.ImportEnvWidget,
         ]:
             self._envs_manager.edit_env_widget.clear_content()
+            self._envs_manager.new_env_widget.clear_contents()
+            self._envs_manager.import_env_widget.clear_contents()
         elif (
             widget == AvailableManagerWidgets.EditEnvWidget
             and action == EditEnvActions.EditEnv
@@ -126,6 +134,10 @@ class EnvManagerDialog(QDialog):
         )
         bbox.addButton(self._button_create, QDialogButtonBox.ActionRole)
 
+        self._button_import = QPushButton(_("Import"))
+        self._button_import.clicked.connect(self._on_import_button_clicked)
+        bbox.addButton(self._button_import, QDialogButtonBox.ActionRole)
+
         layout = QHBoxLayout()
         layout.setContentsMargins(
             3 * AppStyle.MarginSize, 0, 3 * AppStyle.MarginSize, 0
@@ -138,26 +150,42 @@ class EnvManagerDialog(QDialog):
         visible_widget: AvailableManagerWidgets,
         edit_action: EditEnvActions | None = None,
     ):
+        self._buttons_box.setEnabled(True)
+
         if visible_widget == AvailableManagerWidgets.NewEnvWidget:
             self._button_next.setVisible(True)
             self._button_create.setVisible(False)
+            self._button_import.setVisible(False)
             if self._environments:
                 self._button_back.setVisible(True)
             else:
                 self._button_back.setVisible(False)
         elif visible_widget == AvailableManagerWidgets.ListEnvsWidget:
+            for button in [
+                self._button_next,
+                self._button_create,
+                self._button_back,
+                self._button_import,
+            ]:
+                button.setVisible(False)
+        elif visible_widget == AvailableManagerWidgets.ImportEnvWidget:
+            self._envs_manager.import_env_widget.set_enabled(True)
             self._button_next.setVisible(False)
             self._button_create.setVisible(False)
-            self._button_back.setVisible(False)
-        elif visible_widget == AvailableManagerWidgets.EditEnvWidget:
-            if edit_action == EditEnvActions.CreateEnv:
-                self._button_next.setVisible(False)
-                self._button_create.setVisible(True)
+            self._button_import.setVisible(True)
+            if self._environments:
                 self._button_back.setVisible(True)
             else:
-                self._button_next.setVisible(False)
+                self._button_back.setVisible(False)
+        elif visible_widget == AvailableManagerWidgets.EditEnvWidget:
+            self._button_next.setVisible(False)
+            self._button_import.setVisible(False)
+            self._button_back.setVisible(True)
+            if edit_action == EditEnvActions.CreateEnv:
+                self._button_create.setVisible(True)
+                self._button_create.setEnabled(False)
+            else:
                 self._button_create.setVisible(False)
-                self._button_back.setVisible(True)
 
     def _on_next_button_clicked(self):
         if not self._envs_manager.new_env_widget.validate_page():
@@ -168,15 +196,13 @@ class EnvManagerDialog(QDialog):
 
     def _on_create_button_clicked(self):
         self._envs_manager._run_action_for_env(
-            SpyderEnvManagerWidgetActions.NewEnvironment,
+            action=SpyderEnvManagerWidgetActions.NewEnvironment,
             env_name=self._env_name,
             python_version=self._python_version,
             packages=self._changed_packages,
         )
 
-        self._button_back.setVisible(False)
-        self._button_create.setEnabled(False)
-        self._button_cancel.setEnabled(False)
+        self._buttons_box.setEnabled(False)
         self._envs_manager.edit_env_widget.set_enabled(False)
 
     def _on_back_button_clicked(self):
@@ -185,7 +211,16 @@ class EnvManagerDialog(QDialog):
         else:
             self._envs_manager.show_new_env_widget()
 
+    def _on_import_button_clicked(self):
+        self._envs_manager._run_action_for_env(
+            action=SpyderEnvManagerWidgetActions.ImportEnvironment,
+            env_name=self._env_name,
+            import_file_path=self._import_file,
+        )
+
+        self._buttons_box.setEnabled(False)
+        self._envs_manager.import_env_widget.set_enabled(False)
+
     def _on_packages_loaded(self):
         self._button_create.setVisible(False)
-        self._button_cancel.setEnabled(True)
         self._envs_manager.edit_env_widget.set_enabled(True)
