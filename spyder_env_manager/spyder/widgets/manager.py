@@ -268,11 +268,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 section=SpyderEnvManagerWidgetMainToolBarSections.Main,
             )
 
-        self.current_environment_changed()
-
-    def current_environment_changed(
-        self, environment_name: str | None = None, environment_path: str | None = None
-    ):
+    def current_environment_changed(self, environment_name: str, environment_path: str):
         """
         Handle changing environment or changes inside the current environment.
 
@@ -281,27 +277,22 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         Parameters
         ----------
-        index : int, optional
-            Index of the current environment selected. The default is None.
+        environment_name : str
+            Name of the environment
+        environment_path : str
+            Path of the environment
         """
-        environments_available = environment_path is not None
-        if environments_available:
-            self.start_spinner()
-            self._run_action_for_env(
-                action=SpyderEnvManagerWidgetActions.ListPackages,
-                env_name=environment_name,
-                env_directory=environment_path,
-            )
-            self.show_edit_env_widget(action=EditEnvActions.EditEnv)
-            if self.get_conf(
-                SpyderEnvManagerWidgetActions.ToggleEnvironmentAsCustomInterpreter,
-            ):
-                self._environment_as_custom_interpreter(
-                    environment_path=environment_path
-                )
-        else:
-            self.show_new_env_widget()
-            self.stop_spinner()
+        self.start_spinner()
+        self._run_action_for_env(
+            action=SpyderEnvManagerWidgetActions.ListPackages,
+            env_name=environment_name,
+            env_directory=environment_path,
+        )
+        self.show_edit_env_widget(action=EditEnvActions.EditEnv)
+        if self.get_conf(
+            SpyderEnvManagerWidgetActions.ToggleEnvironmentAsCustomInterpreter,
+        ):
+            self._environment_as_custom_interpreter(environment_path=environment_path)
 
     def update_actions(self):
         if self.actions_enabled:
@@ -537,6 +528,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.show_list_envs_widget()
             self.envs_available = True
 
+        self.stop_spinner()
         self._envs_listed = True
 
     def _after_import_environment(
@@ -640,9 +632,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         manager_options: ManagerOptions
             Options used to create the manager.
         """
-        if action_result:
-            self.current_environment_changed()
-        else:
+        if not action_result:
             self._message_error_box(result_message)
             self.stop_spinner()
 
