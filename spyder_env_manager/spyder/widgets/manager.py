@@ -501,6 +501,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
             self.current_environment_changed(env_name, env_directory)
             self.list_envs_widget.add_environment(env_name, env_directory)
+            self._allow_default_as_env_name()
             self.set_conf("selected_environment", env_name)
             self.envs_available = True
         else:
@@ -528,6 +529,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self.show_list_envs_widget()
             self.envs_available = True
 
+        self._allow_default_as_env_name()
         self.stop_spinner()
         self._envs_listed = True
 
@@ -553,6 +555,8 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 action_result, result_message, manager_options
             )
             self.show_list_envs_widget()
+
+            self._allow_default_as_env_name()
 
             # Install needed spyder-kernels version
             packages = [f"spyder-kernels{SPYDER_KERNELS_VERSION}"]
@@ -656,11 +660,15 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         if action_result:
             self.list_envs_widget.delete_environment(manager_options["env_name"])
             self.list_envs_widget.set_enabled(True)
+
             if not self.list_envs_widget.get_environments():
                 self.envs_available = False
                 self.show_new_env_widget()
+
+            self._allow_default_as_env_name()
         else:
             self._message_error_box(result_message)
+
         self.stop_spinner()
 
     def _after_list_environment_packages(
@@ -960,6 +968,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 env_name=env_name,
                 export_file_path=filename,
             )
+
+    def _allow_default_as_env_name(self):
+        envs = self.list_envs_widget.get_environments()
+        for widget in [self.new_env_widget, self.import_env_widget]:
+            widget.allow_default_as_env_name(False if "default" in envs else True)
 
     def _message_delete_environment(self, env_name: str):
         title = _("Delete environment")

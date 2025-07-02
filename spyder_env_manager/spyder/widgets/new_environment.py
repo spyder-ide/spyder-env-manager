@@ -32,6 +32,7 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
         super().__init__(parent)
         self._import_env = import_env
 
+        self._default_as_env_name = True
         self._name_regexp = re.compile(r"^[a-zA-Z0-9_-]+$")
 
         title_font = self.get_font(SpyderFontType.Interface)
@@ -143,7 +144,7 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
 
     def get_env_name(self):
         env_name = self.env_name.textbox.text()
-        if not env_name:
+        if not env_name and self._default_as_env_name:
             env_name = "default"
         return env_name
 
@@ -171,6 +172,10 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
     def set_message(self, text: str):
         self.message_label.set_text(text)
         self.message_label.setVisible(True)
+
+    def allow_default_as_env_name(self, allow: bool):
+        self._default_as_env_name = allow
+        self.env_name.textbox.setPlaceholderText("default" if allow else "")
 
     def validate_page(self, env_names: list[str]):
         """Validate if the env name introduced by users is valid."""
