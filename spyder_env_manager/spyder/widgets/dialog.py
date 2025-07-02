@@ -188,7 +188,8 @@ class EnvManagerDialog(QDialog):
                 self._button_create.setVisible(False)
 
     def _on_next_button_clicked(self):
-        if not self._envs_manager.new_env_widget.validate_page():
+        env_names = list(self._environments.keys())
+        if not self._envs_manager.new_env_widget.validate_page(env_names):
             return
 
         self._envs_manager.edit_env_widget.setup(self._env_name, self._python_version)
@@ -212,6 +213,13 @@ class EnvManagerDialog(QDialog):
             self._envs_manager.show_new_env_widget()
 
     def _on_import_button_clicked(self):
+        env_names = list(self._environments.keys())
+        if not self._envs_manager.import_env_widget.validate_page(env_names):
+            return
+
+        self._envs_manager.import_env_widget.set_message(
+            _("The environment is being imported. Please wait...")
+        )
         self._envs_manager._run_action_for_env(
             action=SpyderEnvManagerWidgetActions.ImportEnvironment,
             env_name=self._env_name,

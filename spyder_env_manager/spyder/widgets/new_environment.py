@@ -6,6 +6,9 @@
 # -----------------------------------------------------------------------------
 
 from __future__ import annotations
+from pathlib import Path
+import re
+import zipfile
 
 import qstylizer.style
 from qtpy.QtCore import Qt
@@ -13,6 +16,7 @@ from qtpy.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout
 
 from spyder.api.fonts import SpyderFontType, SpyderFontsMixin
 from spyder.api.translations import _
+from spyder.utils.icon_manager import ima
 from spyder.utils.stylesheet import AppStyle
 from spyder.widgets.helperwidgets import MessageLabel
 from spyder.widgets.config import SpyderConfigPage
@@ -27,6 +31,8 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
     def __init__(self, parent, max_width_for_content=510, import_env=False):
         super().__init__(parent)
         self._import_env = import_env
+
+        self._name_regexp = re.compile(r"^[a-zA-Z0-9_-]+$")
 
         title_font = self.get_font(SpyderFontType.Interface)
         title_font.setPointSize(title_font.pointSize() + 2)
@@ -80,6 +86,7 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
                 option=None,
                 tip=_("Zip file that contains pixi.toml and pixi.lock"),
                 filters=_("Zip files") + " (*.zip)",
+                status_icon=ima.icon("error"),
                 alignment=Qt.Vertical,
             )
             self.zip_file.textbox.setFixedWidth(200)
@@ -103,13 +110,13 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
         )
         fields_layout.addStretch()
 
-        self.validation_label = MessageLabel(self)
-        self.validation_label.setFixedWidth(max_width_for_content - 20)
-        self.validation_label.setAlignment(Qt.AlignHCenter)
+        self.message_label = MessageLabel(self)
+        self.message_label.setFixedWidth(max_width_for_content - 20)
+        self.message_label.setAlignment(Qt.AlignHCenter)
 
-        validation_layout = QHBoxLayout()
-        validation_layout.addWidget(self.validation_label)
-        validation_layout.setAlignment(Qt.AlignHCenter)
+        message_layout = QHBoxLayout()
+        message_layout.addWidget(self.message_label)
+        message_layout.setAlignment(Qt.AlignHCenter)
 
         layout = QVBoxLayout()
         layout.setContentsMargins(
@@ -128,7 +135,7 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
         layout.addSpacing(5 * AppStyle.MarginSize)
         layout.addLayout(fields_layout)
         layout.addSpacing(9 * AppStyle.MarginSize)
-        layout.addLayout(validation_layout)
+        layout.addLayout(message_layout)
         layout.addStretch()
         self.setLayout(layout)
 
@@ -148,6 +155,7 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
 
     def clear_contents(self):
         self.env_name.textbox.clear()
+        self._reset_validaton_state()
         if self._import_env:
             self.zip_file.textbox.clear()
         else:
@@ -160,29 +168,89 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
         else:
             self.python_version.combobox.setEnabled(state)
 
-    def validate_page(self):
+    def set_message(self, text: str):
+        self.message_label.set_text(text)
+        self.message_label.setVisible(True)
+
+    def validate_page(self, env_names: list[str]):
         """Validate if the env name introduced by users is valid."""
         self._reset_validaton_state()
         name = self.get_env_name()
 
-        # If the name is empty, we'll use 'default' for it.
-        validation = self._validate_name(name)
-
-        if not validation:
-            self.validation_label.set_text(
-                _("The environment name must be alphanumeric with no spaces")
+        validate_name = validate_zip = True
+        reasons = ""
+        if name == "":
+            validate_name = False
+            reasons = _("There are missing fields on this page")
+        elif name in env_names:
+            validate_name = False
+            reasons = _("There is another environment with the same name")
+        elif not self._validate_name(name):
+            validate_name = False
+            reasons = _(
+                "The environment name must be alphanumeric with no spaces. It can "
+                "also include dashes and underscores"
             )
-            self.env_name.status_action.setVisible(True)
-            self.validation_label.setVisible(True)
 
-        return validation
+        if self._import_env:
+            validate_zip, zip_reason = self._validate_zip_file()
+            if not validate_zip:
+                if reasons and reasons != zip_reason:
+                    reasons = "- " + reasons + ".<br>" + "- " + zip_reason + "."
+                else:
+                    reasons = zip_reason
+
+        if not (validate_name and validate_zip):
+            if not validate_name:
+                self.env_name.status_action.setVisible(True)
+            if not validate_zip:
+                self.zip_file.status_action.setVisible(True)
+
+            self.message_label.set_text(reasons)
+            self.message_label.setVisible(True)
+
+        return validate_name and validate_zip
 
     def _validate_name(self, name: str):
-        return "" or (name.isalnum() and " " not in name)
+        return True if re.match(self._name_regexp, name) else False
+
+    def _validate_zip_file(self):
+        zip_file = Path(self.get_zip_file())
+        validation, reason = (True, "")
+
+        if self.get_zip_file() == "":
+            validation, reason = (False, _("There are missing fields on this page"))
+        elif not zip_file.is_file():
+            validation, reason = (False, _("The file you selected doesn't exist"))
+        elif zip_file.suffix != ".zip":
+            validation, reason = (False, _("The file you selected is not a zip file"))
+        else:
+            try:
+                with zipfile.ZipFile(zip_file, "r") as zf:
+                    name_list = zf.namelist()
+
+                if name_list != ["pixi.toml", "pixi.lock"]:
+                    validation, reason = (
+                        False,
+                        _(
+                            "The import file must contain pixi.toml and pixi.lock, "
+                            "and no other files"
+                        ),
+                    )
+            except Exception:
+                validation, reason = (
+                    False,
+                    _("Unable to read the zip file you selected"),
+                )
+
+        return validation, reason
 
     def _reset_validaton_state(self):
         self.env_name.status_action.setVisible(False)
-        self.validation_label.setVisible(False)
+        if self._import_env:
+            self.zip_file.status_action.setVisible(False)
+        self.message_label.set_text("")
+        self.message_label.setVisible(False)
 
     @property
     def _stylesheet(self):
