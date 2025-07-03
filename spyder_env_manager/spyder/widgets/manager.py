@@ -30,6 +30,7 @@ from qtpy.QtWidgets import (
     QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
+    QWidget,
 )
 
 # Spyder imports
@@ -43,6 +44,7 @@ from spyder.dependencies import SPYDER_KERNELS_REQVER
 from spyder.utils.icon_manager import ima
 from spyder.utils.misc import getcwd_or_home
 from spyder.utils.palette import SpyderPalette
+from spyder.utils.stylesheet import PANES_TOOLBAR_STYLESHEET
 
 # Local imports
 from spyder_env_manager.spyder.api import ManagerRequest, SpyderEnvManagerWidgetActions
@@ -140,6 +142,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.exclude_non_requested_packages = True
         self.env_manager_action_thread = QThread(None)
         self.manager_worker = None
+        self._toolbar_button_width = (
+            int(PANES_TOOLBAR_STYLESHEET.BUTTON_WIDTH.split("px")[0])
+            # This is needed for the buttons to not look too thin
+            + 6
+        )
 
         # Select environment widget
         self.select_environment = QComboBox(self)
@@ -153,6 +160,14 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         selected_environment = self.get_conf("selected_environment")
         if selected_environment:
             self.select_environment.setCurrentText(selected_environment)
+        self.select_environment.setVisible(False)
+
+        stretcher = self.create_stretcher("stretcher")
+        self.add_item_to_toolbar(
+            stretcher,
+            self.get_main_toolbar(),
+            section=SpyderEnvManagerWidgetMainToolBarSections.Main,
+        )
 
         # Env widgets
         self.new_env_widget = NewEnvironment(self)
@@ -191,6 +206,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.setup()
         self.render_toolbars()
 
+        # We don't need to show the Options menu for this widget.
+        self._options_button.setFixedWidth(0)
+
         self.setStyleSheet(self._stylesheet)
 
     # ---- PluginMainWidget API
@@ -200,13 +218,6 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
     def setup(self):
         # ---- Options menu actions
-        import_environment_action = self.create_action(
-            SpyderEnvManagerWidgetActions.ImportEnvironment,
-            text=_("Import environment from file (.zip)"),
-            icon=self.create_icon("fileimport"),
-            triggered=self.show_import_env_widget,
-        )
-
         exclude_dependency_action = self.create_action(
             SpyderEnvManagerWidgetActions.ToggleExcludeDependency,
             text=_("Exclude dependency packages"),
@@ -242,6 +253,20 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             triggered=self.show_new_env_widget,
         )
 
+        import_environment_action = self.create_action(
+            SpyderEnvManagerWidgetActions.ImportEnvironment,
+            text=_("Import environment from file (.zip)"),
+            icon=self.create_icon("fileimport"),
+            triggered=self.show_import_env_widget,
+        )
+
+        # Reorganize actions to the spinner is to the left of the others.
+        for action in [
+            new_environment_action,
+            import_environment_action,
+        ]:
+            self.add_corner_widget(action, before=self._options_button)
+
         # Options menu
         options_menu = self.get_options_menu()
         for item in [
@@ -257,11 +282,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         # Main toolbar
         main_toolbar = self.get_main_toolbar()
 
-        for item in [
-            self.select_environment,
-            new_environment_action,
-            import_environment_action,
-        ]:
+        for item in [self.select_environment]:
             self.add_item_to_toolbar(
                 item,
                 toolbar=main_toolbar,
@@ -347,22 +368,34 @@ class SpyderEnvManagerWidget(PluginMainWidget):
     # ------------------------------------------------------------------------
     def show_new_env_widget(self):
         self.stack_widget.setCurrentWidget(self.new_env_widget)
+        self._set_visible_toolbar_buttons(
+            visible=False, current_widget=self.new_env_widget
+        )
         self.sig_widget_is_shown.emit(
             AvailableManagerWidgets.NewEnvWidget, EditEnvActions.NoAction
         )
 
     def show_edit_env_widget(self, action: EditEnvActions):
         self.stack_widget.setCurrentWidget(self.edit_env_widget)
+        self._set_visible_toolbar_buttons(
+            visible=False, current_widget=self.edit_env_widget
+        )
         self.sig_widget_is_shown.emit(AvailableManagerWidgets.EditEnvWidget, action)
 
     def show_list_envs_widget(self):
         self.stack_widget.setCurrentWidget(self.list_envs_widget)
+        self._set_visible_toolbar_buttons(
+            visible=True, current_widget=self.list_envs_widget
+        )
         self.sig_widget_is_shown.emit(
             AvailableManagerWidgets.ListEnvsWidget, EditEnvActions.NoAction
         )
 
     def show_import_env_widget(self):
         self.stack_widget.setCurrentWidget(self.import_env_widget)
+        self._set_visible_toolbar_buttons(
+            visible=False, current_widget=self.import_env_widget
+        )
         self.sig_widget_is_shown.emit(
             AvailableManagerWidgets.ImportEnvWidget, EditEnvActions.NoAction
         )
@@ -1100,6 +1133,36 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             "conda-forge/label/spyder_kernels_dev",
             "conda-forge/label/spyder_kernels_rc",
         ]
+
+    def _set_visible_toolbar_buttons(self, visible: bool, current_widget: QWidget):
+        envs = self.list_envs_widget.get_environments()
+
+        for action_id in [
+            SpyderEnvManagerWidgetActions.NewEnvironment,
+            SpyderEnvManagerWidgetActions.ImportEnvironment,
+        ]:
+            always_visible = visible
+
+            # Show import/new env actions in the opposite widget when there are no envs
+            if not envs:
+                if (
+                    current_widget == self.new_env_widget
+                    and action_id == SpyderEnvManagerWidgetActions.ImportEnvironment
+                ):
+                    always_visible = True
+                elif (
+                    current_widget == self.import_env_widget
+                    and action_id == SpyderEnvManagerWidgetActions.NewEnvironment
+                ):
+                    always_visible = True
+
+            action = self.get_action(action_id)
+            widget = self._corner_widget.widgetForAction(action)
+
+            if visible or always_visible:
+                widget.setFixedWidth(self._toolbar_button_width)
+            else:
+                widget.setFixedWidth(0)
 
     @property
     def _stylesheet(self):
