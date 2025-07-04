@@ -17,7 +17,7 @@ from __future__ import annotations
 
 # Third library imports
 from qtpy.compat import to_qvariant
-from qtpy.QtCore import QAbstractTableModel, QModelIndex, Qt, Signal
+from qtpy.QtCore import QAbstractTableModel, QModelIndex, Qt, QTimer, Signal
 from qtpy.QtGui import QColor
 
 # Spyder and local imports
@@ -188,11 +188,22 @@ class EnvironmentPackagesTable(ElementsTable):
             self._packages = packages
 
             if self.elements is None:
+                delayed_resize = True
                 self.setup_elements(packages, set_layout=True)
+
+                # This needs to be delayed a little bit the first time packages are
+                # loaded so that column 0 has the width we want.
+                QTimer.singleShot(
+                    100,
+                    lambda: self.horizontalHeader().resizeSection(
+                        0, self._name_column_width + 9
+                    ),
+                )
             else:
+                delayed_resize = False
                 self.replace_elements(packages)
 
-            if self._name_column_width is not None:
+            if self._name_column_width is not None and not delayed_resize:
                 self.horizontalHeader().resizeSection(0, self._name_column_width + 9)
 
     def set_enabled(self, state, change_text_color=False):
