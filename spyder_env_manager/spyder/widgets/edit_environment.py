@@ -9,7 +9,7 @@ import functools
 
 import qstylizer.style
 from qtpy.QtCore import QSize, Qt, Signal
-from qtpy.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout
+from qtpy.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout, QStackedLayout
 
 from spyder.api.fonts import SpyderFontType, SpyderFontsMixin
 from spyder.api.translations import _
@@ -18,11 +18,36 @@ from spyder.utils.palette import SpyderPalette
 from spyder.utils.qthelpers import create_toolbutton
 from spyder.utils.stylesheet import AppStyle
 from spyder.widgets.config import SpyderConfigPage
+from spyder.widgets.emptymessage import EmptyMessageWidget
 
 from spyder_env_manager.spyder.widgets.packages_table import (
     EnvironmentPackagesTable,
     PackageInfo,
 )
+
+
+class PackagesTableEmptyMessage(EmptyMessageWidget):
+
+    def __init__(self, parent):
+        super().__init__(
+            parent,
+            text=_("Add packages to get started"),
+            description=_("Enter a package name and version in the fields above"),
+            highlight_on_focus_in=False,
+        )
+
+        self.setObjectName("packages-empty-message")
+        self.css["QFrame#packages-empty-message"].setValues(
+            # Remove these borders to make it appear attached to the label on top of it
+            borderTop="0px",
+            borderTopLeftRadius="0px",
+            borderTopRightRadius="0px",
+            # Match border color with the top label one
+            borderLeft=f"1px solid {SpyderPalette.COLOR_BACKGROUND_3}",
+            borderRight=f"1px solid {SpyderPalette.COLOR_BACKGROUND_3}",
+            borderBottom=f"1px solid {SpyderPalette.COLOR_BACKGROUND_3}",
+        )
+        self.setStyleSheet(self.css.toString())
 
 
 class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
@@ -111,6 +136,11 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
 
         self._packages_table = EnvironmentPackagesTable(self, name_column_width=400)
         self._packages_table.setObjectName("packages-table")
+        self._empty_message = PackagesTableEmptyMessage(self)
+
+        self._packages_layout = QStackedLayout()
+        self._packages_layout.addWidget(self._packages_table)
+        self._packages_layout.addWidget(self._empty_message)
 
         layout = QVBoxLayout()
         layout.setSpacing(0)
@@ -134,8 +164,7 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
         layout.addLayout(fields_layout)
         layout.addSpacing(6 * AppStyle.MarginSize)
         layout.addWidget(packages_table_header)
-        layout.addWidget(self._packages_table)
-        layout.addStretch()
+        layout.addLayout(self._packages_layout)
         self.setLayout(layout)
 
         self.setStyleSheet(self._stylesheet)
@@ -213,6 +242,12 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
     def get_env_name(self):
         return self._env_name
 
+    def set_empty_message_visible(self, visible: bool):
+        if visible:
+            self._packages_layout.setCurrentWidget(self._empty_message)
+        else:
+            self._packages_layout.setCurrentWidget(self._packages_table)
+
     # ---- Private API
     # ---------------------------------------------------------------------------------
     def _transform_packages_list_to_info(self, packages_list):
@@ -253,6 +288,7 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
             self._packages_to_change, only_requested=True
         )
 
+        self.set_empty_message_visible(False)
         self._clear_lineedits()
         self.sig_packages_changed.emit(True)
 
@@ -266,6 +302,7 @@ class EditEnvironment(SpyderConfigPage, SpyderFontsMixin):
         )
 
         if self._packages_table.model.rowCount() == 0:
+            self.set_empty_message_visible(True)
             self.sig_packages_changed.emit(False)
 
     def _create_remove_package_button(self, package_name):

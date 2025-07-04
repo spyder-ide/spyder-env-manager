@@ -107,11 +107,12 @@ class EnvManagerDialog(QDialog):
             self._envs_manager.edit_env_widget.clear_content()
             self._envs_manager.new_env_widget.clear_contents()
             self._envs_manager.import_env_widget.clear_contents()
-        elif (
-            widget == AvailableManagerWidgets.EditEnvWidget
-            and action == EditEnvActions.EditEnv
-        ):
-            self._envs_manager.edit_env_widget.set_enabled(False)
+        elif widget == AvailableManagerWidgets.EditEnvWidget:
+            if action == EditEnvActions.EditEnv:
+                self._envs_manager.edit_env_widget.set_enabled(False)
+                self._envs_manager.edit_env_widget.set_empty_message_visible(False)
+            else:
+                self._envs_manager.edit_env_widget.set_empty_message_visible(True)
 
     def _create_buttons(self):
         bbox = SpyderDialogButtonBox(QDialogButtonBox.Cancel)
