@@ -12,6 +12,7 @@ import typing as t
 import logging
 
 # Third-party imports
+import aiohttp
 from envs_manager.api import Manager
 from qtpy.QtCore import QObject, Signal
 
