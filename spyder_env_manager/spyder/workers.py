@@ -190,7 +190,7 @@ class RemoteEnvironmentManagerAPI(SpyderBaseJupyterAPI):
         return status, output, manager_options
 
     async def run_manager_action(
-        self, request: ManagerRequest
+        self, request: ManagerRequest, timout: int = 5 * 60
     ) -> ManagerActionResult:
         """
         Run an environment manager action on the remote server.
@@ -199,6 +199,8 @@ class RemoteEnvironmentManagerAPI(SpyderBaseJupyterAPI):
         ----------
         request: ManagerRequest
             Request containing the action and options.
+        timout: int, optional
+            Timeout for the request in seconds. Default is 5 minutes.
 
         Returns
         -------
@@ -206,8 +208,9 @@ class RemoteEnvironmentManagerAPI(SpyderBaseJupyterAPI):
             Result of the action.
         """
         async with self.session.post(
-            self.api_url / request["action"],
-            json=request["action_options"],
-            params=request["manager_options"]
-            ) as response:
+            self.api_url / request["action"].value,
+            json=request.get("action_options"),
+            params=request.get("manager_options"),
+            timeout=aiohttp.ClientTimeout(total=timout),
+        ) as response:
             return await response.json()
