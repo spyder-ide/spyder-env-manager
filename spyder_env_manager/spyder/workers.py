@@ -19,7 +19,6 @@ from qtpy.QtCore import QObject, Signal
 # Spyder and local imports
 from spyder.api.config.mixins import SpyderConfigurationObserver
 from spyder.api.translations import get_translation
-from spyder.api.asyncdispatcher import AsyncDispatcher
 from spyder_env_manager.spyder.config import CONF_SECTION
 from spyder.plugins.remoteclient.api.modules.base import SpyderBaseJupyterAPI, SpyderRemoteAPIError
 from spyder.plugins.remoteclient.api.manager.base import SpyderRemoteAPIManagerBase
