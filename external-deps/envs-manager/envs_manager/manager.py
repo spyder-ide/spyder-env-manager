@@ -5,7 +5,8 @@
 from __future__ import annotations
 import os
 from pathlib import Path
-from typing import TypedDict, Literal
+from typing import TypedDict
+from enum import Enum
 
 from envs_manager.backends.api import BackendActionResult, BackendInstance
 from envs_manager.backends.venv_interface import VEnvInterface
@@ -22,20 +23,20 @@ DEFAULT_BACKEND = os.environ.get("ENV_BACKEND", "venv")
 DEFAULT_ENVS_ROOT_PATH = DEFAULT_BACKENDS_ROOT_PATH / DEFAULT_BACKEND / "envs"
 
 
-ManagerActions = Literal[
-    "create_environment",
-    "delete_environment",
-    "activate",
-    "deactivate",
-    "export_environment",
-    "import_environment",
-    "install",
-    "uninstall",
-    "update",
-    "list",
-    "list_environments",
-]
-"""Enum with the possible actions that can be performed by the manager."""
+class ManagerActions(Enum):
+    """Enum with the possible actions that can be performed by the manager."""
+
+    CreateEnvironment = "create_environment"
+    DeleteEnvironment = "delete_environment"
+    ActivateEnvironment = "activate"
+    DeactivateEnvironment = "deactivate"
+    ExportEnvironment = "export_environment"
+    ImportEnvironment = "import_environment"
+    InstallPackages = "install"
+    UninstallPackages = "uninstall"
+    UpdatePackages = "update"
+    ListPackages = "list"
+    ListEnvironments = "list_environments"
 
 
 class ManagerOptions(TypedDict):
@@ -118,7 +119,7 @@ class Manager:
         )
 
     def run_action(self, action: ManagerActions, action_options: dict | None = None):
-        method = getattr(self, action)
+        method = getattr(self, action.value)
         if action_options is not None:
             return method(**action_options)
         else:

@@ -19,15 +19,15 @@ from envs_manager.manager import (
 class EnvManagerHandler(JupyterHandler):
     """Handler to list available environments."""
 
-    _handler_action_regex = rf"(?P<action>{'|'.join(t.get_args(ManagerActions))})"
+    _handler_action_regex = rf"(?P<action>{'|'.join(action.value for action in ManagerActions)})"
 
     auth_resource = "envs_manager"
 
     def get_manager(self) -> Manager:
         """Get the environment manager instance."""
         return Manager(
-            backend=self.get_argument("backend", None) or self.settings["default_backend"],
-            root_path=self.settings["root_path"],
+            backend=self.get_argument("backend", None) or self.settings["envs_manager_config"]["default_backend"],
+            root_path=self.settings["envs_manager_config"]["root_path"],
             env_name=self.get_argument("env_name", None),
             env_directory=self.get_argument("env_directory", None),
         )
@@ -42,14 +42,18 @@ class EnvManagerHandler(JupyterHandler):
 
     @authorized
     @web.authenticated
-    def post(self, action: ManagerActions):
-        manager = self.get_manager()
-        action_options = self.get_options()
-        self.write_json(
-            manager.run_action(action, action_options),
-            status=200,
-        )
-
+    def post(self, action: str):
+        try:
+            manager = self.get_manager()
+            action_options = self.get_options()
+            self.write_json(
+                manager.run_action(ManagerActions(action), action_options),
+                status=200,
+            )
+        except Exception as e:
+            self.set_status(501)
+            self.finish(str(e))
+            self.log_exception(type(e), e, e.__traceback__)
 
 class EnvManagerApp(ExtensionApp):
     """Jupyter extension for managing environments."""
