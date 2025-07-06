@@ -28,41 +28,50 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
     MIN_HEIGHT = 100
     LOAD_FROM_CONFIG = False
 
-    def __init__(self, parent, max_width_for_content=510, import_env=False):
+    def __init__(
+        self,
+        parent,
+        max_width_for_content=510,
+        import_env=False,
+        show_in_remote_connections_dialog=False,
+    ):
         super().__init__(parent)
         self._import_env = import_env
 
         self._default_as_env_name = True
         self._name_regexp = re.compile(r"^[a-zA-Z0-9_-]+$")
 
-        title_font = self.get_font(SpyderFontType.Interface)
-        title_font.setPointSize(title_font.pointSize() + 2)
+        if not show_in_remote_connections_dialog:
+            title_font = self.get_font(SpyderFontType.Interface)
+            title_font.setPointSize(title_font.pointSize() + 2)
 
-        title = QLabel(
-            _("Import environment") if self._import_env else _("Create new environment")
-        )
-        title.setWordWrap(True)
-        title.setFont(title_font)
-        title.setAlignment(Qt.AlignCenter)
-
-        if self._import_env:
-            description_text = _(
-                "Enter a zip file with the environment specification below to import "
-                "it. After doing it, you'll be able to access it in the menu "
-                "<i>Consoles > New console in environment</i>."
+            title = QLabel(
+                _("Import environment")
+                if self._import_env
+                else _("Create new environment")
             )
-        else:
-            description_text = _(
-                "We use Pixi to manage environments and packages. You can access "
-                "them in the menu <i>Consoles > New console in environment</i>."
-            )
-        description = QLabel(description_text)
-        description.setWordWrap(True)
-        description.setFixedWidth(max_width_for_content)
+            title.setWordWrap(True)
+            title.setFont(title_font)
+            title.setAlignment(Qt.AlignCenter)
 
-        description_layout = QHBoxLayout()
-        description_layout.addWidget(description)
-        description_layout.setAlignment(Qt.AlignHCenter)
+            if self._import_env:
+                description_text = _(
+                    "Enter a zip file with the environment specification below to "
+                    "import it. After doing it, you'll be able to access it in the "
+                    "menu <i>Consoles > New console in environment</i>."
+                )
+            else:
+                description_text = _(
+                    "We use Pixi to manage environments and packages. You can access "
+                    "them in the menu <i>Consoles > New console in environment</i>."
+                )
+            description = QLabel(description_text)
+            description.setWordWrap(True)
+            description.setFixedWidth(max_width_for_content)
+
+            description_layout = QHBoxLayout()
+            description_layout.addWidget(description)
+            description_layout.setAlignment(Qt.AlignHCenter)
 
         self.env_name = self.create_lineedit(
             text=_("Name"),
@@ -77,11 +86,6 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
         )
 
         if self._import_env:
-            self.env_name.textbox.setFixedWidth(max_width_for_content - 260)
-        else:
-            self.env_name.textbox.setFixedWidth(max_width_for_content - 200)
-
-        if self._import_env:
             self.zip_file = self.create_browsefile(
                 text=_("File"),
                 option=None,
@@ -90,7 +94,11 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
                 status_icon=ima.icon("error"),
                 alignment=Qt.Vertical,
             )
-            self.zip_file.textbox.setFixedWidth(200)
+
+            self.zip_file.textbox.setFixedWidth(max_width_for_content - 260)
+
+            if not show_in_remote_connections_dialog:
+                self.env_name.textbox.setFixedWidth(200)
         else:
             python_versions = ["3.12", "3.11", "3.10", "3.9", "3.13"]
             python_choices = tuple([2 * (v,) for v in python_versions])
@@ -101,15 +109,21 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
                 tip=_("This can't be modified after creation"),
                 alignment=Qt.Vertical,
             )
-            self.python_version.combobox.setFixedWidth(200)
+
+            self.env_name.textbox.setFixedWidth(max_width_for_content - 200)
+
+            if not show_in_remote_connections_dialog:
+                self.python_version.combobox.setFixedWidth(200)
 
         fields_layout = QHBoxLayout()
-        fields_layout.addStretch()
+        if not show_in_remote_connections_dialog:
+            fields_layout.addStretch()
         fields_layout.addWidget(self.env_name)
         fields_layout.addWidget(
             self.zip_file if self._import_env else self.python_version
         )
-        fields_layout.addStretch()
+        if not show_in_remote_connections_dialog:
+            fields_layout.addStretch()
 
         self.message_label = MessageLabel(self)
         self.message_label.setFixedWidth(max_width_for_content - 20)
@@ -120,24 +134,32 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
         message_layout.setAlignment(Qt.AlignHCenter)
 
         layout = QVBoxLayout()
-        layout.setContentsMargins(
-            # There are some pixels by default on the right side. Don't know where they
-            # come from and can't get rid of them. But with the ones added below we
-            # have almost the same as in the left side.
-            6 * AppStyle.MarginSize,
-            5 * AppStyle.MarginSize,
-            0,
-            # The bottom margin is set by the dialog
-            0,
-        )
-        layout.addWidget(title)
-        layout.addSpacing(12 * AppStyle.MarginSize)
-        layout.addLayout(description_layout)
-        layout.addSpacing(5 * AppStyle.MarginSize)
-        layout.addLayout(fields_layout)
-        layout.addSpacing(9 * AppStyle.MarginSize)
-        layout.addLayout(message_layout)
-        layout.addStretch()
+        if not show_in_remote_connections_dialog:
+            layout.setContentsMargins(
+                # There are some pixels by default on the right side. Don't know where
+                # they come from and can't get rid of them. But with the ones added
+                # below we have almost the same as in the left side.
+                6 * AppStyle.MarginSize,
+                5 * AppStyle.MarginSize,
+                0,
+                # The bottom margin is set by the dialog
+                0,
+            )
+            layout.addWidget(title)
+            layout.addSpacing(12 * AppStyle.MarginSize)
+            layout.addLayout(description_layout)
+            layout.addSpacing(5 * AppStyle.MarginSize)
+            layout.addLayout(fields_layout)
+            layout.addSpacing(9 * AppStyle.MarginSize)
+            layout.addLayout(message_layout)
+            layout.addStretch()
+        else:
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.addLayout(fields_layout)
+            layout.addSpacing(9 * AppStyle.MarginSize)
+            layout.addLayout(message_layout)
+            layout.addStretch()
+
         self.setLayout(layout)
 
         self.setStyleSheet(self._stylesheet)
