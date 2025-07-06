@@ -20,7 +20,7 @@ from spyder.api.config.mixins import SpyderConfigurationObserver
 from spyder.api.translations import get_translation
 from spyder.api.asyncdispatcher import AsyncDispatcher
 from spyder_env_manager.spyder.config import CONF_SECTION
-from spyder.plugins.remoteclient.api.modules.base import SpyderBaseJupyterAPI
+from spyder.plugins.remoteclient.api.modules.base import SpyderBaseJupyterAPI, SpyderRemoteAPIError
 from spyder.plugins.remoteclient.api.manager.base import SpyderRemoteAPIManagerBase
 
 if t.TYPE_CHECKING:
@@ -117,6 +117,41 @@ class EnvironmentManagerWorker(QObject, SpyderConfigurationObserver):
             pass
 
 
+class RemoteEnvManagerApiError(SpyderRemoteAPIError):
+    """
+    Exception raised when an error occurs in the remote environment manager API.
+    """
+
+    def __init__(self, config_id: str, url: str, error_str: str):
+        """
+        Initialize the RemoteEnvManagerApiError.
+
+        Parameters
+        ----------
+        config_id: str
+            Identifier of the remote server that caused the error.
+
+        error_str: str
+            Exception raised by the remote environment manager API.
+        """
+        self.error_str = error_str
+        self.config_id = config_id
+        self.url = url
+
+    def __str__(self):
+        """
+        Return a string representation of the error.
+
+        Returns
+        -------
+        str
+            String representation of the error.
+        """
+        return _(
+            "Unable to run action over environment: "
+            "<br><br> <tt>{exception_string}</tt>"
+        ).format(exception_string=self.error_str)
+
 @SpyderRemoteAPIManagerBase.register_api
 class RemoteEnvironmentManagerAPI(SpyderBaseJupyterAPI):
     """
@@ -142,6 +177,14 @@ class RemoteEnvironmentManagerAPI(SpyderBaseJupyterAPI):
         self.error = None
 
     async def _raise_for_status(self, response: ClientResponse):
+        if response.status == 501:
+            self.error = await response.text()
+            raise RemoteEnvManagerApiError(
+                self.manager.config_id,
+                str(response.url),
+                self.error
+            )
+
         response.raise_for_status()
 
     async def run_action(
@@ -178,14 +221,9 @@ class RemoteEnvironmentManagerAPI(SpyderBaseJupyterAPI):
 
             # This is necessary because we can't emit a TypedDict in a Qt signal
             manager_options = dict(manager_options)
-        except Exception as e:
-            error_msg = _(
-                "Unable to run action over environment: "
-                "<br><br> <tt>{exception_string}</tt>"
-            ).format(exception_string=str(e))
-            logger.exception(error_msg)
-            output = error_msg
-            self.error = error_msg
+        except RemoteEnvManagerApiError as e:
+            logger.exception(f"Error on remote server {e.config_id} on {e.url}", exc_info=True)
+            output = str(e)
 
         return status, output, manager_options
 
