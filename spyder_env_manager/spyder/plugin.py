@@ -19,7 +19,6 @@ from spyder.api.plugin_registration.decorators import (
 )
 from spyder.api.plugins import Plugins, SpyderPluginV2
 from spyder.api.translations import get_translation
-from spyder.plugins.remoteclient.api import RemoteClientActions
 from spyder.plugins.mainmenu.api import ApplicationMenus, ToolsMenuSections
 from spyder.utils.icon_manager import ima
 
@@ -109,8 +108,7 @@ class SpyderEnvManager(SpyderPluginV2):
         mainmenu.add_item_to_application_menu(
             action,
             menu_id=ApplicationMenus.Tools,
-            section=ToolsMenuSections.External,
-            before=RemoteClientActions.ManageConnections,
+            section=ToolsMenuSections.Managers,
         )
 
     @on_plugin_teardown(plugin=Plugins.MainMenu)
