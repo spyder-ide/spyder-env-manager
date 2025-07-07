@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import TypedDict
+from enum import Enum
 
 from envs_manager.backends.api import BackendActionResult, BackendInstance
 from envs_manager.backends.venv_interface import VEnvInterface
@@ -22,7 +23,7 @@ DEFAULT_BACKEND = os.environ.get("ENV_BACKEND", "venv")
 DEFAULT_ENVS_ROOT_PATH = DEFAULT_BACKENDS_ROOT_PATH / DEFAULT_BACKEND / "envs"
 
 
-class ManagerActions:
+class ManagerActions(Enum):
     """Enum with the possible actions that can be performed by the manager."""
 
     CreateEnvironment = "create_environment"
@@ -36,6 +37,7 @@ class ManagerActions:
     UpdatePackages = "update"
     ListPackages = "list"
     ListEnvironments = "list_environments"
+    CreateKernelSpec = "create_kernelspec"
 
 
 class ManagerOptions(TypedDict):
@@ -118,7 +120,7 @@ class Manager:
         )
 
     def run_action(self, action: ManagerActions, action_options: dict | None = None):
-        method = getattr(self, action)
+        method = getattr(self, action.value)
         if action_options is not None:
             return method(**action_options)
         else:
