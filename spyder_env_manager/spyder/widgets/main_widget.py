@@ -50,7 +50,8 @@ from spyder.utils.palette import SpyderPalette
 from spyder.widgets.browser import FrameWebView
 
 from spyder_env_manager.spyder.api import ManagerRequest
-from spyder_env_manager.spyder.workers import EnvironmentManagerWorker, RemoteEnvironmentManagerAPI
+from spyder_env_manager.spyder.workers import EnvironmentManagerWorker
+from spyder_env_manager.spyder.remoteclient import RemoteEnvironmentManagerAPI
 from spyder_env_manager.spyder.widgets.helper_widgets import (
     CustomParametersDialog,
     CustomParametersDialogWidgets,
