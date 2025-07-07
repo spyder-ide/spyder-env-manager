@@ -761,10 +761,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.stop_spinner()
 
     def _run_env_manager_action(
-        self, request: ManagerRequest, on_ready: Callable, remote_id: str | None = None
+        self, request: ManagerRequest, on_ready: Callable, server_id: str | None = None
     ):
-        if remote_id:
-            self._run_remote_env_manager_action(remote_id, request, on_ready)
+        if server_id:
+            self._run_remote_env_manager_action(server_id, request, on_ready)
         else:
             self._run_local_env_manager_action(request, on_ready)
 
@@ -799,7 +799,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.env_manager_action_thread.start()
 
     def _run_remote_env_manager_action(
-        self, remote_id: str, request: ManagerRequest, on_ready: Callable
+        self, server_id: str, request: ManagerRequest, on_ready: Callable
     ):
         """
         Run a remote environment manager action in a worker and connect the result to a
@@ -807,7 +807,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         Parameters
         ----------
-        remote_id : str
+        server_id : str
             The ID of the remote server where the environment manager is running.
         request: ManagerRequest
             Dictionary with the necessary parameters to request an action to the
@@ -829,28 +829,28 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             on_ready(*future.result())  # Unpack the result tuple
 
         self.start_spinner()
-        self.__run_remote_env_manager_action(remote_id, request).connect(
+        self.__run_remote_env_manager_action(server_id, request).connect(
             on_ready_callback
         )
 
     @AsyncDispatcher(loop="spyder_env_manager")
     async def __run_remote_env_manager_action(
         self,
-        remote_id: str,
+        server_id: str,
         request: ManagerRequest,
     ):
-        async with self._get_remote_env_manager_api(remote_id) as api:
+        async with self._get_remote_env_manager_api(server_id) as api:
             return await api.run_action(request)
 
     def _get_remote_env_manager_api(
-        self, remote_id: str
+        self, server_id: str
     ) -> RemoteEnvironmentManagerAPI:
         """
         Get the remote environment manager API for a given remote ID.
 
         Parameters
         ----------
-        remote_id : str
+        server_id : str
             The ID of the remote environment manager.
 
         Returns
@@ -859,7 +859,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             The remote environment manager API instance.
         """
         return self._plugin._remote_client.get_api(
-            remote_id, RemoteEnvironmentManagerAPI.__qualname__
+            server_id, RemoteEnvironmentManagerAPI.__qualname__
         )()  # remote_client.get_api return a partial with RemoteEnvironmentManagerAPI
 
     def _run_action_for_package(self, package_info, dialog=None, action=None):
