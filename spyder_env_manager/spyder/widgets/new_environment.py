@@ -118,10 +118,12 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
         fields_layout = QHBoxLayout()
         if not show_in_remote_connections_dialog:
             fields_layout.addStretch()
-        fields_layout.addWidget(self.env_name)
-        fields_layout.addWidget(
-            self.zip_file if self._import_env else self.python_version
-        )
+        if self._import_env:
+            fields_layout.addWidget(self.zip_file)
+            fields_layout.addWidget(self.env_name)
+        else:
+            fields_layout.addWidget(self.env_name)
+            fields_layout.addWidget(self.python_version)
         if not show_in_remote_connections_dialog:
             fields_layout.addStretch()
 
@@ -237,6 +239,14 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
             self.message_label.setVisible(True)
 
         return validate_name and validate_zip
+
+    def showEvent(self, event):
+        if self._import_env:
+            self.zip_file.textbox.setFocus()
+        else:
+            self.env_name.textbox.setFocus()
+
+        super().showEvent(event)
 
     def _validate_name(self, name: str):
         return True if re.match(self._name_regexp, name) else False
