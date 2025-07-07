@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2022-present Spyder Development Team and envs-manager contributors
+#
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 import json
 import typing as t
@@ -12,21 +16,24 @@ from envs_manager.manager import (
     DEFAULT_BACKENDS_ROOT_PATH,
     DEFAULT_BACKEND,
     Manager,
-    ManagerActions
+    ManagerActions,
 )
 
 
 class EnvManagerHandler(JupyterHandler):
     """Handler to list available environments."""
 
-    _handler_action_regex = rf"(?P<action>{'|'.join(action.value for action in ManagerActions)})"
+    _handler_action_regex = (
+        rf"(?P<action>{'|'.join(action.value for action in ManagerActions)})"
+    )
 
     auth_resource = "envs_manager"
 
     def get_manager(self) -> Manager:
         """Get the environment manager instance."""
         return Manager(
-            backend=self.get_argument("backend", None) or self.settings["envs_manager_config"]["default_backend"],
+            backend=self.get_argument("backend", None)
+            or self.settings["envs_manager_config"]["default_backend"],
             root_path=self.settings["envs_manager_config"]["root_path"],
             env_name=self.get_argument("env_name", None),
             env_directory=self.get_argument("env_directory", None),
@@ -55,6 +62,7 @@ class EnvManagerHandler(JupyterHandler):
             self.finish(str(e))
             self.log_exception(type(e), e, e.__traceback__)
 
+
 class EnvManagerApp(ExtensionApp):
     """Jupyter extension for managing environments."""
 
@@ -75,5 +83,8 @@ class EnvManagerApp(ExtensionApp):
     )
 
     handlers = [
-        (rf"{extension_url}/{EnvManagerHandler._handler_action_regex}", EnvManagerHandler),
+        (
+            rf"{extension_url}/{EnvManagerHandler._handler_action_regex}",
+            EnvManagerHandler,
+        ),
     ]  # type: ignore[list-item]

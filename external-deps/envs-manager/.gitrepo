@@ -6,7 +6,7 @@
 [subrepo]
 	remote = https://github.com/hlouzada/envs-manager.git
 	branch = feat-jupyter-plugin
-	commit = eb2b30e732ed0ea716eb1461e428849bd8cc3c18
-	parent = 04e88442c9511d2e1008987c2d4b16623550b87d
+	commit = 21ed25356e5c91387f240ee4ced9a9eeea92e73e
+	parent = 7243f4865b2f8cebe5b1bfbb0793aa1b6193d3d1
 	method = merge
 	cmdver = 0.4.9

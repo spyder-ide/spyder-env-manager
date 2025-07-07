@@ -28,7 +28,6 @@ dependencies = [
   "py-rattler",
   "pyyaml",
   "requests",
-  "jupyter-server"
 ]
 dynamic = ["version"]
 

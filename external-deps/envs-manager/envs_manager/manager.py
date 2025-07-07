@@ -37,6 +37,7 @@ class ManagerActions(Enum):
     UpdatePackages = "update"
     ListPackages = "list"
     ListEnvironments = "list_environments"
+    CreateKernelSpec = "create_kernelspec"
 
 
 class ManagerOptions(TypedDict):
