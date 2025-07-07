@@ -15,7 +15,10 @@ import aiohttp
 
 # Spyder and local imports
 from spyder.api.translations import get_translation
-from spyder.plugins.remoteclient.api.modules.base import SpyderBaseJupyterAPI, SpyderRemoteAPIError
+from spyder.plugins.remoteclient.api.modules.base import (
+    SpyderBaseJupyterAPI,
+    SpyderRemoteAPIError,
+)
 from spyder.plugins.remoteclient.api.manager.base import SpyderRemoteAPIManagerBase
 
 if t.TYPE_CHECKING:
@@ -68,6 +71,7 @@ class RemoteEnvManagerApiError(SpyderRemoteAPIError):
             "<br><br> <tt>{exception_string}</tt>"
         ).format(exception_string=self.error_str)
 
+
 @SpyderRemoteAPIManagerBase.register_api
 class RemoteEnvironmentManagerAPI(SpyderBaseJupyterAPI):
     """
@@ -89,23 +93,19 @@ class RemoteEnvironmentManagerAPI(SpyderBaseJupyterAPI):
             Keyword arguments.
         """
         super().__init__(*args, **kwargs)
-        
+
         self.error = None
 
     async def _raise_for_status(self, response: ClientResponse):
         if response.status == 501:
             self.error = await response.text()
             raise RemoteEnvManagerApiError(
-                self.manager.config_id,
-                str(response.url),
-                self.error
+                self.manager.config_id, str(response.url), self.error
             )
 
         response.raise_for_status()
 
-    async def run_action(
-        self, request: ManagerRequest
-    ) -> t.Tuple[bool, str, dict]:
+    async def run_action(self, request: ManagerRequest) -> t.Tuple[bool, str, dict]:
         """
         Run an environment manager action on the remote server.
 
@@ -138,7 +138,9 @@ class RemoteEnvironmentManagerAPI(SpyderBaseJupyterAPI):
             # This is necessary because we can't emit a TypedDict in a Qt signal
             manager_options = dict(manager_options)
         except RemoteEnvManagerApiError as e:
-            logger.exception(f"Error on remote server {e.config_id} on {e.url}", exc_info=True)
+            logger.exception(
+                f"Error on remote server {e.config_id} on {e.url}", exc_info=True
+            )
             output = str(e)
 
         return status, output, manager_options

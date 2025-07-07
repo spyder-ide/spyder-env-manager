@@ -740,7 +740,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         else:
             self._run_local_env_manager_action(request, on_ready)
 
-    def _run_local_env_manager_action(self, request: ManagerRequest, on_ready: Callable):
+    def _run_local_env_manager_action(
+        self, request: ManagerRequest, on_ready: Callable
+    ):
         """
         Run Python environment manager in a worker and connect the result to a given
         callback.
@@ -796,21 +798,25 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             future : Future
                 The future object containing the result of the action.
             """
-            on_ready(
-                *future.result()  # Unpack the result tuple
-            )
+            on_ready(*future.result())  # Unpack the result tuple
 
         self.start_spinner()
-        self.__run_remote_env_manager_action(remote_id, request).connect(on_ready_callback)
+        self.__run_remote_env_manager_action(remote_id, request).connect(
+            on_ready_callback
+        )
 
     @AsyncDispatcher(loop="spyder_env_manager")
     async def __run_remote_env_manager_action(
-        self, remote_id: str, request: ManagerRequest,
+        self,
+        remote_id: str,
+        request: ManagerRequest,
     ):
         async with self._get_remote_env_manager_api(remote_id) as api:
             return await api.run_action(request)
 
-    def _get_remote_env_manager_api(self, remote_id: str) -> RemoteEnvironmentManagerAPI:
+    def _get_remote_env_manager_api(
+        self, remote_id: str
+    ) -> RemoteEnvironmentManagerAPI:
         """
         Get the remote environment manager API for a given remote ID.
 
