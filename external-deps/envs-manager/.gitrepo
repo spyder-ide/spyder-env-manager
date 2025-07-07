@@ -4,9 +4,9 @@
 ; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
 ;
 [subrepo]
-	remote = https://github.com/hlouzada/envs-manager.git
-	branch = feat-jupyter-plugin
-	commit = 21ed25356e5c91387f240ee4ced9a9eeea92e73e
-	parent = 7243f4865b2f8cebe5b1bfbb0793aa1b6193d3d1
+	remote = https://github.com/spyder-ide/envs-manager.git
+	branch = main
+	commit = 37507ec87ebae530e8797fe9950098fa5f184d15
+	parent = 51c80113478547d0438fb483bc3166dadd7e6c22
 	method = merge
 	cmdver = 0.4.9
