@@ -9,6 +9,7 @@ Spyder Env Manager Plugin.
 """
 
 # Third-party imports
+from functools import cached_property
 import qtawesome as qta
 from qtpy.QtCore import Signal
 
@@ -39,6 +40,7 @@ class SpyderEnvManager(SpyderPluginV2):
     # --- Constants
     NAME = CONF_SECTION
     REQUIRES = [Plugins.MainInterpreter, Plugins.Preferences, Plugins.MainMenu]
+    OPTIONAL = [Plugins.RemoteClient]
     CONTAINER_CLASS = SpyderEnvManagerContainer
     CONF_SECTION = CONF_SECTION
     CONF_DEFAULTS = CONF_DEFAULTS
@@ -99,6 +101,17 @@ class SpyderEnvManager(SpyderPluginV2):
     @on_plugin_teardown(plugin=Plugins.MainInterpreter)
     def on_maininterpreter_teardown(self):
         self.sig_set_spyder_custom_interpreter.disconnect()
+
+    # @on_plugin_available(plugin=Plugins.RemoteClient)
+    # def on_remoteclient_available(self):
+    #     """
+    #     Connect to the Remote Client plugin to update the main widget when
+    #     the remote client is connected or disconnected.
+    #     """
+
+    @cached_property
+    def _remote_client(self):
+        return self.get_plugin(Plugins.RemoteClient)
 
     @on_plugin_available(plugin=Plugins.MainMenu)
     def on_mainmenu_available(self):

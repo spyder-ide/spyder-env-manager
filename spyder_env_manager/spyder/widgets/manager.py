@@ -35,6 +35,7 @@ from qtpy.QtWidgets import (
 
 # Spyder imports
 from spyder import __version__ as spyder_version
+from spyder.api.asyncdispatcher import AsyncDispatcher
 from spyder.api.translations import get_translation
 from spyder.api.widgets.main_widget import (
     PluginMainWidget,
@@ -49,6 +50,7 @@ from spyder.utils.stylesheet import PANES_TOOLBAR_STYLESHEET
 # Local imports
 from spyder_env_manager.spyder.api import ManagerRequest, SpyderEnvManagerWidgetActions
 from spyder_env_manager.spyder.workers import EnvironmentManagerWorker
+from spyder_env_manager.spyder.remoteclient import RemoteEnvironmentManagerAPI
 from spyder_env_manager.spyder.widgets.helper_widgets import (
     CustomParametersDialog,
     CustomParametersDialogWidgets,
@@ -732,7 +734,44 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             self._message_error_box(result_message)
         self.stop_spinner()
 
-    def _run_env_manager_action(self, request: ManagerRequest, on_ready: Callable):
+    def _after_kernel_spec_created(
+        self, action_result: bool, result_message: str, manager_options: ManagerOptions
+    ):
+        """
+        Handle the result of creating a kernel spec for the current environment.
+
+        Parameters
+        ----------
+        action_result : bool
+            True if the kernel spec creation was successful. False otherwise.
+        result_message : str
+            Resulting error or failure message in case `action_result` is False.
+        manager_options: ManagerOptions
+            Options used to create the manager.
+        """
+        if action_result:
+            QMessageBox.information(
+                self,
+                _("Kernel spec created"),
+                _(
+                    "Kernel spec for <tt>{env_name}</tt> was created successfully."
+                ).format(env_name=manager_options["env_name"]),
+            )
+        else:
+            self._message_error_box(result_message)
+        self.stop_spinner()
+
+    def _run_env_manager_action(
+        self, request: ManagerRequest, on_ready: Callable, server_id: str | None = None
+    ):
+        if server_id:
+            self._run_remote_env_manager_action(server_id, request, on_ready)
+        else:
+            self._run_local_env_manager_action(request, on_ready)
+
+    def _run_local_env_manager_action(
+        self, request: ManagerRequest, on_ready: Callable
+    ):
         """
         Run Python environment manager in a worker and connect the result to a given
         callback.
@@ -759,6 +798,70 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.env_manager_action_thread.started.connect(self.manager_worker.start)
         self.start_spinner()
         self.env_manager_action_thread.start()
+
+    def _run_remote_env_manager_action(
+        self, server_id: str, request: ManagerRequest, on_ready: Callable
+    ):
+        """
+        Run a remote environment manager action in a worker and connect the result to a
+        given callback.
+
+        Parameters
+        ----------
+        server_id : str
+            The ID of the remote server where the environment manager is running.
+        request: ManagerRequest
+            Dictionary with the necessary parameters to request an action to the
+            manager backend.
+        on_ready : SpyderEnvManagerWidget callable
+            Method to run when the action finishes.
+        """
+
+        @AsyncDispatcher.QtSlot
+        def on_ready_callback(future):
+            """
+            Callback to handle the result of the remote environment manager action.
+
+            Parameters
+            ----------
+            future : Future
+                The future object containing the result of the action.
+            """
+            on_ready(*future.result())  # Unpack the result tuple
+
+        self.start_spinner()
+        self.__run_remote_env_manager_action(server_id, request).connect(
+            on_ready_callback
+        )
+
+    @AsyncDispatcher(loop="spyder_env_manager")
+    async def __run_remote_env_manager_action(
+        self,
+        server_id: str,
+        request: ManagerRequest,
+    ):
+        async with self._get_remote_env_manager_api(server_id) as api:
+            return await api.run_action(request)
+
+    def _get_remote_env_manager_api(
+        self, server_id: str
+    ) -> RemoteEnvironmentManagerAPI:
+        """
+        Get the remote environment manager API for a given remote ID.
+
+        Parameters
+        ----------
+        server_id : str
+            The ID of the remote environment manager.
+
+        Returns
+        -------
+        RemoteEnvironmentManagerAPI
+            The remote environment manager API instance.
+        """
+        return self._plugin._remote_client.get_api(
+            server_id, RemoteEnvironmentManagerAPI.__qualname__
+        )()  # remote_client.get_api return a partial with RemoteEnvironmentManagerAPI
 
     def _run_action_for_package(self, package_info, dialog=None, action=None):
         """
@@ -849,6 +952,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         packages: list[str] | None = None,
         export_file_path: str | None = None,
         import_file_path: str | None = None,
+        server_id: str | None = None,
         dialog=None,
     ):
         """
@@ -874,6 +978,10 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             File to export the environment to.
         import_file_path: str, optional
             File to import the environment from.
+        server_id : str, optional
+            The ID of the remote server where the environment manager is running.
+            The default is None, which means that the local environment manager
+            will be used.
         """
         backend = PixiInterface.ID
         if action == SpyderEnvManagerWidgetActions.NewEnvironment:
@@ -899,7 +1007,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 ),
             )
 
-            self._run_env_manager_action(request, self._add_new_environment_entry)
+            self._run_env_manager_action(
+                request, self._add_new_environment_entry, server_id
+            )
         elif action == SpyderEnvManagerWidgetActions.ImportEnvironment:
             request = ManagerRequest(
                 manager_options=ManagerOptions(
@@ -913,7 +1023,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 ),
             )
 
-            self._run_env_manager_action(request, self._after_import_environment)
+            self._run_env_manager_action(
+                request, self._after_import_environment, server_id
+            )
         elif dialog and action == SpyderEnvManagerWidgetActions.InstallPackage:
             package_name = dialog.lineedit_string.text()
             package_constraint = dialog.combobox.currentText()
@@ -936,7 +1048,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 ),
             )
 
-            self._run_env_manager_action(request, self._after_package_changed)
+            self._run_env_manager_action(
+                request, self._after_package_changed, server_id
+            )
         elif action == SpyderEnvManagerWidgetActions.DeleteEnvironment:
             self.list_envs_widget.set_enabled(False)
 
@@ -951,7 +1065,9 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 ),
             )
 
-            self._run_env_manager_action(request, self._after_delete_environment)
+            self._run_env_manager_action(
+                request, self._after_delete_environment, server_id
+            )
         elif action == SpyderEnvManagerWidgetActions.ListPackages:
             if env_directory:
                 request = ManagerRequest(
@@ -964,7 +1080,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 )
 
                 self._run_env_manager_action(
-                    request, self._after_list_environment_packages
+                    request, self._after_list_environment_packages, server_id
                 )
         elif action == SpyderEnvManagerWidgetActions.ExportEnvironment:
             request = ManagerRequest(
@@ -978,7 +1094,28 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 ),
             )
 
-            self._run_env_manager_action(request, self._after_export_environment)
+            self._run_env_manager_action(
+                request, self._after_export_environment, server_id
+            )
+        elif action == SpyderEnvManagerWidgetActions.CreateKernelSpec:
+            backend = dialog.combobox.currentText()
+            env_name = self.select_environment.currentText()
+            spec_name = dialog.lineedit_string.text()
+
+            request = ManagerRequest(
+                manager_options=ManagerOptions(
+                    backend=backend,
+                    env_name=env_name,
+                ),
+                action=ManagerActions.CreateKernelSpec,
+                action_options=dict(
+                    name=spec_name,
+                ),
+            )
+
+            self._run_env_manager_action(
+                request, self._after_kernel_spec_created, server_id
+            )
         else:
             self._message_error_box("Action unavailable at this moment.")
 

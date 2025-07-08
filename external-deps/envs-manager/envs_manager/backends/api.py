@@ -4,11 +4,16 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 import subprocess
 from typing import TypedDict
 
 import requests
+
+
+logger = logging.getLogger("envs-manager")
+
 
 PYPI_API_PACKAGE_INFO_URL = "https://pypi.org/pypi/{package_name}/json"
 ANACONDA_API_PACKAGE_INFO = "https://api.anaconda.org/package/{channel}/{package_name}"
@@ -183,3 +188,69 @@ class BackendInstance:
 
     def list_environments(self) -> BackendActionResult:
         raise NotImplementedError
+
+    def create_kernelspec(
+        self,
+        name: str,
+        display_name: str | None = None,
+        profile: str | None = None,
+        prefix: str | None = None,
+        user: bool = True,
+        env: dict[str, str] | None = None,
+        frozen_modules: bool = False,
+    ) -> BackendActionResult:
+        """
+        Create a Jupyter kernelspec for the environment.
+
+        Parameters
+        ----------
+        name : str
+            Name of the kernelspec.
+        display_name : str, optional
+            Display name of the kernelspec. If None, defaults to the environment name.
+        profile : str, optional
+            IPython profile to load. If None, defaults to the default profile.
+        prefix : str, optional
+            Install prefix for the kernelspec. If None, defaults to sys.prefix.
+        user : bool, optional
+            Install for the current user instead of system-wide. The default is True.
+        env : dict[str, str], optional
+            Environment variables to set for the kernel. The default is None.
+        frozen_modules : bool, optional
+            Enable frozen modules for potentially faster startup. The default is False.
+
+        Returns
+        -------
+        BackendActionResult
+            Result of the action.
+        """
+        command = [self.python_executable_path, "-m", "ipykernel", "install"]
+        if user:
+            command.append("--user")
+        if name:
+            command.extend(["--name", name])
+        if display_name:
+            command.extend(["--display-name", display_name])
+        if profile:
+            command.extend(["--profile", profile])
+        if prefix:
+            command.extend(["--prefix", prefix])
+        if env:
+            for key, value in env.items():
+                command.extend(["--env", f"{key}={value}"])
+        if frozen_modules:
+            command.append("--frozen_modules")
+
+        try:
+            result = run_command(command, capture_output=True)
+            output = result.stdout or result.stderr
+            logger.info(output.strip())
+        except subprocess.CalledProcessError as error:
+            error_text = error.stderr.strip()
+            logger.error(error_text)
+            return BackendActionResult(status=False, output=error_text)
+        except Exception as error:
+            logger.error(error, exc_info=True)
+            return BackendActionResult(status=False, output=str(error))
+
+        return BackendActionResult(status=True, output=output.strip())

@@ -7,17 +7,25 @@
 # ----------------------------------------------------------------------------
 
 # Standard library imports
+from __future__ import annotations
+import typing as t
 import logging
 
 # Third-party imports
-from envs_manager.api import Manager, ManagerActionResult, ManagerActions
+from envs_manager.api import Manager, ManagerActions
 from qtpy.QtCore import QObject, Signal
 
 # Spyder and local imports
 from spyder.api.config.mixins import SpyderConfigurationObserver
 from spyder.api.translations import get_translation
-from spyder_env_manager.spyder.api import ManagerRequest
 from spyder_env_manager.spyder.config import CONF_SECTION
+
+if t.TYPE_CHECKING:
+    from envs_manager.api import ManagerActionResult
+
+    from spyder_env_manager.spyder.api import ManagerRequest
+    from spyder_env_manager.spyder.widgets.main_widget import SpyderEnvManagerWidget
+
 
 # Localization
 _ = get_translation("spyder")
@@ -48,7 +56,7 @@ class EnvironmentManagerWorker(QObject, SpyderConfigurationObserver):
         Options of the manager object that is handling the environment.
     """
 
-    def __init__(self, parent, request: ManagerRequest):
+    def __init__(self, parent: SpyderEnvManagerWidget, request: ManagerRequest):
         QObject.__init__(self)
         self._parent = parent
 

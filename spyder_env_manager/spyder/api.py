@@ -26,6 +26,7 @@ class SpyderEnvManagerWidgetActions:
     DeleteEnvironment = "delete_environment"
     InstallPackage = "install_package"
     ListPackages = "list_packages"
+    CreateKernelSpec = "create_kernelspec"
 
     # Options menu actions
     ImportEnvironment = "import_environment_action"

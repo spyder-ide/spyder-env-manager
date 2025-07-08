@@ -1,0 +1,12 @@
+services:
+  test-spyder-remote-server:
+    build:
+      context: ./
+      additional_contexts:
+        external-deps: ../../external-deps
+      dockerfile: Dockerfile.ssh
+    ports:
+      - "2222:22"
+    privileged: true  # Required for /usr/sbin/init
+    volumes:
+      - "../../external-deps/envs-manager:/home/ubuntu/envs-manager"
