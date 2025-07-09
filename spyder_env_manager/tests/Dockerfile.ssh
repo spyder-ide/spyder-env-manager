@@ -4,8 +4,8 @@ RUN apk add --no-cache git openssh-client
 RUN ssh-keyscan github.com >> /etc/ssh/ssh_known_hosts
 
 # Configure and Install the spyder-remote-services and spyder-kernels
-RUN --mount=type=ssh git clone git@github.com:spyder-ide/spyder-remote-services.git /spyder-remote-services
-RUN --mount=type=ssh git clone git@github.com:spyder-ide/spyder-kernels.git /spyder-kernels
+RUN --mount=type=ssh git clone https://github.com/spyder-ide/spyder-remote-services.git /spyder-remote-services
+RUN --mount=type=ssh git clone https://github.com/spyder-ide/spyder-kernels.git /spyder-kernels
 
 FROM ubuntu:focal AS ubuntu-base
 ENV DEBIAN_FRONTEND noninteractive
