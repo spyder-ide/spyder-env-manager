@@ -190,7 +190,7 @@ class EnvManagerDialog(QDialog):
 
     def _on_next_button_clicked(self):
         env_names = list(self._environments.keys())
-        if not self._envs_manager.new_env_widget.validate_page(env_names):
+        if not self._envs_manager.new_env_widget.validate_contents(env_names):
             return
 
         self._envs_manager.edit_env_widget.setup(self._env_name, self._python_version)
@@ -215,7 +215,7 @@ class EnvManagerDialog(QDialog):
 
     def _on_import_button_clicked(self):
         env_names = list(self._environments.keys())
-        if not self._envs_manager.import_env_widget.validate_page(env_names):
+        if not self._envs_manager.import_env_widget.validate_contents(env_names):
             return
 
         self._envs_manager.import_env_widget.set_message(

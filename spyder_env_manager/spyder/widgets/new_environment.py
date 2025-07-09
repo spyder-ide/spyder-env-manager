@@ -201,7 +201,7 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
         self._default_as_env_name = allow
         self.env_name.textbox.setPlaceholderText("default" if allow else "")
 
-    def validate_page(self, env_names: list[str]):
+    def validate_contents(self, env_names: list[str]):
         """Validate if the env name introduced by users is valid."""
         self._reset_validaton_state()
         name = self.get_env_name()
