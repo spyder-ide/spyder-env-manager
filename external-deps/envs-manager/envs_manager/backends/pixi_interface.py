@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import base64
 import json
 import logging
 import os
@@ -231,18 +232,30 @@ class PixiInterface(BackendInstance):
 
         # Validations for the zip file
         remove_import_file = False
-        if isinstance(import_file_path, bytes):
-            # Create temp zip file if we receive bytes, which can be sent from the
-            # frontend as the contents of the file itself
-            remove_import_file = True
-            import_file_contents = import_file_path
-            import_file_path = str(Path(self.envs_directory) / (env_path.name + ".zip"))
-            with open(import_file_path, "wb") as file:
-                file.write(import_file_contents)
-        else:
-            # Check the import file exists
+        if import_file_path.endswith(".zip"):
+            # Check if the import file exists
             if not Path(import_file_path).is_file():
                 msg = "The import file you passed doesn't exist"
+                logger.info(msg)
+                return BackendActionResult(status=False, output=msg)
+        else:
+            try:
+                # Check if we received base64 enconded bytes, which can be sent from
+                # the frontend as the contents of the file itself. If that's the case,
+                # create a temp zip file from them.
+                decoded_bytes = base64.b64decode(import_file_path.encode("utf-8"))
+                import_file_path = str(
+                    Path(self.envs_directory) / (env_path.name + ".zip")
+                )
+                with open(import_file_path, "wb") as file:
+                    file.write(decoded_bytes)
+
+                remove_import_file = True
+            except Exception:
+                msg = (
+                    "It was not possible to use the bytes you passed to create the "
+                    "import file"
+                )
                 logger.info(msg)
                 return BackendActionResult(status=False, output=msg)
 

@@ -214,6 +214,10 @@ class Manager:
         backend_result = self.backend_instance.list_environments()
         return self._backend_to_manager_result(backend_result)
 
+    def create_kernelspec(self, name: str) -> ManagerActionResult:
+        backend_result = self.backend_instance.create_kernelspec(name)
+        return self._backend_to_manager_result(backend_result)
+
     def _backend_to_manager_result(
         self,
         backend_result: BackendActionResult,
