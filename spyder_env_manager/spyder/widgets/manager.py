@@ -129,6 +129,18 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         Action that edit_env_widget will perform.
     """
 
+    sig_set_default_kernel_spec_requested = Signal(str, str)
+    """
+    Signal to request updating the default kernel spec.
+
+    Parameters
+    ----------
+    name: str
+        Kernelspec name.
+    server_id:
+        Server identifier.
+    """
+
     def __init__(self, name, plugin, parent=None):
         super().__init__(name, plugin, parent=parent)
 
@@ -414,6 +426,30 @@ class SpyderEnvManagerWidget(PluginMainWidget):
 
         self._run_env_manager_action(request, self._after_list_environments)
 
+    def _install_spyder_kernels(self, manager_options: ManagerOptions):
+        packages = [f"spyder-kernels{SPYDER_KERNELS_VERSION}"]
+
+        request = ManagerRequest(
+            manager_options=ManagerOptions(
+                backend=manager_options["backend"],
+                root_path=manager_options["root_path"],
+                env_name=manager_options["env_name"],
+            ),
+            action=ManagerActions.InstallPackages,
+            action_options=dict(
+                packages=packages,
+                channels=(
+                    self._prerelease_channels()
+                    if parse(spyder_version).is_prerelease
+                    else None
+                ),
+                force=True,
+                capture_output=True,
+            ),
+        )
+
+        self._run_env_manager_action(request, self._after_package_changed)
+
     def _handle_package_table_context_menu_actions(self, action, package_info):
         """
         Handle context menu actions defined in the packages table widget.
@@ -569,7 +605,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self._envs_listed = True
 
     def _after_import_environment(
-        self, action_result: bool, result_message: str, manager_options: ManagerOptions
+        self,
+        action_result: bool,
+        result_message: str,
+        manager_options: ManagerOptions,
+        server_id: str | None = None,
     ):
         """
         Handle the result of trying to create a new Python environment via the import
@@ -585,37 +625,34 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             Options used to create the manager.
         """
         if action_result:
-            # Add new imported environment entry
-            self._add_new_environment_entry(
-                action_result, result_message, manager_options
-            )
-            self.show_list_envs_widget()
+            # TODO: Make most of the calls below work for remote envs too.
+            if server_id is None:
+                # Add new imported environment entry
+                self._add_new_environment_entry(
+                    action_result, result_message, manager_options
+                )
+                self.show_list_envs_widget()
 
-            self._allow_default_as_env_name()
+                self._allow_default_as_env_name()
 
-            # Install needed spyder-kernels version
-            packages = [f"spyder-kernels{SPYDER_KERNELS_VERSION}"]
-
-            request = ManagerRequest(
-                manager_options=ManagerOptions(
-                    backend=manager_options["backend"],
-                    root_path=manager_options["root_path"],
-                    env_name=manager_options["env_name"],
-                ),
-                action=ManagerActions.InstallPackages,
-                action_options=dict(
-                    packages=packages,
-                    channels=(
-                        self._prerelease_channels()
-                        if parse(spyder_version).is_prerelease
-                        else None
+                # Install needed spyder-kernels version
+                self._install_spyder_kernels(manager_options)
+            else:
+                # Install kernel spec
+                request = ManagerRequest(
+                    manager_options=ManagerOptions(
+                        backend=manager_options["backend"],
+                        env_name=manager_options["env_name"],
                     ),
-                    force=True,
-                    capture_output=True,
-                ),
-            )
+                    action=ManagerActions.CreateKernelSpec,
+                    action_options=dict(
+                        name=manager_options["env_name"],
+                    ),
+                )
 
-            self._run_env_manager_action(request, self._after_package_changed)
+                self._run_env_manager_action(
+                    request, self._after_kernel_spec_created, server_id
+                )
         else:
             self._message_error_box(result_message)
 
@@ -735,7 +772,11 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         self.stop_spinner()
 
     def _after_kernel_spec_created(
-        self, action_result: bool, result_message: str, manager_options: ManagerOptions
+        self,
+        action_result: bool,
+        result_message: str,
+        manager_options: ManagerOptions,
+        server_id: str,
     ):
         """
         Handle the result of creating a kernel spec for the current environment.
@@ -752,11 +793,21 @@ class SpyderEnvManagerWidget(PluginMainWidget):
         if action_result:
             QMessageBox.information(
                 self,
-                _("Kernel spec created"),
-                _(
-                    "Kernel spec for <tt>{env_name}</tt> was created successfully."
-                ).format(env_name=manager_options["env_name"]),
+                _("Environment created"),
+                _("Environment <tt>{env_name}</tt> was successfully created.").format(
+                    env_name=manager_options["env_name"]
+                ),
             )
+
+            # TODO: This **only** needs to be done when creating a remote connection or
+            # changing the default kernelspec in the UI.
+            self.sig_set_default_kernel_spec_requested.emit(
+                manager_options["env_name"], server_id
+            )
+
+            # TODO: Install Spyder-kernels at this point, in case the env doesn't have
+            # it.
+            # self._install_spyder_kernels(manager_options)
         else:
             self._message_error_box(result_message)
         self.stop_spinner()
@@ -827,7 +878,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
             future : Future
                 The future object containing the result of the action.
             """
-            on_ready(*future.result())  # Unpack the result tuple
+            on_ready(*future.result(), server_id)  # Unpack the result tuple
 
         self.start_spinner()
         self.__run_remote_env_manager_action(server_id, request).connect(
@@ -1098,9 +1149,7 @@ class SpyderEnvManagerWidget(PluginMainWidget):
                 request, self._after_export_environment, server_id
             )
         elif action == SpyderEnvManagerWidgetActions.CreateKernelSpec:
-            backend = dialog.combobox.currentText()
-            env_name = self.select_environment.currentText()
-            spec_name = dialog.lineedit_string.text()
+            spec_name = env_name
 
             request = ManagerRequest(
                 manager_options=ManagerOptions(

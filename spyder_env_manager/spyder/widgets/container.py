@@ -23,7 +23,7 @@ class SpyderEnvManagerContainer(PluginMainContainer):
     # -------------------------------------------------------------------------
     def setup(self):
         self.envs_manager = SpyderEnvManagerWidget(
-            self._plugin.get_name(), None, parent=self
+            self._plugin.get_name(), self._plugin, parent=self
         )
 
         # Widgets

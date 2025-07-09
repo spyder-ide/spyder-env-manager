@@ -9,6 +9,7 @@ Spyder Env Manager Plugin.
 """
 
 # Third-party imports
+import base64
 from functools import cached_property
 import qtawesome as qta
 from qtpy.QtCore import Signal
@@ -24,7 +25,10 @@ from spyder.plugins.mainmenu.api import ApplicationMenus, ToolsMenuSections
 from spyder.utils.icon_manager import ima
 
 # Local imports
-from spyder_env_manager.spyder.api import SpyderEnvManagerActions
+from spyder_env_manager.spyder.api import (
+    SpyderEnvManagerActions,
+    SpyderEnvManagerWidgetActions,
+)
 from spyder_env_manager.spyder.config import CONF_DEFAULTS, CONF_SECTION, CONF_VERSION
 from spyder_env_manager.spyder.confpage import SpyderEnvManagerConfigPage
 from spyder_env_manager.spyder.widgets.container import SpyderEnvManagerContainer
@@ -60,6 +64,18 @@ class SpyderEnvManager(SpyderPluginV2):
         Path to the environment Python interpreter.
     """
 
+    sig_set_default_kernel_spec_requested = Signal(str, str)
+    """
+    Signal to request updating the default kernel spec in a remote machine.
+
+    Parameters
+    ----------
+    name: str
+        Kernelspec name.
+    server_id:
+        Server identifier.
+    """
+
     # --- SpyderDockablePlugin API
     # ------------------------------------------------------------------------
     @staticmethod
@@ -78,6 +94,9 @@ class SpyderEnvManager(SpyderPluginV2):
         container = self.get_container()
         container.envs_manager.sig_set_spyder_custom_interpreter.connect(
             self.sig_set_spyder_custom_interpreter
+        )
+        container.envs_manager.sig_set_default_kernel_spec_requested.connect(
+            self.sig_set_default_kernel_spec_requested
         )
 
     @on_plugin_available(plugin=Plugins.Preferences)
@@ -102,12 +121,9 @@ class SpyderEnvManager(SpyderPluginV2):
     def on_maininterpreter_teardown(self):
         self.sig_set_spyder_custom_interpreter.disconnect()
 
-    # @on_plugin_available(plugin=Plugins.RemoteClient)
-    # def on_remoteclient_available(self):
-    #     """
-    #     Connect to the Remote Client plugin to update the main widget when
-    #     the remote client is connected or disconnected.
-    #     """
+    @on_plugin_available(plugin=Plugins.RemoteClient)
+    def on_remoteclient_available(self):
+        self._remote_client.sig_import_env_requested.connect(self.import_remote_env)
 
     @cached_property
     def _remote_client(self):
@@ -133,8 +149,28 @@ class SpyderEnvManager(SpyderPluginV2):
             menu_id=ApplicationMenus.Tools,
         )
 
+    @on_plugin_teardown(plugin=Plugins.RemoteClient)
+    def on_remoteclient_teardown(self):
+        self._remote_client.sig_import_env_requested.disconnect(self.import_remote_env)
+
     def on_close(self, cancellable=True):
         return True
 
     # --- Public API
     # ------------------------------------------------------------------------
+    def import_remote_env(self, server_id: str, import_file_path: str, env_name: str):
+        # Get binary file contents
+        with open(import_file_path, "rb") as file:
+            import_file_contents = file.read()
+
+        # Json can't serialize bytes, so we need to send a base64 encoded string
+        encoded_string = base64.b64encode(import_file_contents).decode("utf-8")
+
+        # Send request
+        container = self.get_container()
+        container.envs_manager._run_action_for_env(
+            action=SpyderEnvManagerWidgetActions.ImportEnvironment,
+            import_file_path=encoded_string,
+            env_name=env_name,
+            server_id=server_id,
+        )
