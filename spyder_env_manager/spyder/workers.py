@@ -12,7 +12,7 @@ import typing as t
 import logging
 
 # Third-party imports
-from envs_manager.api import Manager
+from envs_manager.api import Manager, ManagerActions
 from qtpy.QtCore import QObject, Signal
 
 # Spyder and local imports
@@ -93,7 +93,10 @@ class EnvironmentManagerWorker(QObject, SpyderConfigurationObserver):
             manager_options = result["manager_options"]
 
             # It's simpler to handle strings than bytes
-            if isinstance(output, bytes):
+            if (
+                isinstance(output, bytes)
+                and self.manager_action != ManagerActions.ExportEnvironment
+            ):
                 output = output.decode("utf-8")
 
             # This is necessary because we can't emit a TypedDict in a Qt signal
