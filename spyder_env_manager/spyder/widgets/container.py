@@ -29,7 +29,7 @@ class SpyderEnvManagerContainer(PluginMainContainer):
         # Widgets
         self.create_action(
             SpyderEnvManagerActions.ToolsMenuAction,
-            self._plugin.get_name() + "...",
+            self._plugin.get_name(),
             icon=self._plugin.get_icon(),
             triggered=self._show_envs_dialog,
         )

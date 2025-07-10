@@ -157,11 +157,13 @@ class EnvManagerDialog(QDialog):
             self._button_next.setVisible(True)
             self._button_create.setVisible(False)
             self._button_import.setVisible(False)
+            self._button_cancel.setText("Cancel")
             if self._environments:
                 self._button_back.setVisible(True)
             else:
                 self._button_back.setVisible(False)
         elif visible_widget == AvailableManagerWidgets.ListEnvsWidget:
+            self._button_cancel.setText("Close")
             for button in [
                 self._button_next,
                 self._button_create,
@@ -174,6 +176,7 @@ class EnvManagerDialog(QDialog):
             self._button_next.setVisible(False)
             self._button_create.setVisible(False)
             self._button_import.setVisible(True)
+            self._button_cancel.setText("Cancel")
             if self._environments:
                 self._button_back.setVisible(True)
             else:
@@ -185,8 +188,10 @@ class EnvManagerDialog(QDialog):
             if edit_action == EditEnvActions.CreateEnv:
                 self._button_create.setVisible(True)
                 self._button_create.setEnabled(False)
+                self._button_cancel.setText("Cancel")
             else:
                 self._button_create.setVisible(False)
+                self._button_cancel.setText("Close")
 
     def _on_next_button_clicked(self):
         env_names = list(self._environments.keys())
@@ -233,3 +238,4 @@ class EnvManagerDialog(QDialog):
     def _on_packages_loaded(self):
         self._button_create.setVisible(False)
         self._envs_manager.edit_env_widget.set_enabled(True)
+        self._button_cancel.setText("Close")

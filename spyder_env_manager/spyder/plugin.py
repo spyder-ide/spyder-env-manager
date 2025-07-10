@@ -80,7 +80,7 @@ class SpyderEnvManager(SpyderPluginV2):
     # ------------------------------------------------------------------------
     @staticmethod
     def get_name():
-        return _("Environments manager")
+        return _("Environment manager")
 
     @staticmethod
     def get_description():
