@@ -13,6 +13,7 @@ import zipfile
 import qstylizer.style
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QLabel, QVBoxLayout, QHBoxLayout
+from superqt.utils import qdebounced
 
 from spyder.api.fonts import SpyderFontType, SpyderFontsMixin
 from spyder.api.translations import _
@@ -96,6 +97,7 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
             )
 
             self.zip_file.textbox.setFixedWidth(max_width_for_content - 260)
+            self.zip_file.textbox.textChanged.connect(self._on_zip_file_changed)
 
             if not show_in_remote_connections_dialog:
                 self.env_name.textbox.setFixedWidth(200)
@@ -288,6 +290,16 @@ class NewEnvironment(SpyderConfigPage, SpyderFontsMixin):
             self.zip_file.status_action.setVisible(False)
         self.message_label.set_text("")
         self.message_label.setVisible(False)
+
+    @qdebounced(timeout=150)
+    def _on_zip_file_changed(self, text):
+        fname = Path(text).name
+        if fname.endswith(".zip"):
+            fname = fname.removesuffix(".zip")
+        else:
+            fname = ""
+
+        self.env_name.textbox.setText(fname)
 
     @property
     def _stylesheet(self):
